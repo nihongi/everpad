@@ -1,0 +1,45 @@
+{
+  "name": "everpad",
+  "productName": "EverPad",
+  "version": "0.1.0",
+  "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
+  "main": "main.js",
+  "private": true,
+  "author": "",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "dist": "electron-builder --win"
+  },
+  "build": {
+    "appId": "local.everpad.app",
+    "productName": "EverPad",
+    "files": [
+      "main.js",
+      "preload.js",
+      "store.js",
+      "contextmenu.js",
+      "build/icon.ico",
+      "build/icon.png",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "language": "1041"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}
