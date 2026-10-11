@@ -5,8 +5,8 @@
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
-  "author": "",
-  "license": "UNLICENSED",
+  "author": "Nobuyoshi NIHONGI",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
     "test": "node --test",

@@ -9,12 +9,12 @@
 
 ## 起動する
 
-1. zipを展開します(例: `C:\Users\あなた\everpad`)。
-2. そのフォルダでPowerShellまたはコマンドプロンプトを開きます。
-3. 初回だけ、次を実行します(Electron本体をダウンロードするので数分かかります)。
+1. このソース一式を、好きな場所に置きます。
+2. `package.json` のあるフォルダでPowerShellまたはコマンドプロンプトを開きます。
+3. 初回だけ、次を実行します(ElectronとElectron Builderを導入します。Electron本体をダウンロードするので数分かかります)。
 
    ```
-   npm install --save-dev electron electron-builder
+   npm install
    ```
 
    このあと `node_modules\electron\dist\electron.exe` ができていないときは、`npx install-electron` を実行してElectron本体を取得します。
@@ -121,3 +121,9 @@ test/            自動テスト
 - 画面は、保存の窓口を模した部品をつないでChromiumで動かし、入力、巻き戻し、検索、復元、削除、再読み込み後の復元などを確認しています。
 - Electron本体を使った起動(`npm start`)は、Windows 11・Electron 44.7.0 で確認しています(2026年10月11日)。エラーなくウィンドウが開き、保存先の既存のメモを読み込みました。Electron上での画面の操作(編集、巻き戻し、検索など)も確認しています。
 - `npm run dist` でのインストーラー作成は、electron-builder 26.15.3 でエラーなく完了し、インストーラーとportable版ができることを確認しています。できたインストーラーでのインストールと、インストール後の動作も確認しています。
+
+## ライセンス
+
+MIT License です。全文は [LICENSE](LICENSE) にあります。
+
+Copyright (c) 2026 Nobuyoshi NIHONGI
