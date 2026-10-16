@@ -234,9 +234,29 @@ function buildMenu() {
         { role: 'togglefullscreen', label: '全画面表示' },
         ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools', label: '開発者ツール' }])
       ]
+    },
+    {
+      label: 'ヘルプ',
+      submenu: [
+        { label: APP_NAME + ' について', click: showAbout }
+      ]
     }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+/* ---------- バージョン情報 ---------- */
+function showAbout() {
+  dialog.showMessageBox(win, {
+    type: 'info',
+    title: APP_NAME + ' について',
+    message: APP_NAME + '  バージョン ' + app.getVersion(),
+    detail: 'Electron ' + process.versions.electron + ' / Chromium ' + process.versions.chrome + ' / Node.js ' + process.versions.node + '\n'
+      + '保存先: ' + store.dir + '\n\n'
+      + 'Copyright (c) 2026 Nobuyoshi NIHONGI\nMIT License',
+    buttons: ['OK'],
+    noLink: true
+  });
 }
 
 /* ---------- ウィンドウ ---------- */
