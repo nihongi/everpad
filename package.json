@@ -1,7 +1,7 @@
 {
   "name": "everpad",
   "productName": "EverPad",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
@@ -20,6 +20,7 @@
       "preload.js",
       "store.js",
       "contextmenu.js",
+      "windowstate.js",
       "build/icon.ico",
       "build/icon.png",
       "renderer/**/*",

@@ -1,10 +1,11 @@
 'use strict';
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell, nativeTheme, session, protocol, net } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, nativeTheme, session, protocol, net, screen } = require('electron');
 const { pathToFileURL } = require('url');
 const path = require('path');
 const fs = require('fs');
 const { Store, MAX_ATTACH } = require('./store');
 const { buildTemplate } = require('./contextmenu');
+const { restoreBounds, captureBounds } = require('./windowstate');
 
 const APP_NAME = 'EverPad';
 const APP_ID = 'local.everpad.app';
@@ -240,9 +241,13 @@ function buildMenu() {
 
 /* ---------- ウィンドウ ---------- */
 function createWindow() {
+  // 前回閉じたときの位置と大きさに戻す(画面の外になる位置は使わない)
+  const bounds = restoreBounds(readConfig().window, screen.getAllDisplays().map(d => d.workArea), { width: 1120, height: 780, minWidth: 560, minHeight: 420 });
   win = new BrowserWindow({
-    width: 1120,
-    height: 780,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     minWidth: 560,
     minHeight: 420,
     show: false,
@@ -256,7 +261,7 @@ function createWindow() {
       spellcheck: false
     }
   });
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => { if (bounds.maximized) win.maximize(); win.show(); });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
   // 外部リンクは既定のブラウザで開き、アプリ内では他のページに移動させない
@@ -277,6 +282,8 @@ function createWindow() {
     if (closing) return;
     e.preventDefault();
     closing = true;
+    // 次の起動のために、ウィンドウの位置と大きさを覚えておく
+    try { writeConfig(Object.assign(readConfig(), { window: captureBounds(win.getNormalBounds(), win.isMaximized()) })); } catch (err) { /* 覚えられなくても閉じる */ }
     flushRenderer().then(() => { if (win && !win.isDestroyed()) win.close(); });
   });
   win.on('closed', () => { win = null; });
