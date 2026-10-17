@@ -3,17 +3,35 @@
   const api = window.memoApi;
   const $ = id => document.getElementById(id);
   const pad = n => String(n).padStart(2, '0');
+
+  /* ---------- 言語 ----------
+     main.js が index.html?lang=ja|en で渡す。固定の文言は、data-i18n* の付いた要素を置き換える */
+  const qLang = new URLSearchParams(location.search).get('lang');
+  const LANG = I18N.LANGS.includes(qLang) ? qLang : 'ja';
+  const T = (key, params) => I18N.t(LANG, key, params);
+  document.documentElement.lang = LANG;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = T(el.dataset.i18nTitle); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', T(el.dataset.i18nAria)); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+  const shownTitle = title => title || T('untitled');   // 題名が無い(空の)メモの表示
   // 例: 20261006-175012-k3x9(日時順に並び、そのままファイル名になる)
   const uid = () => { const d = new Date(); return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '-' + Math.random().toString(36).slice(2, 6).padEnd(4, '0'); };
   const count = s => { let c = 0; for (const _ of s) c++; return c; };
-  const fmtFull = t => { const d = new Date(t); return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+  // 日付: 日本語は 2026年10月6日 / 2026/10/6、英語は Oct 6, 2026
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtDate = d => (LANG === 'en' ? MON[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() : d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate());
+  const fmtFull = t => {
+    const d = new Date(t), hms = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    return LANG === 'en' ? fmtDate(d) + ' ' + hms : d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hms;
+  };
   const fmtShort = t => {
     const d = new Date(t), n = new Date();
     if (d.toDateString() === n.toDateString()) return pad(d.getHours()) + ':' + pad(d.getMinutes());
-    return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+    return fmtDate(d);
   };
 
-  const fmtMin = t => { const d = new Date(t); return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const fmtMin = t => { const d = new Date(t); return fmtDate(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 
   const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', scope: 'latest', lines: false, frOpen: false };
   const cur = () => S.notes.find(n => n.id === S.active);
@@ -150,19 +168,19 @@
       b.type = 'button';
       b.className = 'note';
       if (n.id === S.active) b.setAttribute('aria-current', 'true');
-      b.innerHTML = '<span class="nt">' + esc(n.title) + '</span><span class="nm">' + fmtShort(n.t) + ' ・ ' + n.n + '版</span>';
+      b.innerHTML = '<span class="nt">' + esc(shownTitle(n.title)) + '</span><span class="nm">' + fmtShort(n.t) + T('sep') + T('versions', { n: n.n }) + '</span>';
       b.addEventListener('click', () => { select(n.id); closeSide(); });
       li.appendChild(b);
       ul.appendChild(li);
     }
   }
-  function updateTitle() { const t = titleOf(cur().text); $('docTitle').textContent = t; document.title = t + ' - EverPad'; }
+  function updateTitle() { const t = shownTitle(titleOf(cur().text)); $('docTitle').textContent = t; document.title = t + ' - EverPad'; }
   function updateStatus() {
     const n = cur();
     if (!n) return;
     const lines = n.text ? n.text.split('\n').length : 0;
-    $('stLeft').textContent = count(n.text) + '文字 ・ ' + lines + '行 ・ ' + n.ops.length + '版';
-    $('stRight').textContent = saveError ? 'ファイルに保存できません(再試行中)' : isPending() ? '保存中…' : '保存済み';
+    $('stLeft').textContent = T('status', { chars: count(n.text), lines: lines, versions: n.ops.length });
+    $('stRight').textContent = saveError ? T('saveError') : isPending() ? T('saving') : T('saved');
   }
   let toastTimer = null;
   function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200); }
@@ -258,7 +276,7 @@
     if (typeof frShow === 'function') frShow();
     if (typeof updateStrip === 'function') updateStrip();
     $('attBtn').hidden = m !== 'edit';
-    if (m === 'preview') { $('preview').innerHTML = md(cur().text) || '<p class="empty">まだ何も書かれていません。</p>'; hydrate($('preview'), cur().id); highlight($('preview'), S.q); }
+    if (m === 'preview') { $('preview').innerHTML = md(cur().text) || '<p class="empty">' + esc(T('emptyNote')) + '</p>'; hydrate($('preview'), cur().id); highlight($('preview'), S.q); }
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
@@ -276,7 +294,7 @@
     const tok = ++selTok;
     const n = await ensureLoaded(id);
     if (tok !== selTok) return false;          // 読み込み中に別のメモが選ばれた
-    if (!n) { toast('メモを読み込めませんでした。'); return false; }
+    if (!n) { toast(T('loadFailed')); return false; }
     show(id);
     return true;
   }
@@ -318,15 +336,15 @@
     const text = textAt(n, k);
     $('histView').dataset.past = past ? '1' : '0';
     $('tl').dataset.past = past ? '1' : '0';
-    $('chip').textContent = past ? '過去の版' : '最新の版';
-    $('revNo').textContent = '第' + k + '版 / ' + N;
+    $('chip').textContent = past ? T('pastVersion') : T('latestVersion');
+    $('revNo').textContent = T('revNo', { k: k, n: N });
     const op = k > 0 ? n.ops[k - 1] : null;
-    $('when').textContent = op ? fmtFull(op.t) : (N ? '最初の状態(空)' : '');
-    $('delta').textContent = op ? [op.i ? '追加 ' + count(op.i) + '文字' : '', op.d ? '削除 ' + count(op.d) + '文字' : ''].filter(Boolean).join(' ・ ') : '';
+    $('when').textContent = op ? fmtFull(op.t) : (N ? T('initialEmpty') : '');
+    $('delta').textContent = op ? [op.i ? T('charsAdded', { n: count(op.i) }) : '', op.d ? T('charsRemoved', { n: count(op.d) }) : ''].filter(Boolean).join(T('sep')) : '';
 
     const body = $('hvBody');
     if (!text && !(op && op.d)) {
-      body.innerHTML = '<p class="empty">この版は空のメモです。</p>';
+      body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
       body.innerHTML = '<div class="md">' + md(text) + '</div>';
       hydrate(body, cur().id);
@@ -351,8 +369,8 @@
     $('bFirst').disabled = $('bPrev').disabled = k === 0;
     $('bLast').disabled = $('bNext').disabled = k === N;
     $('playIcon').innerHTML = S.playing ? '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>' : '<path d="M7 4.5v15l12-7.5z"/>';
-    $('bPlay').title = S.playing ? '一時停止' : '再生';
-    $('bPlay').setAttribute('aria-label', S.playing ? '一時停止' : '再生');
+    $('bPlay').title = S.playing ? T('pause') : T('play');
+    $('bPlay').setAttribute('aria-label', S.playing ? T('pause') : T('play'));
     $('bPlay').disabled = N === 0;
   }
 
@@ -390,7 +408,7 @@
     renderList();
     updateTitle();
     setMode('edit', true);
-    toast('第' + k + '版の内容に戻しました。これまでの履歴はそのまま残っています。');
+    toast(T('restored', { k: k }));
   });
   document.addEventListener('keydown', e => {
     if (S.mode !== 'history') return;
@@ -452,7 +470,7 @@
     const tok = ++selTok;
     const loaded = await ensureLoaded(id);
     if (tok !== selTok) return;
-    if (!loaded) { toast('メモを読み込めませんでした。'); return; }
+    if (!loaded) { toast(T('loadFailed')); return; }
     stop();
     S.active = id;
     $('editor').value = loaded.text;
@@ -475,7 +493,7 @@
     }
   }
 
-  const HINTS = { latest: 'いまのメモの内容から探します。', history: '消したあとの文字も含め、すべての版から探します。' };
+  const HINTS = { latest: T('hintLatest'), history: T('hintHistory') };
   function updateHint() {
     $('hint').textContent = HINTS[S.scope];
     document.querySelectorAll('#scopeSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.scope === S.scope)));
@@ -498,10 +516,10 @@
   }
   function paintResults(q, hist, res, total, progress) {
     const shown = res.slice(0, 60);
-    const unit = hist ? '件(消した箇所も含む)' : '件';
-    $('rhead').textContent = progress ? '「' + q + '」を検索中… ' + progress + (total ? ' ・ ' + total + unit : '')
-      : total === 0 ? '「' + q + '」は見つかりませんでした。'
-      : '「' + q + '」 ' + total + unit + (total > shown.length ? ' ・ 先頭' + shown.length + '件を表示' : '');
+    const matches = T('matches', { n: total, hist: hist });
+    $('rhead').textContent = progress ? T('searching', { q: q, progress: progress }) + (total ? T('sep') + matches : '')
+      : total === 0 ? T('notFound', { q: q })
+      : T('found', { q: q, matches: matches }) + (total > shown.length ? T('sep') + T('showingFirst', { n: shown.length }) : '');
     const ul = $('resList');
     ul.innerHTML = '';
     for (const r of shown) {
@@ -513,12 +531,12 @@
       b.className = 'hit';
       let meta = '';
       if (hist) {
-        const range = r.a === r.b ? '第' + r.a + '版' : '第' + r.a + '〜' + r.b + '版';
-        const when = fmtMin(r.addedAt) + ' 〜 ' + (r.removedAt ? fmtMin(r.removedAt) : '現在');
-        const bd = r.b === nOps(n) ? '<span class="bd">最新の版にも含まれる</span>' : '<span class="bd gone">いまは消えている</span>';
+        const range = r.a === r.b ? T('rangeOne', { a: r.a }) : T('rangeMany', { a: r.a, b: r.b });
+        const when = fmtMin(r.addedAt) + (LANG === 'en' ? ' – ' : ' 〜 ') + (r.removedAt ? fmtMin(r.removedAt) : T('now'));
+        const bd = r.b === nOps(n) ? '<span class="bd">' + esc(T('inLatest')) + '</span>' : '<span class="bd gone">' + esc(T('gone')) + '</span>';
         meta = '<span class="hm"><span>' + range + '</span><span>' + when + '</span>' + bd + '</span>';
       }
-      b.innerHTML = '<span class="ht">' + esc(n.title) + '</span><span class="hs">' + r.snippet + '</span>' + meta;
+      b.innerHTML = '<span class="ht">' + esc(shownTitle(n.title)) + '</span><span class="hs">' + r.snippet + '</span>' + meta;
       b.addEventListener('click', () => { openAt(r.id, hist ? { rev: r.a } : { s: r.s, e: r.e }); closeSide(); });
       li.appendChild(b);
       ul.appendChild(li);
@@ -548,7 +566,7 @@
       const r = hist ? searchHistory(objs, q, 10) : searchLatest(objs, q, 10);
       res.push(...r.res); total += r.total;
       if (i + CH < notes.length) {
-        paintResults(q, hist, res, total, Math.min(i + CH, notes.length) + ' / ' + notes.length + '件のメモ');
+        paintResults(q, hist, res, total, T('searchProgress', { i: Math.min(i + CH, notes.length), n: notes.length }));
         await yieldUi();
         if (tok !== sTok) return;
       }
@@ -581,7 +599,7 @@
   }
   async function createNote() {
     const n = await makeNote();
-    if (!n) { toast('メモのファイルを作れませんでした。保存先フォルダを確認してください。'); return; }
+    if (!n) { toast(T('createFailed')); return; }
     S.notes.push(n);
     S.mode = 'edit';
     await select(n.id);
@@ -592,24 +610,24 @@
   $('delBtn').addEventListener('click', async () => {
     const id = S.active;
     let yes = false;
-    try { yes = await api.confirmTrash('「' + titleOf(cur().text) + '」をゴミ箱に移動しますか?'); } catch (e) { yes = false; }
+    try { yes = await api.confirmTrash(T('confirmTrash', { title: shownTitle(titleOf(cur().text)) })); } catch (e) { yes = false; }
     if (!yes || S.active !== id) return;
     // 次に開くメモを先に読み込んでおく(読めないときは何も消さない)
     let next = sorted().find(n => n.id !== id) || null;
-    if (next && !(await ensureLoaded(next.id))) { toast('次のメモを読み込めなかったため、削除を取りやめました。'); return; }
+    if (next && !(await ensureLoaded(next.id))) { toast(T('deleteAborted')); return; }
     if (S.active !== id) return;
     pendingOps.delete(id);
     textDirty.delete(id);
     await chain; // 書き込み中の分が終わるのを待つ
     let ok = false;
     try { ok = await api.remove(id); } catch (e) { ok = false; }
-    if (!ok) { toast('メモのファイルを削除できませんでした。'); return; }
+    if (!ok) { toast(T('deleteFailed')); return; }
     S.notes = S.notes.filter(n => n.id !== id);
     if (!next) { next = (await makeNote()) || newNote(); S.notes.push(next); }
     ++selTok;
     show(next.id);
     if (S.q) runSearch();
-    toast('メモをゴミ箱に移動しました。');
+    toast(T('deleted'));
   });
 
   /* ---------- 検索と置換(編集画面の上に出すバー) ---------- */
@@ -623,11 +641,11 @@
     for (const k in frBtns) $(frBtns[k]).setAttribute('aria-pressed', String(!!FR[k]));
     const re = frRegex();
     if (!re) return frLabel('');
-    if (re.error) return frLabel('正規表現が正しくありません', true);
+    if (re.error) return frLabel(T('badRegex'), true);
     const ed = $('editor'), all = findAll(ed.value, re);
-    if (!all.length) return frLabel('見つかりません', true);
+    if (!all.length) return frLabel(T('noMatch'), true);
     const at = all.findIndex(x => x.s === ed.selectionStart && x.e === ed.selectionEnd);
-    frLabel((at >= 0 ? (at + 1) + ' / ' : '') + all.length + '件');
+    frLabel(at >= 0 ? T('matchAt', { at: at + 1, n: all.length }) : T('matchTotal', { n: all.length }));
   }
   /* 文字位置 pos が見える高さまでエディタをスクロールする(折り返しも見えない複製で測る) */
   function scrollToPos(pos) {
@@ -705,9 +723,9 @@
     if (!re || re.error) { frRefresh(); return null; }
     const ed = $('editor');
     const r = findFrom(ed.value, re, dir >= 0 ? ed.selectionEnd : ed.selectionStart, dir);
-    if (!r) { frLabel('見つかりません', true); return null; }
+    if (!r) { frLabel(T('noMatch'), true); return null; }
     frSelect(r.s, r.e);
-    frLabel((r.index + 1) + ' / ' + r.total + '件' + (r.wrapped ? '(端から回り込みました)' : ''));
+    frLabel(T('matchAt', { at: r.index + 1, n: r.total }) + (r.wrapped ? T('wrapped') : ''));
     return r;
   }
   function frReplaceOne() {
@@ -723,10 +741,10 @@
     if (!re || re.error) { frRefresh(); return; }
     const ed = $('editor'), t = ed.value;
     const r = replaceAllText(t, re, $('frRepl').value, FR.re);
-    if (!r.count) { frLabel('見つかりません', true); return; }
+    if (!r.count) { frLabel(T('noMatch'), true); return; }
     frInsert(r.first, r.last, r.text.slice(r.first, r.text.length - (t.length - r.last)));
     frRefresh();
-    toast(r.count + '件を置換しました。履歴には1回の編集として残ります。');
+    toast(T('replaced', { n: r.count }));
   }
   function frOpen() {
     if (S.mode !== 'edit') setMode('edit', false);
@@ -760,7 +778,7 @@
      本文には ![名前](attach:ID)(画像)/ [名前](attach:ID)(ファイル)と書かれ、実体はメモごとのフォルダに残る。
      本文から消しても履歴には残るので、ファイルは削除しない。 */
   const MAX_ATTACH_MB = 50;
-  const missingEl = alt => { const s = document.createElement('span'); s.className = 'att-missing'; s.textContent = '(画像が見つかりません' + (alt ? ':' + alt : '') + ')'; return s; };
+  const missingEl = alt => { const s = document.createElement('span'); s.className = 'att-missing'; s.textContent = T('imageMissing', { alt: alt }); return s; };
   function hydrate(root, noteId) {
     root.querySelectorAll('img[data-att]').forEach(img => {
       img.addEventListener('error', () => img.replaceWith(missingEl(img.alt)), { once: true });
@@ -770,8 +788,8 @@
   async function openAttachment(id) {
     let r = 'none';
     try { r = await api.attachOpen(S.active, id); } catch (e) { r = 'none'; }
-    if (r === 'shown') toast('この種類のファイルは直接開かず、保存先のフォルダで場所を示しました。');
-    else if (r === 'missing') toast('ファイルが見つかりません。');
+    if (r === 'shown') toast(T('shownInFolder'));
+    else if (r === 'missing') toast(T('fileMissing'));
   }
   document.addEventListener('click', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
@@ -791,7 +809,7 @@
     strip.innerHTML = '';
     for (const r of refs) {
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'att-chip'; b.dataset.att = r.id; b.title = r.name + '(クリックで開く)';
+      b.type = 'button'; b.className = 'att-chip'; b.dataset.att = r.id; b.title = T('clickToOpen', { name: r.name });
       if (r.image) { const im = document.createElement('img'); im.dataset.att = r.id; im.alt = r.name; b.appendChild(im); }
       else b.insertAdjacentHTML('beforeend', '<span class="att-ico" aria-hidden="true">📎</span>');
       const sp = document.createElement('span'); sp.textContent = r.name; b.appendChild(sp);
@@ -814,22 +832,22 @@
     const text = items.map(i => attachMarkup(i.name, i.fileId, i.image)).join(inTable ? ' ' : '\n');
     frInsert(s, e, text);
     ed.focus();
-    toast(items.length + '個の' + (items.every(i => i.image) ? '画像' : 'ファイル') + 'を追加しました。');
+    toast(T('itemsAdded', { n: items.length, images: items.every(i => i.image) }));
     updateStrip();
   }
-  function reportErrors(errors) { if (errors.length) toast(errors[0] + (errors.length > 1 ? '(ほか' + (errors.length - 1) + '件)' : '')); }
+  function reportErrors(errors) { if (errors.length) toast(errors[0] + (errors.length > 1 ? T('moreErrors', { n: errors.length - 1 }) : '')); }
   async function ingestFiles(files) {
-    if (S.mode !== 'edit') { toast('画像・ファイルの追加は、編集画面で行ってください。'); return; }
+    if (S.mode !== 'edit') { toast(T('attachEditOnly')); return; }
     const noteId = S.active, items = [], errors = [];
     for (const f of files) {
-      if (f.size > MAX_ATTACH_MB * 1024 * 1024) { errors.push((f.name || 'ファイル') + ': ファイルが大きすぎます(上限 ' + MAX_ATTACH_MB + 'MB)'); continue; }
-      const name = f.name && !/^image\.\w+$/i.test(f.name) ? f.name : '画像-' + stamp() + '.' + extOfType(f.type);
+      if (f.size > MAX_ATTACH_MB * 1024 * 1024) { errors.push(T('tooLarge', { name: f.name || T('file'), mb: MAX_ATTACH_MB })); continue; }
+      const name = f.name && !/^image\.\w+$/i.test(f.name) ? f.name : T('imageName') + '-' + stamp() + '.' + extOfType(f.type);
       try {
         const r = await api.attachSave(noteId, name, await f.arrayBuffer());
         items.push(...r.items); errors.push(...r.errors);
-      } catch (err) { errors.push(name + ': 保存できませんでした'); }
+      } catch (err) { errors.push(T('saveFailed', { name: name })); }
     }
-    if (S.active !== noteId) { toast('メモが切り替わったため、貼り付けを取りやめました。'); return; }
+    if (S.active !== noteId) { toast(T('pasteAborted')); return; }
     insertAttachments(items);
     reportErrors(errors);
   }
@@ -837,7 +855,7 @@
     if (S.mode !== 'edit') setMode('edit', false);
     const noteId = S.active;
     let r;
-    try { r = await api.attachPick(noteId); } catch (err) { r = { items: [], errors: ['ファイルを追加できませんでした'] }; }
+    try { r = await api.attachPick(noteId); } catch (err) { r = { items: [], errors: [T('attachFailed')] }; }
     if (S.active === noteId) insertAttachments(r.items);
     reportErrors(r.errors);
   }
@@ -912,7 +930,7 @@
   (async function boot() {
     let data = null;
     try { data = await api.load(); } catch (e) { data = null; }
-    if (!data) { toast('保存先フォルダを読み込めませんでした。'); return; }
+    if (!data) { toast(T('dirLoadFailed')); return; }
     $('dirPath').textContent = data.dir;
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
     S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, n: r.n, title: r.title, loaded: false }));
@@ -926,7 +944,7 @@
       // 前回のメモが読めないときは、ほかのメモを順に試す
       let okOpen = false;
       for (const n of sorted()) { if (n.id !== first && await select(n.id)) { okOpen = true; break; } }
-      if (!okOpen) { toast('メモを読み込めませんでした。'); return; }
+      if (!okOpen) { toast(T('loadFailed')); return; }
     }
     setMode('edit', true);
   })();

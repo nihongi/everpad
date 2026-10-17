@@ -10,17 +10,17 @@
 </head>
 <body>
 <div class="app" id="app" data-side="closed">
-  <aside class="side" id="side" aria-label="メモ一覧">
+  <aside class="side" id="side" aria-label="メモ一覧" data-i18n-aria="notes">
     <div class="brand"><img class="logo" src="../build/icon.png" alt="" width="30" height="30"><span class="mark">EverPad</span></div>
-    <button class="btn primary" id="newBtn" type="button">新しいメモ</button>
+    <button class="btn primary" id="newBtn" type="button" data-i18n="newNote">新しいメモ</button>
     <div class="search">
       <div class="sbox">
-        <input type="search" id="q" placeholder="全メモから検索" aria-label="全メモから検索" autocomplete="off">
-        <button type="button" id="qClear" aria-label="検索をクリア" hidden>×</button>
+        <input type="search" id="q" placeholder="全メモから検索" aria-label="全メモから検索" data-i18n-ph="searchAll" data-i18n-aria="searchAll" autocomplete="off">
+        <button type="button" id="qClear" aria-label="検索をクリア" data-i18n-aria="clearSearch" hidden>×</button>
       </div>
-      <div class="seg small" id="scopeSeg" role="group" aria-label="検索の範囲">
-        <button type="button" data-scope="latest" aria-pressed="true">最新の版</button>
-        <button type="button" data-scope="history" aria-pressed="false">履歴すべて</button>
+      <div class="seg small" id="scopeSeg" role="group" aria-label="検索の範囲" data-i18n-aria="scopeAria">
+        <button type="button" data-scope="latest" aria-pressed="true" data-i18n="scopeLatest">最新の版</button>
+        <button type="button" data-scope="history" aria-pressed="false" data-i18n="scopeHistory">履歴すべて</button>
       </div>
       <p class="hint" id="hint"></p>
     </div>
@@ -30,52 +30,52 @@
     </div>
     <ul id="noteList"></ul>
     <div class="foot">
-      <span>保存先</span>
+      <span data-i18n="dataDir">保存先</span>
       <span class="path" id="dirPath"></span>
-      <button class="btn" id="openDirBtn" type="button">フォルダを開く</button>
+      <button class="btn" id="openDirBtn" type="button" data-i18n="openFolder">フォルダを開く</button>
     </div>
   </aside>
   <div class="scrim" id="scrim"></div>
 
   <main class="main">
     <header class="bar">
-      <button class="btn ibtn" id="menuBtn" type="button" aria-label="メモ一覧と検索の表示を切り替え (Ctrl+B)" title="メモ一覧と検索の表示を切り替え (Ctrl+B)" aria-pressed="true"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="2.2" rx="1"/><rect x="4" y="11" width="16" height="2.2" rx="1"/><rect x="4" y="16" width="16" height="2.2" rx="1"/></svg></button>
+      <button class="btn ibtn" id="menuBtn" type="button" aria-label="メモ一覧と検索の表示を切り替え (Ctrl+B)" title="メモ一覧と検索の表示を切り替え (Ctrl+B)" aria-pressed="true" data-i18n-aria="toggleSide" data-i18n-title="toggleSide"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="2.2" rx="1"/><rect x="4" y="11" width="16" height="2.2" rx="1"/><rect x="4" y="16" width="16" height="2.2" rx="1"/></svg></button>
       <h1 id="docTitle"></h1>
-      <div class="seg" id="tabs" role="tablist" aria-label="表示">
-        <button type="button" role="tab" data-mode="edit" aria-selected="true">編集</button>
-        <button type="button" role="tab" data-mode="preview" aria-selected="false">プレビュー</button>
+      <div class="seg" id="tabs" role="tablist" aria-label="表示" data-i18n-aria="viewAria">
+        <button type="button" role="tab" data-mode="edit" aria-selected="true" data-i18n="edit">編集</button>
+        <button type="button" role="tab" data-mode="preview" aria-selected="false" data-i18n="preview">プレビュー</button>
       </div>
-      <button class="btn tgl-hist" id="histBtn" type="button" aria-pressed="false" title="履歴表示の切り替え (Ctrl+3)。いまの表示(編集/プレビュー)のまま、過去の版をタイムスライダーで見られます">履歴</button>
-      <button class="btn" id="attBtn" type="button" title="画像・ファイルを添付 (Ctrl+Shift+U)。貼り付けやドラッグ&ドロップでも追加できます">添付</button>
-      <button class="btn" id="delBtn" type="button">削除</button>
+      <button class="btn tgl-hist" id="histBtn" type="button" aria-pressed="false" data-i18n="history" data-i18n-title="historyTitle" title="履歴表示の切り替え (Ctrl+3)。いまの表示(編集/プレビュー)のまま、過去の版をタイムスライダーで見られます">履歴</button>
+      <button class="btn" id="attBtn" type="button" data-i18n="attach" data-i18n-title="attachTitle" title="画像・ファイルを添付 (Ctrl+Shift+U)。貼り付けやドラッグ&ドロップでも追加できます">添付</button>
+      <button class="btn" id="delBtn" type="button" data-i18n="delete">削除</button>
     </header>
 
     <section class="stage">
-      <div class="frbar" id="frbar" role="search" aria-label="検索と置換" hidden>
+      <div class="frbar" id="frbar" role="search" aria-label="検索と置換" data-i18n-aria="frAria" hidden>
         <div class="fr-row">
-          <input id="frFind" type="text" placeholder="検索する文字列" aria-label="検索する文字列" autocomplete="off" spellcheck="false">
-          <button class="btn" id="frPrev" type="button" title="前を検索 (Shift+Enter / Shift+F3)">↑ 前へ</button>
-          <button class="btn" id="frNext" type="button" title="次を検索 (Enter / F3)">↓ 次へ</button>
+          <input id="frFind" type="text" placeholder="検索する文字列" aria-label="検索する文字列" data-i18n-ph="frFind" data-i18n-aria="frFind" autocomplete="off" spellcheck="false">
+          <button class="btn" id="frPrev" type="button" data-i18n="frPrev" data-i18n-title="frPrevTitle" title="前を検索 (Shift+Enter / Shift+F3)">↑ 前へ</button>
+          <button class="btn" id="frNext" type="button" data-i18n="frNext" data-i18n-title="frNextTitle" title="次を検索 (Enter / F3)">↓ 次へ</button>
           <span class="fr-count" id="frCount" aria-live="polite"></span>
-          <button class="btn ibtn fr-close" id="frClose" type="button" title="閉じる (Esc)" aria-label="検索と置換を閉じる"><svg viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button>
+          <button class="btn ibtn fr-close" id="frClose" type="button" data-i18n-title="frCloseTitle" data-i18n-aria="frCloseAria" title="閉じる (Esc)" aria-label="検索と置換を閉じる"><svg viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button>
         </div>
         <div class="fr-row">
-          <input id="frRepl" type="text" placeholder="置換後の文字列" aria-label="置換後の文字列" autocomplete="off" spellcheck="false">
-          <button class="btn" id="frOne" type="button" title="いま選んでいる箇所を置換して、次へ進む (Enter)">置換</button>
-          <button class="btn" id="frAll" type="button" title="すべてを1回の編集として置換">すべて置換</button>
+          <input id="frRepl" type="text" placeholder="置換後の文字列" aria-label="置換後の文字列" data-i18n-ph="frRepl" data-i18n-aria="frRepl" autocomplete="off" spellcheck="false">
+          <button class="btn" id="frOne" type="button" data-i18n="frOne" data-i18n-title="frOneTitle" title="いま選んでいる箇所を置換して、次へ進む (Enter)">置換</button>
+          <button class="btn" id="frAll" type="button" data-i18n="frAll" data-i18n-title="frAllTitle" title="すべてを1回の編集として置換">すべて置換</button>
         </div>
-        <div class="fr-row fr-opts" role="group" aria-label="検索の条件">
-          <button class="tgl" id="frCase" type="button" aria-pressed="false" title="大文字と小文字を区別する">大文字/小文字を区別</button>
-          <button class="tgl" id="frWord" type="button" aria-pressed="false" title="単語として一致するものだけ">単語単位</button>
-          <button class="tgl" id="frRe" type="button" aria-pressed="false" title="正規表現。置換後には $1 や \n \t が使えます">正規表現</button>
+        <div class="fr-row fr-opts" role="group" aria-label="検索の条件" data-i18n-aria="frOptsAria">
+          <button class="tgl" id="frCase" type="button" aria-pressed="false" data-i18n="frCase" data-i18n-title="frCaseTitle" title="大文字と小文字を区別する">大文字/小文字を区別</button>
+          <button class="tgl" id="frWord" type="button" aria-pressed="false" data-i18n="frWord" data-i18n-title="frWordTitle" title="単語として一致するものだけ">単語単位</button>
+          <button class="tgl" id="frRe" type="button" aria-pressed="false" data-i18n="frRe" data-i18n-title="frReTitle" title="正規表現。置換後には $1 や \n \t が使えます">正規表現</button>
         </div>
       </div>
       <div class="edwrap" id="edwrap" data-ln="0">
         <div class="frhl" id="frhl" aria-hidden="true"><div id="frhlin"></div></div>
         <div class="gutter" id="gutter" aria-hidden="true" hidden><div id="gin"></div></div>
-        <textarea id="editor" spellcheck="false" placeholder="ここに書くと、1回ごとの編集がすべて履歴に残ります。"></textarea>
+        <textarea id="editor" spellcheck="false" data-i18n-ph="editorPlaceholder" placeholder="ここに書くと、1回ごとの編集がすべて履歴に残ります。"></textarea>
       </div>
-      <div class="attstrip" id="attStrip" aria-label="このメモの添付" hidden></div>
+      <div class="attstrip" id="attStrip" aria-label="このメモの添付" data-i18n-aria="attStripAria" hidden></div>
       <article class="pane md" id="preview" hidden></article>
       <div id="histView" data-past="0" hidden>
         <div class="hv-head">
@@ -91,29 +91,29 @@
     <div class="tl" id="tl" data-past="0" hidden>
       <div class="tl-row">
         <div class="ctl">
-          <button class="btn ibtn skip" id="bFirst" type="button" title="最初の版" aria-label="最初の版"><svg viewBox="0 0 24 24"><rect x="4.5" y="5" width="2.4" height="14"/><path d="M19.5 6L12 12l7.5 6zM12.5 6L9 12l3.5 6z" transform="translate(-1.5 0)"/></svg></button>
-          <button class="btn ibtn step" id="bPrev" type="button" title="1コマ戻る(←)" aria-label="1コマ戻る"><svg viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg></button>
+          <button class="btn ibtn skip" id="bFirst" type="button" title="最初の版" aria-label="最初の版" data-i18n-title="firstVersion" data-i18n-aria="firstVersion"><svg viewBox="0 0 24 24"><rect x="4.5" y="5" width="2.4" height="14"/><path d="M19.5 6L12 12l7.5 6zM12.5 6L9 12l3.5 6z" transform="translate(-1.5 0)"/></svg></button>
+          <button class="btn ibtn step" id="bPrev" type="button" title="1コマ戻る(←)" aria-label="1コマ戻る" data-i18n-title="stepBackTitle" data-i18n-aria="stepBack"><svg viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg></button>
           <button class="ibtn playbtn" id="bPlay" type="button" title="再生" aria-label="再生"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l12-7.5z"/></svg></button>
-          <button class="btn ibtn step" id="bNext" type="button" title="1コマ進む(→)" aria-label="1コマ進む"><svg viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg></button>
-          <button class="btn ibtn skip" id="bLast" type="button" title="最新の版" aria-label="最新の版"><svg viewBox="0 0 24 24"><rect x="17.1" y="5" width="2.4" height="14"/><path d="M4.5 6L12 12l-7.5 6zM11.5 6L15 12l-3.5 6z" transform="translate(-0.5 0)"/></svg></button>
+          <button class="btn ibtn step" id="bNext" type="button" title="1コマ進む(→)" aria-label="1コマ進む" data-i18n-title="stepFwdTitle" data-i18n-aria="stepFwd"><svg viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg></button>
+          <button class="btn ibtn skip" id="bLast" type="button" title="最新の版" aria-label="最新の版" data-i18n-title="latestVersion" data-i18n-aria="latestVersion"><svg viewBox="0 0 24 24"><rect x="17.1" y="5" width="2.4" height="14"/><path d="M4.5 6L12 12l-7.5 6zM11.5 6L15 12l-3.5 6z" transform="translate(-0.5 0)"/></svg></button>
         </div>
-        <label class="spd" for="speed">再生速度
-          <select id="speed"><option value="0.2">とてもゆっくり</option><option value="0.5">ゆっくり</option><option value="1" selected>ふつう</option><option value="4">速い</option><option value="16">とても速い</option></select>
+        <label class="spd" for="speed"><span data-i18n="speed">再生速度</span>
+          <select id="speed"><option value="0.2" data-i18n="speedVerySlow">とてもゆっくり</option><option value="0.5" data-i18n="speedSlow">ゆっくり</option><option value="1" selected data-i18n="speedNormal">ふつう</option><option value="4" data-i18n="speedFast">速い</option><option value="16" data-i18n="speedVeryFast">とても速い</option></select>
         </label>
-        <button class="btn primary" id="restore" type="button">この版に戻す</button>
+        <button class="btn primary" id="restore" type="button" data-i18n="restore">この版に戻す</button>
       </div>
       <div class="track">
         <div class="gaps" id="gaps"></div>
-        <input type="range" id="range" min="0" max="0" value="0" step="1" aria-label="履歴の位置">
+        <input type="range" id="range" min="0" max="0" value="0" step="1" aria-label="履歴の位置" data-i18n-aria="rangeAria">
       </div>
-      <div class="ends"><span id="tStart"></span><span>縦線は30分以上あいた箇所</span><span id="tEnd"></span></div>
+      <div class="ends"><span id="tStart"></span><span data-i18n="gapNote">縦線は30分以上あいた箇所</span><span id="tEnd"></span></div>
     </div>
 
-    <footer class="status"><span id="stLeft"></span><span class="stR"><button type="button" class="tgl" id="lnBtn" aria-pressed="false" title="行番号の表示を切り替え (Ctrl+L)">行番号</button><span id="stRight"></span></span></footer>
+    <footer class="status"><span id="stLeft"></span><span class="stR"><button type="button" class="tgl" id="lnBtn" aria-pressed="false" title="行番号の表示を切り替え (Ctrl+L)" data-i18n="lineNumbers" data-i18n-title="lineNumbersTitle">行番号</button><span id="stRight"></span></span></footer>
   </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="i18n.js"></script>
 <script src="core.js"></script>
 <script src="app.js"></script>
 </body>

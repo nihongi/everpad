@@ -60,10 +60,10 @@ function mdFence(lines, i) {
   return { next: i + 1, html: '<pre><code>' + esc(buf.join('\n')) + '</code></pre>' };
 }
 
-/* メモの題名: 最初の空でない行(見出しなどの記号は除く) */
+/* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
 const titleOf = text => {
   for (const ln of text.split('\n')) { const t = ln.replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
-  return '無題のメモ';
+  return '';
 };
 
 /* ---------- 添付 ---------- */

@@ -12,9 +12,12 @@
 const fs = require('fs');
 const crypto = require('crypto');
 const core = require('./renderer/core');
+/* 画面に出すときは code で訳す(main.js)。message は日本語のまま */
+function storeError(code, message) { const e = new Error(message); e.code = code; return e; }
 const path = require('path');
 
 const INDEX_NAME = '.everpad-index.json';
+const INDEX_VERSION = 2;   // 2: 題名が無いメモの title を '' にした
 const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_ATTACH = 50 * 1024 * 1024;
 const FILEID_RE = /^[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
@@ -57,7 +60,7 @@ class Store {
   }
 
   file(id, ext) {
-    if (!validId(id)) throw new Error('メモIDが正しくありません');
+    if (!validId(id)) throw storeError('badId', 'メモIDが正しくありません');
     return path.join(this.dir, id + ext);
   }
 
@@ -71,9 +74,9 @@ class Store {
 
   append(id, ops) {
     const f = this.file(id, '.jsonl');
-    if (!Array.isArray(ops) || !ops.every(validOp)) throw new Error('編集データが正しくありません');
+    if (!Array.isArray(ops) || !ops.every(validOp)) throw storeError('badOps', '編集データが正しくありません');
     if (!ops.length) return true;
-    if (!fs.existsSync(f)) throw new Error('メモのファイルが見つかりません');
+    if (!fs.existsSync(f)) throw storeError('noFile', 'メモのファイルが見つかりません');
     fs.appendFileSync(f, ops.map(o => JSON.stringify(o)).join('\n') + '\n');
     const e = this._entry(id), st = e && this._stat(id);
     if (e && st) { e.n += ops.length; e.t = ops[ops.length - 1][3]; e.size = st.size; e.mtime = st.mtime; this._dirty(); }
@@ -81,7 +84,7 @@ class Store {
   }
 
   saveText(id, text) {
-    if (typeof text !== 'string') throw new Error('本文が正しくありません');
+    if (typeof text !== 'string') throw storeError('badText', '本文が正しくありません');
     const f = this.file(id, '.md');
     const tmp = f + '.tmp';
     try {
@@ -102,9 +105,9 @@ class Store {
 
   /* 添付を保存して、本文に書くための fileId を返す。同じ内容なら既にあるものを使う */
   saveAttachment(id, name, bytes) {
-    if (!fs.existsSync(this.file(id, '.jsonl'))) throw new Error('メモのファイルが見つかりません');
+    if (!fs.existsSync(this.file(id, '.jsonl'))) throw storeError('noFile', 'メモのファイルが見つかりません');
     const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
-    if (buf.length > MAX_ATTACH) throw new Error('ファイルが大きすぎます(上限 ' + (MAX_ATTACH / 1024 / 1024) + 'MB)');
+    if (buf.length > MAX_ATTACH) throw storeError('tooLarge', 'ファイルが大きすぎます(上限 ' + (MAX_ATTACH / 1024 / 1024) + 'MB)');
     const hash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16);
     const m = /\.([A-Za-z0-9]{1,8})$/.exec(typeof name === 'string' ? name : '');
     const fileId = hash + (m ? '.' + m[1].toLowerCase() : '');
@@ -175,7 +178,7 @@ class Store {
       this._idx = {};
       try {
         const j = JSON.parse(fs.readFileSync(this.indexPath(), 'utf8'));
-        if (j && j.v === 1 && j.notes && typeof j.notes === 'object') this._idx = j.notes;
+        if (j && j.v === INDEX_VERSION && j.notes && typeof j.notes === 'object') this._idx = j.notes;
       } catch (e) { /* 無い・壊れているときは作り直す */ }
     }
     return this._idx;
@@ -186,7 +189,7 @@ class Store {
     this._idxDirty = false;
     try {
       const tmp = this.indexPath() + '.tmp';
-      fs.writeFileSync(tmp, JSON.stringify({ v: 1, notes: this._idx }));
+      fs.writeFileSync(tmp, JSON.stringify({ v: INDEX_VERSION, notes: this._idx }));
       fs.renameSync(tmp, this.indexPath());
     } catch (e) { /* 索引は控えなので、書けなくても動く */ }
   }

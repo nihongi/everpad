@@ -6,6 +6,7 @@ const fs = require('fs');
 const { Store, MAX_ATTACH } = require('./store');
 const { buildTemplate } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
+const I18N = require('./renderer/i18n');
 
 const APP_NAME = 'EverPad';
 const APP_ID = 'local.everpad.app';
@@ -13,6 +14,10 @@ const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.
 let win = null;
 let store = null;
 let closing = false;
+let lang = 'ja';
+const T = (key, params) => I18N.t(lang, key, Object.assign({ app: APP_NAME }, params));
+/* 保存先などのエラー(store.js が code を付ける)を、いまの言語の文に直す */
+const errText = err => (err && err.code ? T('err' + err.code[0].toUpperCase() + err.code.slice(1), { mb: MAX_ATTACH / 1024 / 1024 }) : String((err && err.message) || err));
 
 /* ---------- 保存先 ---------- */
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
@@ -32,7 +37,7 @@ function openStore() {
     store.init();
   } catch (e) {
     const fallback = path.join(app.getPath('userData'), 'notes');
-    dialog.showErrorBox(APP_NAME, '保存先フォルダを使えませんでした。\n' + wanted + '\n\n代わりにここへ保存します。\n' + fallback);
+    dialog.showErrorBox(APP_NAME, T('dirFallback', { wanted: wanted, fallback: fallback }));
     store = new Store(fallback);
     store.init();
   }
@@ -85,12 +90,12 @@ ipcMain.handle('memo:confirmTrash', async (e, message) => {
   if (!fromOurWindow(e)) return false;
   const r = await dialog.showMessageBox(win, {
     type: 'question',
-    buttons: ['ゴミ箱に移動', 'キャンセル'],
+    buttons: [T('trashButton'), T('cancel')],
     defaultId: 0,
     cancelId: 1,
     noLink: true,
     title: APP_NAME,
-    message: String(message || 'このメモをゴミ箱に移動しますか?').slice(0, 300)
+    message: String(message || T('trashDefault')).slice(0, 300)
   });
   return r.response === 0;
 });
@@ -119,25 +124,25 @@ const isImage = n => /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(n || '');
 const SAFE_OPEN = /\.(png|jpe?g|gif|webp|bmp|avif|pdf|txt|md|csv|tsv|docx?|xlsx?|pptx?|odt|ods|odp|mp3|wav|mp4|mov|webm)$/i;
 
 function saveAttachment(noteId, name, bytes) {
-  const nm = String(name || 'ファイル').replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 120);
+  const nm = String(name || T('file')).replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 120);
   const r = store.saveAttachment(noteId, nm, bytes);
   return { fileId: r.fileId, name: nm, image: isImage(nm), size: r.size };
 }
 ipcMain.handle('attach:save', (e, noteId, name, bytes) => {
-  if (!fromOurWindow(e)) return { items: [], errors: ['使えません'] };
+  if (!fromOurWindow(e)) return { items: [], errors: [T('unavailable')] };
   try { return { items: [saveAttachment(noteId, name, bytes)], errors: [] }; }
-  catch (err) { return { items: [], errors: [String(err.message || err)] }; }
+  catch (err) { return { items: [], errors: [errText(err)] }; }
 });
 ipcMain.handle('attach:pick', async (e, noteId) => {
   if (!fromOurWindow(e)) return { items: [], errors: [] };
-  const r = await dialog.showOpenDialog(win, { title: '画像・ファイルを選んでください', properties: ['openFile', 'multiSelections'] });
+  const r = await dialog.showOpenDialog(win, { title: T('pickTitle'), properties: ['openFile', 'multiSelections'] });
   const out = { items: [], errors: [] };
   if (r.canceled) return out;
   for (const f of r.filePaths) {
     try {
-      if (fs.statSync(f).size > MAX_ATTACH) { out.errors.push(path.basename(f) + ': ファイルが大きすぎます(上限 ' + (MAX_ATTACH / 1024 / 1024) + 'MB)'); continue; }
+      if (fs.statSync(f).size > MAX_ATTACH) { out.errors.push(path.basename(f) + ': ' + T('errTooLarge', { mb: MAX_ATTACH / 1024 / 1024 })); continue; }
       out.items.push(saveAttachment(noteId, path.basename(f), fs.readFileSync(f)));
-    } catch (err) { out.errors.push(path.basename(f) + ': ' + String(err.message || err)); }
+    } catch (err) { out.errors.push(path.basename(f) + ': ' + errText(err)); }
   }
   return out;
 });
@@ -166,20 +171,20 @@ const send = name => { if (win && !win.isDestroyed()) win.webContents.send('menu
 
 async function changeFolder() {
   const r = await dialog.showOpenDialog(win, {
-    title: '保存先フォルダを選んでください',
+    title: T('dirPickTitle'),
     defaultPath: store.dir,
     properties: ['openDirectory', 'createDirectory']
   });
   if (r.canceled || !r.filePaths[0]) return;
   const choice = await dialog.showMessageBox(win, {
     type: 'question',
-    buttons: ['変更して再起動', 'キャンセル'],
+    buttons: [T('dirChangeButton'), T('cancel')],
     defaultId: 0,
     cancelId: 1,
     title: APP_NAME,
     icon: ICON,
-    message: '保存先を変更しますか?',
-    detail: r.filePaths[0] + '\n\n今のメモは元のフォルダに残ります。新しい保存先には、そのフォルダにあるメモが表示されます。メモを移すには、元のフォルダの .jsonl と .md ファイルを新しい保存先にコピーしてください。'
+    message: T('dirChangeQ'),
+    detail: T('dirChangeDetail', { dir: r.filePaths[0] })
   });
   if (choice.response !== 0) return;
   await flushRenderer();
@@ -192,67 +197,86 @@ async function changeFolder() {
 function buildMenu() {
   const template = [
     {
-      label: 'ファイル',
+      label: T('mFile'),
       submenu: [
-        { label: '新しいメモ', accelerator: 'CmdOrCtrl+N', click: () => send('new') },
-        { label: '全メモから検索', accelerator: 'CmdOrCtrl+F', click: () => send('search') },
+        { label: T('mNewNote'), accelerator: 'CmdOrCtrl+N', click: () => send('new') },
+        { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
         { type: 'separator' },
-        { label: '保存先フォルダを開く', click: () => shell.openPath(store.dir) },
-        { label: '保存先フォルダを変更…', click: changeFolder },
+        { label: T('mOpenDir'), click: () => shell.openPath(store.dir) },
+        { label: T('mChangeDir'), click: changeFolder },
         { type: 'separator' },
-        { role: 'quit', label: '終了' }
+        { role: 'quit', label: T('mQuit') }
       ]
     },
     {
-      label: '編集',
+      label: T('mEdit'),
       submenu: [
-        { role: 'undo', label: '元に戻す' },
-        { role: 'redo', label: 'やり直し' },
+        { role: 'undo', label: T('mUndo') },
+        { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
-        { label: '画像・ファイルを添付…', accelerator: 'CmdOrCtrl+Shift+U', click: () => send('attach') },
-        { label: '検索と置換…', accelerator: 'CmdOrCtrl+H', click: () => send('replace') },
+        { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', click: () => send('attach') },
+        { label: T('mReplace'), accelerator: 'CmdOrCtrl+H', click: () => send('replace') },
         { type: 'separator' },
-        { role: 'cut', label: '切り取り' },
-        { role: 'copy', label: 'コピー' },
-        { role: 'paste', label: '貼り付け' },
-        { label: 'すべて選択', accelerator: 'CmdOrCtrl+A', click: () => send('selectall') }   // 画面側で、メモの範囲だけを選ぶ
+        { role: 'cut', label: T('mCut') },
+        { role: 'copy', label: T('mCopy') },
+        { role: 'paste', label: T('mPaste') },
+        { label: T('mSelectAll'), accelerator: 'CmdOrCtrl+A', click: () => send('selectall') }   // 画面側で、メモの範囲だけを選ぶ
       ]
     },
     {
-      label: '表示',
+      label: T('mView'),
       submenu: [
-        { label: '編集', accelerator: 'CmdOrCtrl+1', click: () => send('mode:edit') },
-        { label: 'プレビュー', accelerator: 'CmdOrCtrl+2', click: () => send('mode:preview') },
-        { label: '履歴表示の切り替え', accelerator: 'CmdOrCtrl+3', click: () => send('mode:history') },
-        { label: 'メモ一覧と検索の表示を切り替え', accelerator: 'CmdOrCtrl+B', click: () => send('side') },
-        { label: '行番号の表示を切り替え', accelerator: 'CmdOrCtrl+L', click: () => send('lines') },
+        { label: T('mModeEdit'), accelerator: 'CmdOrCtrl+1', click: () => send('mode:edit') },
+        { label: T('mModePreview'), accelerator: 'CmdOrCtrl+2', click: () => send('mode:preview') },
+        { label: T('mModeHistory'), accelerator: 'CmdOrCtrl+3', click: () => send('mode:history') },
+        { label: T('mSide'), accelerator: 'CmdOrCtrl+B', click: () => send('side') },
+        { label: T('mLines'), accelerator: 'CmdOrCtrl+L', click: () => send('lines') },
         { type: 'separator' },
-        { role: 'zoomIn', label: '拡大' },
-        { role: 'zoomOut', label: '縮小' },
-        { role: 'resetZoom', label: '実際のサイズ' },
+        { role: 'zoomIn', label: T('mZoomIn') },
+        { role: 'zoomOut', label: T('mZoomOut') },
+        { role: 'resetZoom', label: T('mZoomReset') },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: '全画面表示' },
-        ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools', label: '開発者ツール' }])
+        { role: 'togglefullscreen', label: T('mFullscreen') },
+        { type: 'separator' },
+        { label: T('mLanguage'), submenu: [
+          { label: '日本語', type: 'radio', checked: lang === 'ja', click: () => setLang('ja') },
+          { label: 'English', type: 'radio', checked: lang === 'en', click: () => setLang('en') }
+        ] },
+        ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools', label: T('mDevTools') }])
       ]
     },
     {
-      label: 'ヘルプ',
+      label: T('mHelp'),
       submenu: [
-        { label: APP_NAME + ' について', click: showAbout }
+        { label: T('mAbout'), click: showAbout }
       ]
     }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/* ---------- 言語 ---------- */
+function initLang() {
+  const saved = readConfig().lang;
+  lang = I18N.LANGS.includes(saved) ? saved : I18N.pick(app.getPreferredSystemLanguages()[0] || app.getLocale());
+}
+async function setLang(l) {
+  if (l === lang) return;
+  lang = l;
+  writeConfig(Object.assign(readConfig(), { lang: l }));
+  buildMenu();
+  if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
+}
+const loadPage = () => win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang } });
+
 /* ---------- バージョン情報 ---------- */
 function showAbout() {
   dialog.showMessageBox(win, {
     type: 'info',
-    title: APP_NAME + ' について',
-    message: APP_NAME + '  バージョン ' + app.getVersion(),
+    title: T('aboutTitle'),
+    message: T('aboutVersion', { v: app.getVersion() }),
     detail: 'Electron ' + process.versions.electron + ' / Chromium ' + process.versions.chrome + ' / Node.js ' + process.versions.node + '\n'
-      + '保存先: ' + store.dir + '\n\n'
+      + T('aboutDataDir', { dir: store.dir }) + '\n\n'
       + 'Copyright (c) 2026 Nobuyoshi NIHONGI\nMIT License',
     buttons: ['OK'],
     noLink: true
@@ -282,7 +306,7 @@ function createWindow() {
     }
   });
   win.once('ready-to-show', () => { if (bounds.maximized) win.maximize(); win.show(); });
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  loadPage();
 
   // 外部リンクは既定のブラウザで開き、アプリ内では他のページに移動させない
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -293,7 +317,7 @@ function createWindow() {
 
   // 右クリック: Electronには標準のメニューが無いので、切り取り・コピー・貼り付けなどを自前で出す
   win.webContents.on('context-menu', (_e, params) => {
-    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall') });
+    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), lang: lang });
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: win });
   });
 
@@ -328,6 +352,7 @@ if (!app.requestSingleInstanceLock()) {
         return net.fetch(pathToFileURL(p).toString());
       } catch (err) { return new Response('bad request', { status: 400 }); }
     });
+    initLang();
     openStore();
     buildMenu();
     createWindow();

@@ -6,7 +6,7 @@
 
 EverPad is a note-taking app for Windows. You write in plain text or Markdown (tables included), every single edit is kept in the history, and a time slider lets you rewind a note and watch how it was written. It is built with Electron.
 
-The user interface is in Japanese. In this section, menu items and buttons are given by their Japanese labels, with an English translation in parentheses.
+The user interface is available in English and Japanese. The language follows the Windows display language (English for anything other than Japanese), and can be changed at any time from View → Language (言語).
 
 This program was created with the help of Claude Code.
 
@@ -17,6 +17,7 @@ This program was created with the help of Claude Code.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
 - **Find and replace**: with case sensitivity, whole-word and regular-expression options.
 - **Images and attachments**: paste screenshots or drop files into a note.
+- **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
 
 ### Requirements
@@ -50,7 +51,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.3.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.4.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -59,30 +60,30 @@ This creates an installer (`EverPad Setup 0.3.0.exe`) and a portable executable 
 | New note | `Ctrl+N` |
 | Search all notes | `Ctrl+F` |
 | Edit / Preview | `Ctrl+1` / `Ctrl+2` |
-| Show / hide history | `Ctrl+3` (or the 履歴 (History) button at the top) |
-| Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the 添付 (Attach) button at the top right) |
+| Show / hide history | `Ctrl+3` (or the History button at the top) |
+| Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
 | Find and replace (a bar appears above the editor) | `Ctrl+H` |
 | Find next / previous | `Enter` / `Shift+Enter` (also `F3` / `Shift+F3` while the bar is open) |
 | Show / hide the left pane (note list and search) | `Ctrl+B` (or the menu button at the top left) |
-| Show / hide line numbers | `Ctrl+L` (or the 行番号 (Line numbers) button at the bottom right) |
+| Show / hide line numbers | `Ctrl+L` (or the Line numbers button at the bottom right) |
 | Previous / next version in the history | `←` / `→` |
 | Play / pause the history | `Space` |
 
 **Views and history**
 
-- There are two views, 編集 (Edit) and プレビュー (Preview), and each has a history mode. Pressing 履歴 (History) shows the time slider while keeping the current view: in Edit, the characters changed in each version are highlighted; in Preview, each version is shown formatted. Switching between Edit and Preview during the history keeps the same version. Press 履歴 again to leave the history.
+- There are two views, Edit and Preview, and each has a history mode. Pressing History shows the time slider while keeping the current view: in Edit, the characters changed in each version are highlighted; in Preview, each version is shown formatted. Switching between Edit and Preview during the history keeps the same version. Press History again to leave the history.
 - Playback speed can be set to five levels, from very slow to very fast.
-- この版に戻す (Restore this version) adds the content of that version as a new edit. The existing history is never deleted.
+- Restore this version adds the content of that version as a new edit. The existing history is never deleted.
 - The note text widens to fit the window. Line numbers count a wrapped line as one line and are also shown in the history. These settings are remembered.
 
 **Search and replace**
 
-- Search can target 最新の版 (Latest version) or 履歴すべて (All history). The history search finds every place where the text was ever written, including text that has since been deleted.
-- Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). 「すべて置換」 (Replace all) is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
+- Search can target Latest version or All history. The history search finds every place where the text was ever written, including text that has since been deleted.
+- Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). Replace all is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
 
 **Images and attachments**
 
-- In the editor, paste a copied image (such as a screenshot), drag and drop a file onto the window, or choose a file with the 添付 (Attach) button. `![name](attach:…)` (image) or `[name](attach:…)` (file) is inserted at the cursor, and is shown as an image or a file link in the preview and in the history's Markdown view. Pasting inside a table row puts the attachment in that cell (several attachments line up side by side). Clicking an image or link opens it; executables and similar files are not opened, but shown in their folder instead.
+- In the editor, paste a copied image (such as a screenshot), drag and drop a file onto the window, or choose a file with the Attach button. `![name](attach:…)` (image) or `[name](attach:…)` (file) is inserted at the cursor, and is shown as an image or a file link in the preview and in the history's Markdown view. Pasting inside a table row puts the attachment in that cell (several attachments line up side by side). Clicking an image or link opens it; executables and similar files are not opened, but shown in their folder instead.
 - The files are kept in the note's `.files` folder. **The app never deletes an attachment, even if you remove it from the text, so that older versions in the history can still show it.** Identical files are stored only once. The size limit is 50 MB per file.
 - You may freely edit the "name" part before `attach:` (avoid `|`, `[` and `]`). Copying the attachment syntax into another note does not work, because the file does not exist in that note; paste the file again instead.
 - A list of the attachments used in the note (thumbnails) is shown below the text.
@@ -91,11 +92,12 @@ This creates an installer (`EverPad Setup 0.3.0.exe`) and a portable executable 
 
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
-- To check the version you are running, choose ヘルプ (Help) → EverPad について (About EverPad) from the menu. It also shows the Electron version and the data folder.
+- To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered.
+- To check the version you are running, choose Help → About EverPad from the menu. It also shows the Electron version and the data folder.
 
 ### Where notes are stored
 
-The default data folder is `Documents\EverPad`. You can change it with ファイル (File) → 保存先フォルダを変更… (Change data folder…), and open it in Explorer with 保存先フォルダを開く (Open data folder).
+The default data folder is `Documents\EverPad`. You can change it with File → Change Data Folder…, and open it in Explorer with File → Open Data Folder.
 
 Each note consists of the following files and folder.
 
@@ -142,7 +144,7 @@ main.js          Electron main process (window, menus, data folder, Recycle Bin)
 preload.js       The bridge exposed to the UI (saving, loading and menu actions only)
 store.js         File storage layer (testable without Electron)
 windowstate.js   Remembering and restoring the window position (testable without Electron)
-renderer/        The UI (index.html / styles.css / app.js) and the history, Markdown and search logic (core.js)
+renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), and the English and Japanese texts (i18n.js)
 tools/           The Etherpad import tool (import-etherpad.js)
 test/            Automated tests
 ```
@@ -154,7 +156,7 @@ test/            Automated tests
 
 ### Testing
 
-- The storage layer, the window position logic, and the history, Markdown and search logic are covered by automated tests (`npm test`).
+- The storage layer, the window position logic, the history, Markdown and search logic, and the English and Japanese texts (every key exists in both languages) are covered by automated tests (`npm test`).
 - The UI has been tested in Chromium with a stand-in for the storage bridge: typing, rewinding, search, restore, delete, and recovery after reload.
 - Running the app with Electron (`npm start`) has been tested on Windows 11 with Electron 44.7.0, including editing, rewinding and search.
 - Building the installer (`npm run dist`) has been tested with electron-builder 26.15.3, together with installing and using the installed app.
@@ -171,6 +173,8 @@ Copyright (c) 2026 Nobuyoshi NIHONGI
 
 EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表を含む)で書けて、1回ごとの編集がすべて履歴に残り、タイムスライダーで巻き戻して書いた過程を見られます。Electron で作っています。
 
+画面は日本語と英語に対応しています。最初は Windows の表示言語に合わせ(日本語以外のときは英語)、メニューの「表示」→「言語 (Language)」でいつでも切り替えられます。
+
 このプログラムは Claude Code を活用して作成しました。
 
 ### 特長
@@ -180,6 +184,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
 - **検索と置換**: 大文字/小文字の区別、単語単位、正規表現を選べます。
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
+- **日本語と英語**: 画面の言語をメニューから切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
 
 ### 動かすために必要なもの
@@ -213,7 +218,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.3.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.4.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -254,6 +259,7 @@ npm run dist
 
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
+- 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョンと、メモの保存先も表示されます。
 
 ### メモの保存先と形式
@@ -305,7 +311,7 @@ main.js          Electron 本体側(ウィンドウ、メニュー、保存先�
 preload.js       画面に渡す窓口(保存・読み込み・メニュー操作だけ)
 store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
-renderer/        画面(index.html / styles.css / app.js)と、履歴・Markdown・検索のロジック(core.js)
+renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)
 test/            自動テスト
 ```
@@ -317,7 +323,7 @@ test/            自動テスト
 
 ### 動作確認
 
-- 保存層、ウィンドウの位置の処理、履歴・Markdown・検索のロジックは、自動テスト(`npm test`)で確認しています。
+- 保存層、ウィンドウの位置の処理、履歴・Markdown・検索のロジック、日本語と英語の文言(すべての項目が両方の言語にそろっていること)は、自動テスト(`npm test`)で確認しています。
 - 画面は、保存の窓口を模した部品をつないで Chromium で動かし、入力、巻き戻し、検索、復元、削除、再読み込み後の復元などを確認しています。
 - Electron を使った起動(`npm start`)と、画面の操作(編集、巻き戻し、検索など)は、Windows 11・Electron 44.7.0 で確認しています。
 - インストーラーの作成(`npm run dist`)は electron-builder 26.15.3 で確認しています。できたインストーラーでのインストールと、インストール後の動作も確認しています。
