@@ -128,4 +128,4 @@ test/            自動テスト
 
 MIT License です。全文は [LICENSE](LICENSE) にあります。
 
-Copyright (c) 2026 Nobuyoshi NIHONGI
+Copyright (c) 2026 Nobuyoshi NIHONGI 
