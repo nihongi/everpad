@@ -926,6 +926,53 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
   $('openDirBtn').addEventListener('click', () => api.openFolder());
 
+  /* ---------- 画面を読み直すとき(言語の切り替え)に、表示の状態を引き継ぐ ----------
+     読み直す直前に sessionStorage へ預け、読み直した直後に1回だけ戻す。
+     sessionStorage はアプリを閉じると消えるので、ふつうの起動には影響しない。 */
+  const VIEW_KEY = 'everpad:view';
+  function saveView() {
+    if (!cur()) return;
+    const ed = $('editor'), fe = document.activeElement;
+    const v = {
+      mode: S.mode, hbase: S.hbase, rev: S.rev, speed: S.speed,
+      q: $('q').value, scope: S.scope,
+      frOpen: S.frOpen, frFind: $('frFind').value, frRepl: $('frRepl').value,
+      selS: ed.selectionStart, selE: ed.selectionEnd,
+      scroll: { editor: ed.scrollTop, preview: $('preview').scrollTop, hvBody: $('hvBody').scrollTop },
+      focus: fe && fe.id && fe !== document.body ? fe.id : ''
+    };
+    try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch (e) { /* 引き継げなくても動く */ }
+  }
+  function takeView() {
+    try { const v = JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null'); sessionStorage.removeItem(VIEW_KEY); return v; } catch (e) { return null; }
+  }
+  function restoreView(v) {
+    const modes = ['edit', 'preview'];
+    if ([...$('speed').options].some(o => +o.value === v.speed)) { S.speed = v.speed; $('speed').value = String(v.speed); }
+    if (v.scope === 'latest' || v.scope === 'history') { S.scope = v.scope; updateHint(); }
+    $('frFind').value = v.frFind || '';
+    $('frRepl').value = v.frRepl || '';
+    const ed = $('editor'), len = ed.value.length;
+    ed.setSelectionRange(Math.min(+v.selS || 0, len), Math.min(+v.selE || 0, len));
+    if (v.mode === 'history') {
+      setMode(modes.includes(v.hbase) ? v.hbase : 'edit');
+      setMode('history');
+      S.rev = +v.rev || 0;
+      renderHist();
+    } else setMode(modes.includes(v.mode) ? v.mode : 'edit');
+    if (v.frOpen && S.mode === 'edit') { S.frOpen = true; frShow(); frRefresh(); }
+    if (v.q) { $('q').value = v.q; runSearch(); }
+    // スクロールとフォーカスは、表示が組み上がってから戻す(描画が止まっていても動くよう setTimeout で)
+    setTimeout(() => {
+      const sc = v.scroll || {};
+      for (const id of ['editor', 'preview', 'hvBody']) if (sc[id]) $(id).scrollTop = sc[id];
+      const fe = v.focus && $(v.focus);
+      if (fe && !fe.closest('[hidden]')) fe.focus({ preventScroll: true });
+      else if (S.mode === 'edit') ed.focus({ preventScroll: true });
+    }, 0);
+  }
+  window.addEventListener('pagehide', saveView);
+
   /* ---------- 起動 ---------- */
   (async function boot() {
     let data = null;
@@ -946,6 +993,8 @@
       for (const n of sorted()) { if (n.id !== first && await select(n.id)) { okOpen = true; break; } }
       if (!okOpen) { toast(T('loadFailed')); return; }
     }
-    setMode('edit', true);
+    const view = takeView();
+    if (view) restoreView(view);
+    else setMode('edit', true);
   })();
 })();
