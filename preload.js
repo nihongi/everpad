@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachSave: (noteId, name, bytes) => ipcRenderer.invoke('attach:save', noteId, name, bytes),
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
+  // 印刷・PDF(画面に用意した印刷用の紙面を出す)
+  print: () => ipcRenderer.invoke('print:print'),
+  savePdf: title => ipcRenderer.invoke('print:pdf', title),
   fileUrl: (noteId, fileId) => 'everpad-file://f/' + encodeURIComponent(noteId) + '/' + encodeURIComponent(fileId),
   // 画面を閉じる直前に使う同期版(非同期だと間に合わないことがある)
   appendSync: (id, ops) => ipcRenderer.sendSync('memo:appendSync', id, ops),

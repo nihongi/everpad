@@ -8,6 +8,15 @@ const { buildTemplate } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
 
+/* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
+   Node.js 側(--inspect、NODE_OPTIONS、ELECTRON_RUN_AS_NODE)は package.json の electronFuses で実行ファイルごと無効にしてある。
+   画面(Chromium)側の --remote-debugging-* は fuses の対象外なので、ここで取り除き、残っていれば起動しない。 */
+const DEBUG_SWITCHES = ['remote-debugging-port', 'remote-debugging-pipe', 'remote-debugging-address', 'remote-allow-origins'];
+if (app.isPackaged) {
+  for (const sw of DEBUG_SWITCHES) app.commandLine.removeSwitch(sw);
+  if (DEBUG_SWITCHES.some(sw => app.commandLine.hasSwitch(sw))) app.exit(1);
+}
+
 const APP_NAME = 'EverPad';
 const APP_ID = 'local.everpad.app';
 const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
@@ -155,6 +164,34 @@ ipcMain.handle('attach:open', (e, noteId, fileId) => {
   return 'shown';
 });
 
+/* ---------- 印刷・PDF ----------
+   紙面は画面側が用意する(印刷するときだけ本文を出すスタイル)。ここでは印刷ダイアログと PDF の書き出しをする。 */
+ipcMain.handle('print:print', e => {
+  if (!fromOurWindow(e)) return 'failed';
+  return new Promise(resolve => {
+    win.webContents.print({ printBackground: true }, (ok, reason) => resolve(ok ? 'ok' : /cancel/i.test(String(reason)) ? 'cancelled' : 'failed'));
+  });
+});
+// 用紙: 米国・カナダは Letter、それ以外は A4
+const paperSize = () => (/[-_](US|CA)\b/i.test(app.getLocale() + ' ' + (app.getPreferredSystemLanguages()[0] || '')) ? 'Letter' : 'A4');
+let lastPdfDir = null;
+ipcMain.handle('print:pdf', async (e, title) => {
+  if (!fromOurWindow(e)) return { status: 'failed' };
+  const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.pdf';
+  const r = await dialog.showSaveDialog(win, {
+    title: T('pdfSaveTitle'),
+    defaultPath: path.join(lastPdfDir || app.getPath('documents'), name),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }]
+  });
+  if (r.canceled || !r.filePath) return { status: 'cancelled' };
+  try {
+    const data = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: paperSize() });
+    fs.writeFileSync(r.filePath, data);
+    lastPdfDir = path.dirname(r.filePath);
+    return { status: 'saved', path: r.filePath };
+  } catch (err) { return { status: 'failed' }; }
+});
+
 /* 画面にまだ書き出していない編集を書き出させて、終わりを待つ(最長2秒) */
 function flushRenderer() {
   return new Promise(resolve => {
@@ -201,6 +238,9 @@ function buildMenu() {
       submenu: [
         { label: T('mNewNote'), accelerator: 'CmdOrCtrl+N', click: () => send('new') },
         { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
+        { type: 'separator' },
+        { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },
+        { label: T('mSavePdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
         { type: 'separator' },
         { label: T('mOpenDir'), click: () => shell.openPath(store.dir) },
         { label: T('mChangeDir'), click: changeFolder },

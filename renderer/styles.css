@@ -260,3 +260,27 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
   #restore { margin-left: 0; flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+
+/* ---- 印刷・PDF ----
+   印刷するときだけ #printArea(整形した本文)を出し、画面の部品は隠す。
+   ダークモードでも白い紙に黒い文字になるよう、色は明るい配色に固定する。
+   ページ上下の題名・日時・ページ番号は、印刷の直前に #printPage に書く @page の余白で出す。 */
+.print-area { display: none; }
+@media print {
+  html, body { height: auto; overflow: visible; background: #fff; }
+  .app, .toast { display: none !important; }
+  .print-area {
+    display: block;
+    --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #EEF1F6; --line: #B9C2D3;
+    --fg: #000000; --fg-2: #4A5468; --accent: #1F3F99; --accent-soft: #DCE5F7;
+    color-scheme: light; color: var(--fg); background: #fff;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .print-area .md { font-size: 11pt; line-height: 1.55; }
+  .print-area .md h1, .print-area .md h2, .print-area .md h3 { break-after: avoid; }
+  .print-area .md pre, .print-area .md blockquote, .print-area .md img, .print-area .md tr { break-inside: avoid; }
+  .print-area .md pre { white-space: pre-wrap; overflow: visible; }
+  .print-area .md .tblwrap { overflow: visible; }
+  .print-area .md img { max-width: 100%; height: auto; }
+  .print-area .md a { color: var(--accent); text-decoration: underline; }
+}

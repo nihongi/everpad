@@ -919,8 +919,56 @@
     else if (name === 'side') toggleSide();
     else if (name === 'search') { showSide(); $('q').focus(); $('q').select(); }
     else if (name === 'mode:history') toggleHistory();
+    else if (name === 'print') printNote('print');
+    else if (name === 'pdf') printNote('pdf');
     else if (name.indexOf('mode:') === 0) { if (S.mode === 'history') { stop(); S.hbase = name.slice(5); setMode('history'); } else setMode(name.slice(5), true); }
   });
+  /* ---------- 印刷・PDF ----------
+     いまのメモを、プレビューと同じ整形した見た目で出す。履歴表示中は、見ている版を出す。
+     ページの上に題名と最終編集の日時、下に印刷(作成)の日時とページ番号を入れる。 */
+  const cssStr = v => '"' + String(v).replace(/[\r\n]+/g, ' ').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  let printing = false;
+  async function printNote(kind) {
+    const n = cur();
+    if (!n || printing) return;
+    printing = true;
+    const N = n.ops.length, k = S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
+    const text = k === N ? n.text : textAt(n, k);
+    const op = k > 0 ? n.ops[k - 1] : null;
+    const title = shownTitle(titleOf(text));
+    const area = $('printArea');
+    area.innerHTML = '<div class="md">' + md(text) + '</div>';
+    hydrate(area, n.id);
+    const edited = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: k, n: N }) : '');
+    const stampText = T(kind === 'pdf' ? 'printCreated' : 'printPrinted', { when: fmtFull(Date.now()) });
+    const box = 'font-family: ' + getComputedStyle(document.body).fontFamily.replace(/[;{}]/g, '') + '; font-size: 8.5pt; color: #4A5468;';
+    $('printPage').textContent = '@page { margin: 18mm 16mm; background: #fff;'
+      + ' @top-left { content: ' + cssStr(title) + '; ' + box + ' }'
+      + ' @top-right { content: ' + cssStr(edited) + '; ' + box + ' }'
+      + ' @bottom-left { content: ' + cssStr(stampText) + '; ' + box + ' }'
+      + ' @bottom-right { content: counter(page) " / " counter(pages); ' + box + ' } }';
+    // 添付の画像が読み込まれるのを待つ(最長3秒)
+    await Promise.race([
+      Promise.all([...area.querySelectorAll('img')].map(img => (img.complete ? null : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); })))),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
+    try {
+      if (kind === 'pdf') {
+        const r = await api.savePdf(title);
+        if (r && r.status === 'saved') toast(T('pdfSaved', { path: r.path }));
+        else if (r && r.status === 'failed') toast(T('pdfFailed'));
+      } else {
+        const r = await api.print();
+        if (r === 'failed') toast(T('printFailed'));
+      }
+    } catch (e) {
+      toast(T(kind === 'pdf' ? 'pdfFailed' : 'printFailed'));
+    } finally {
+      area.innerHTML = '';
+      $('printPage').textContent = '';
+      printing = false;
+    }
+  }
   api.onFlushRequest(() => { flushSync(); api.flushed(); });
   window.addEventListener('pagehide', flushSync);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });

@@ -17,6 +17,7 @@ This program was created with the help of Claude Code.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
 - **Find and replace**: with case sensitivity, whole-word and regular-expression options.
 - **Images and attachments**: paste screenshots or drop files into a note.
+- **Print and PDF**: print a note, or save it as a PDF, with the same formatting as the preview.
 - **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
 
@@ -51,7 +52,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.5.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.8.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -59,6 +60,8 @@ This creates an installer (`EverPad Setup 0.5.0.exe`) and a portable executable 
 |---|---|
 | New note | `Ctrl+N` |
 | Search all notes | `Ctrl+F` |
+| Print | `Ctrl+P` |
+| Save as PDF | `Ctrl+Shift+P` |
 | Edit / Preview | `Ctrl+1` / `Ctrl+2` |
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
 | Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
@@ -87,6 +90,13 @@ This creates an installer (`EverPad Setup 0.5.0.exe`) and a portable executable 
 - The files are kept in the note's `.files` folder. **The app never deletes an attachment, even if you remove it from the text, so that older versions in the history can still show it.** Identical files are stored only once. The size limit is 50 MB per file.
 - You may freely edit the "name" part before `attach:` (avoid `|`, `[` and `]`). Copying the attachment syntax into another note does not work, because the file does not exist in that note; paste the file again instead.
 - A list of the attachments used in the note (thumbnails) is shown below the text.
+
+**Printing and PDF**
+
+- Choose File → Print… (`Ctrl+P`) to print the current note, or File → Save as PDF… (`Ctrl+Shift+P`) to save it as a PDF.
+- The note is printed with the same formatting as the preview (headings, tables, check boxes and attached images), whichever view you are in. While the history is shown, the version you are viewing is printed.
+- Each page shows the note title and the time of the last edit at the top, and the time it was printed (or the PDF was created) and the page number at the bottom. When a past version is printed, its version number is shown too.
+- Even in dark mode, notes are printed as dark text on white paper. PDFs use A4 paper (Letter in the United States and Canada).
 
 **Other**
 
@@ -153,6 +163,8 @@ test/            Automated tests
 
 - Images are loaded only through the dedicated `everpad-file://` scheme, which cannot read files outside the data folder.
 - The UI cannot use Node.js directly (`contextIsolation` and `sandbox` are enabled) and cannot navigate away from the app. Only external links are opened, in the default browser.
+- The installed app does not accept debugging connections: `--inspect`, `NODE_OPTIONS` and `ELECTRON_RUN_AS_NODE` are disabled in the executable itself (Electron fuses), and `--remote-debugging-port` and similar switches are ignored. Development runs with `npm start` are not affected.
+- The installed app checks at startup that its code (`app.asar`) has not been modified, and refuses to start if it has been changed or replaced (Electron fuses: OnlyLoadAppFromAsar and EnableEmbeddedAsarIntegrityValidation).
 
 ### Testing
 
@@ -184,6 +196,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
 - **検索と置換**: 大文字/小文字の区別、単語単位、正規表現を選べます。
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
+- **印刷と PDF**: メモを、プレビューと同じ整形した見た目で印刷したり、PDF として保存したりできます。
 - **日本語と英語**: 画面の言語をメニューから切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
 
@@ -218,7 +231,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.5.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.8.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -226,6 +239,8 @@ npm run dist
 |---|---|
 | 新しいメモ | `Ctrl+N` |
 | 全メモから検索 | `Ctrl+F` |
+| 印刷 | `Ctrl+P` |
+| PDF として保存 | `Ctrl+Shift+P` |
 | 編集 / プレビュー | `Ctrl+1` / `Ctrl+2` |
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
@@ -254,6 +269,13 @@ npm run dist
 - ファイルの実体は、そのメモの `.files` フォルダに保存されます。**本文から消しても、履歴の古い版で見られるように、アプリはファイルを削除しません。** 同じ内容のファイルは1つだけ保存します。1ファイル 50MB までです。
 - `attach:` の前の「名前」の部分は自由に書き換えられます(`|`、`[`、`]` は使わないでください)。添付の記法を別のメモにコピーしても、そのメモにはファイルの実体がないので表示されません。ファイルを貼り付け直してください。
 - 本文の下に、そのメモで使っている添付の一覧(サムネイル)が表示されます。
+
+**印刷と PDF**
+
+- メニューの「ファイル」→「印刷…」(`Ctrl+P`)で、いま開いているメモを印刷します。「ファイル」→「PDF として保存…」(`Ctrl+Shift+P`)では PDF として保存します。
+- どの表示から実行しても、プレビューと同じ整形した見た目(見出し、表、チェックボックス、添付画像)で出ます。履歴の表示中は、見ている版を出します。
+- 各ページの上に題名と最後に編集した日時、下に印刷した日時(PDF では作成した日時)とページ番号が入ります。過去の版を出したときは、版の番号も入ります。
+- ダークモードで使っていても、白い紙に黒い文字で出ます。PDF の用紙は A4 です(米国とカナダでは Letter)。
 
 **その他**
 
@@ -320,6 +342,8 @@ test/            自動テスト
 
 - 画像は専用の `everpad-file://` からだけ読み込み、保存先のフォルダの外のファイルは読めません。
 - 画面からは Node.js の機能を直接使えない構成(`contextIsolation`、`sandbox`)で、ページの外へ移動することも禁止しています。外部リンクだけは既定のブラウザで開きます。
+- インストールしたアプリは、デバッグ用の接続を受け付けません。`--inspect`、`NODE_OPTIONS`、`ELECTRON_RUN_AS_NODE` は実行ファイル自体で無効にしてあり(Electron の fuses)、`--remote-debugging-port` などの起動オプションは無視します。`npm start` での開発時の起動には影響しません。
+- インストールしたアプリは、起動時にアプリ本体(`app.asar`)が書き換えられていないかを確かめ、書き換えや差し替えがあれば起動しません(Electron の fuses の OnlyLoadAppFromAsar と EnableEmbeddedAsarIntegrityValidation)。
 
 ### 動作確認
 
