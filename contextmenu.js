@@ -32,4 +32,21 @@ function buildTemplate(params, opts) {
   }
   return [];
 }
-module.exports = { buildTemplate };
+/* 添付の画像・ファイルを右クリックしたときのメニュー。actions は { copy, open, show, save } のクリック時の処理 */
+function buildAttachTemplate(image, actions, lang) {
+  const T = key => I18N.t(lang || 'ja', key);
+  if (image) {
+    return [
+      { label: T('mCopyImage'), click: actions.copy },
+      { label: T('mOpenImage'), click: actions.open },
+      { label: T('mShowImage'), click: actions.show },
+      { type: 'separator' },
+      { label: T('mSaveImageAs'), click: actions.save }
+    ];
+  }
+  return [
+    { label: T('mOpenFile'), click: actions.open },
+    { label: T('mShowFile'), click: actions.show }
+  ];
+}
+module.exports = { buildTemplate, buildAttachTemplate };

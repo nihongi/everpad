@@ -60,6 +60,23 @@ function mdFence(lines, i) {
   return { next: i + 1, html: '<pre><code>' + esc(buf.join('\n')) + '</code></pre>' };
 }
 
+/* ---------- カーソル位置と選択の文字数(状態表示) ----------
+   文字は、絵文字なども1文字と数える(サロゲートペアを1つに)。 */
+const countChars = s => { let c = 0; for (const _ of s) c++; return c; };
+/* 位置 pos(UTF-16 の位置)が何行目の何文字目か。行は改行で区切った行で、どちらも1から数える */
+function cursorInfo(text, pos) {
+  pos = Math.max(0, Math.min(text.length, pos | 0));
+  let line = 1;
+  for (let i = text.indexOf('\n'); i >= 0 && i < pos; i = text.indexOf('\n', i + 1)) line++;
+  const ls = text.lastIndexOf('\n', pos - 1) + 1;
+  return { line: line, col: countChars(text.slice(ls, pos)) + 1 };
+}
+/* 選んだ文字列の文字数(改行は数えない)と行数(最後の改行だけで次の行に入ったときは数えない) */
+function selectionInfo(s) {
+  const nl = (s.match(/\n/g) || []).length;
+  return { chars: countChars(s) - nl, lines: s ? nl + 1 - (s.length > 1 && s.endsWith('\n') ? 1 : 0) : 0 };
+}
+
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
 const titleOf = text => {
   for (const ln of text.split('\n')) { const t = ln.replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
@@ -352,5 +369,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

@@ -74,3 +74,28 @@ test('題名が無いメモは空文字(表示側で言語に合わせて「無�
   assert.strictEqual(L.titleOf('\n  \n# \n'), '');
   assert.strictEqual(L.titleOf('# Hello\nworld'), 'Hello');
 });
+
+test('Markdown の書き方: 日本語と英語で例の数と表示の有無がそろい、どの例も表示できる', () => {
+  const HELP = require('../renderer/help-content');
+  assert.strictEqual(HELP.ja.sections.length, HELP.en.sections.length);
+  HELP.ja.sections.forEach((s, i) => {
+    const e = HELP.en.sections[i];
+    assert.strictEqual(!!s.noRender, !!e.noRender, '表示の有無が違う: ' + s.h);
+    for (const sec of [s, e]) {
+      if (sec.noRender) continue;
+      const html = L.md(sec.src);
+      assert.ok(html.length > 0, '表示が空: ' + sec.h);
+      assert.ok(!/attach:/.test(html), '添付の書き方は noRender にする: ' + sec.h);
+    }
+  });
+  // 主な書式が、期待どおりの HTML になる(説明と実際の表示がずれないように)
+  const out = Object.fromEntries(HELP.ja.sections.filter(s => !s.noRender).map(s => [s.h, L.md(s.src)]));
+  assert.match(out['見出し'], /<h1>見出し1<\/h1>/);
+  assert.match(out['段落と改行'], /1行目<br>2行目/);
+  assert.match(out['文字の強調'], /<strong>太字<\/strong>.*<em>斜体<\/em>.*<del>取り消し線<\/del>/s);
+  assert.match(out['箇条書き'], /<li>みかん<ul><li>温州みかん/);
+  assert.match(out['チェックボックス'], /type="checkbox"[^>]*checked/);
+  assert.match(out['リンク'], /<a href="https:\/\/www\.electronjs\.org\/"/);
+  assert.match(out['表'], /class="al-c"/);
+  assert.match(out['表'], /class="al-r"/);
+});

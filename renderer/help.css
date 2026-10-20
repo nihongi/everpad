@@ -1,0 +1,19 @@
+/* 「Markdown の書き方」の画面。色と .md の見た目は styles.css を使い、ここでは並べ方だけを決める */
+html, body { height: auto; overflow: auto; }
+body { background: var(--surface); }
+.help { max-width: 60rem; margin: 0 auto; padding: 28px 24px 48px; }
+.help > h1 { font-family: var(--serif); font-size: 28px; letter-spacing: .03em; margin: 0 0 8px; }
+.help .intro { margin: 0 0 18px; color: var(--fg-2); }
+.help .diffs { background: var(--accent-soft); border-radius: 10px; padding: 12px 18px; margin-bottom: 28px; }
+.help .diffs h2 { font-size: 15px; margin: 0 0 6px; color: var(--accent); }
+.help .diffs ul { margin: 0; padding-left: 1.4em; }
+.help .diffs li { margin: .2em 0; }
+.help section { padding: 18px 0 22px; border-top: 1px solid var(--line); }
+.help section h2 { font-size: 18px; margin: 0 0 4px; }
+.help .explain { margin: 0 0 10px; color: var(--fg-2); font-size: 14px; }
+.help .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.help .pair.single { grid-template-columns: minmax(0, 1fr); }
+.help .lbl { font-size: 12px; font-weight: 700; color: var(--fg-2); letter-spacing: .04em; margin-bottom: 4px; }
+.help .src { margin: 0; font: 14px/1.7 var(--mono); background: var(--surface-2); border-radius: 8px; padding: 10px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.help .out { border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; background: var(--surface); }
+@media (max-width: 640px) { .help .pair { grid-template-columns: minmax(0, 1fr); } }

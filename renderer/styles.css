@@ -159,6 +159,10 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .pane { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; }
 
 .stR { display: inline-flex; align-items: center; gap: 14px; }
+/* 状態表示の左側: カーソル・選択・全体を、区切り線で分けて並べる。選択は色を変えて目立たせる */
+#stLeft { display: inline-flex; flex-wrap: wrap; align-items: center; row-gap: 2px; }
+#stLeft > span + span { border-left: 1px solid var(--line); margin-left: 10px; padding-left: 10px; }
+#stLeft .st-sel { color: var(--accent); font-weight: 700; }
 .tgl { border: 1px solid var(--line); background: transparent; color: var(--fg-2); border-radius: 6px; padding: 0 10px; font-size: 12.5px; line-height: 1.7; cursor: pointer; }
 .tgl:hover { background: var(--surface-2); }
 .tgl[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 700; }

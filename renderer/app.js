@@ -178,10 +178,35 @@
   function updateStatus() {
     const n = cur();
     if (!n) return;
-    const lines = n.text ? n.text.split('\n').length : 0;
-    $('stLeft').textContent = T('status', { chars: count(n.text), lines: lines, versions: n.ops.length });
+    // 履歴の表示中は、いま表示している版の本文で数える(タイムスライダーに合わせて変わる)
+    const hist = S.mode === 'history' && S.histText != null;
+    const text = hist ? S.histText : n.text;
+    const lines = text ? text.split('\n').length : 0;
+    const total = hist
+      ? { cls: 'st-total', text: T('statusAt', { k: S.rev, chars: count(text), lines: lines }), title: T('statusAtTitle') }
+      : { cls: 'st-total', text: T('status', { chars: count(text), lines: lines, versions: n.ops.length }), title: T('statusTitle') };
+    // カーソル・選択・全体を、見出し付きの別々のまとまりにして区切り線で分ける
+    const parts = caretParts().concat(total);
+    const box = $('stLeft');
+    box.textContent = '';
+    for (const p of parts) { const sp = document.createElement('span'); sp.className = p.cls; sp.textContent = p.text; sp.title = p.title; box.appendChild(sp); }
     $('stRight').textContent = saveError ? T('saveError') : isPending() ? T('saving') : T('saved');
   }
+  /* 状態表示の左側に出す、カーソル位置(編集画面だけ)と選択の文字数。{ cls, text, title } の配列 */
+  function caretParts() {
+    const parts = [], ed = $('editor');
+    let sel = '';
+    if (S.mode === 'edit') sel = ed.value.slice(ed.selectionStart, ed.selectionEnd);
+    else {
+      const ws = window.getSelection(), host = S.mode === 'preview' ? $('preview') : $('hvBody');
+      if (ws && ws.rangeCount && !ws.isCollapsed && host.contains(ws.anchorNode) && host.contains(ws.focusNode)) sel = ws.toString();
+    }
+    if (S.mode === 'edit') parts.push({ cls: 'st-pos', text: T('cursorPos', cursorInfo(ed.value, ed.selectionDirection === 'backward' ? ed.selectionStart : ed.selectionEnd)), title: T('cursorTitle') });
+    if (sel) { const si = selectionInfo(sel); parts.push({ cls: 'st-sel', text: T(si.lines > 1 ? 'selCharsLines' : 'selChars', si), title: T('selTitle') }); }
+    return parts;
+  }
+  let caretTimer = 0;
+  function queueStatus() { if (!caretTimer) caretTimer = setTimeout(() => { caretTimer = 0; updateStatus(); }, 30); }
   let toastTimer = null;
   function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200); }
 
@@ -280,6 +305,7 @@
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
+    queueStatus();
   }
   // 「編集」「プレビュー」: 履歴表示の最中なら、履歴のまま(同じ版で)表示を切り替える
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
@@ -334,6 +360,8 @@
     S.rev = k;
     const past = k !== N;
     const text = textAt(n, k);
+    S.histText = text;   // 状態表示の「全体」に使う
+    updateStatus();
     $('histView').dataset.past = past ? '1' : '0';
     $('tl').dataset.past = past ? '1' : '0';
     $('chip').textContent = past ? T('pastVersion') : T('latestVersion');
@@ -797,6 +825,26 @@
     e.preventDefault();
     openAttachment(t.dataset.att);
   });
+  // 右クリック: 画像は「コピー・開く・場所を開く・名前をつけて保存」、ファイルは「開く・場所を開く」(左クリックはこれまでどおり開く)
+  document.addEventListener('contextmenu', e => {
+    const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
+    if (!t) return;
+    e.preventDefault();
+    const chip = t.closest('.att-chip'), img = t.tagName === 'IMG' ? t : t.querySelector('img');
+    const name = (chip && chip.dataset.name) || (img && img.alt) || t.title || t.textContent.trim();
+    attachMenu(t.dataset.att, name, isImageName(t.dataset.att), e.clientX, e.clientY);
+  });
+  async function attachMenu(fileId, name, image, x, y) {
+    let r = null;
+    try { r = await api.attachMenu(S.active, fileId, name, image, x, y); } catch (err) { r = null; }
+    const st = r && r.status;
+    if (st === 'missing') toast(T('fileMissing'));
+    else if (st === 'copied') toast(T('imageCopied'));
+    else if (st === 'copyFailed') toast(T('imageCopyFailed'));
+    else if (st === 'saved') toast(T('attSaved', { path: r.path }));
+    else if (st === 'saveFailed') toast(T('attSaveFailed'));
+    else if (st === 'shown') toast(T('shownInFolder'));
+  }
   /* 編集画面の下に、いまの本文で使っている添付を並べる */
   let stripSig = '';
   function updateStrip() {
@@ -809,7 +857,7 @@
     strip.innerHTML = '';
     for (const r of refs) {
       const b = document.createElement('button');
-      b.type = 'button'; b.className = 'att-chip'; b.dataset.att = r.id; b.title = T('clickToOpen', { name: r.name });
+      b.type = 'button'; b.className = 'att-chip'; b.dataset.att = r.id; b.dataset.name = r.name; b.title = T('clickToOpen', { name: r.name });
       if (r.image) { const im = document.createElement('img'); im.dataset.att = r.id; im.alt = r.name; b.appendChild(im); }
       else b.insertAdjacentHTML('beforeend', '<span class="att-ico" aria-hidden="true">📎</span>');
       const sp = document.createElement('span'); sp.textContent = r.name; b.appendChild(sp);
@@ -973,6 +1021,8 @@
   window.addEventListener('pagehide', flushSync);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
   $('openDirBtn').addEventListener('click', () => api.openFolder());
+  document.addEventListener('selectionchange', queueStatus);
+  ['keydown', 'keyup', 'mouseup', 'select', 'focus'].forEach(ev => $('editor').addEventListener(ev, queueStatus));
 
   /* ---------- 画面を読み直すとき(言語の切り替え)に、表示の状態を引き継ぐ ----------
      読み直す直前に sessionStorage へ預け、読み直した直後に1回だけ戻す。

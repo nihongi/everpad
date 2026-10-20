@@ -1,10 +1,10 @@
 'use strict';
-const { app, BrowserWindow, Menu, ipcMain, dialog, shell, nativeTheme, session, protocol, net, screen } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, shell, nativeTheme, session, protocol, net, screen, clipboard, ClipboardItem, nativeImage } = require('electron');
 const { pathToFileURL } = require('url');
 const path = require('path');
 const fs = require('fs');
 const { Store, MAX_ATTACH } = require('./store');
-const { buildTemplate } = require('./contextmenu');
+const { buildTemplate, buildAttachTemplate } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
 
@@ -164,6 +164,51 @@ ipcMain.handle('attach:open', (e, noteId, fileId) => {
   return 'shown';
 });
 
+/* 添付を右クリックしたときのメニュー(画像: コピー・開く・場所を開く・名前をつけて保存、ファイル: 開く・場所を開く)。
+   選んだ操作の結果を返す(画面側で知らせる)。x, y は右クリックした位置(画像をコピーできない形式のときに使う) */
+let lastSaveDir = null;
+ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
+  if (!fromOurWindow(e)) return null;
+  const p = store.attachmentPath(noteId, fileId);
+  if (!p) return { status: 'missing' };
+  const actions = {
+    copy: async () => {
+      // PNG にしてクリップボードへ(この Electron のクリップボードは ClipboardItem で書き込む)
+      const img = nativeImage.createFromPath(p);
+      if (!img.isEmpty()) { await clipboard.write([new ClipboardItem({ 'image/png': new Blob([img.toPNG()], { type: 'image/png' }) })]); return { status: 'copied' }; }
+      // nativeImage で読めない形式(GIF・WebP など)は、画面に出ている画像をコピーする
+      const z = win.webContents.getZoomFactor();
+      win.webContents.copyImageAt(Math.round(x * z), Math.round(y * z));
+      return { status: 'copied' };
+    },
+    open: () => {
+      if (SAFE_OPEN.test(p)) { shell.openPath(p); return { status: 'opened' }; }
+      shell.showItemInFolder(p);
+      return { status: 'shown' };
+    },
+    show: () => { shell.showItemInFolder(p); return { status: 'none' }; },
+    save: async () => {
+      const ext = path.extname(p);
+      let nm = String(name || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 120) || T('file');
+      if (ext && path.extname(nm).toLowerCase() !== ext.toLowerCase()) nm += ext;
+      const r = await dialog.showSaveDialog(win, { title: T('saveAsTitle'), defaultPath: path.join(lastSaveDir || app.getPath('documents'), nm) });
+      if (r.canceled || !r.filePath) return { status: 'none' };
+      try { fs.copyFileSync(p, r.filePath); lastSaveDir = path.dirname(r.filePath); return { status: 'saved', path: r.filePath }; }
+      catch (err) { return { status: 'saveFailed' }; }
+    }
+  };
+  return new Promise(resolve => {
+    let chosen = false;
+    const wrap = (key, fail) => async () => {
+      chosen = true;
+      try { resolve((await actions[key]()) || { status: 'none' }); } catch (err) { resolve({ status: fail }); }
+    };
+    const tpl = buildAttachTemplate(!!image, { copy: wrap('copy', 'copyFailed'), open: wrap('open', 'none'), show: wrap('show', 'none'), save: wrap('save', 'saveFailed') }, lang);
+    // 何も選ばずに閉じたとき(クリックの処理より後に呼ばれることがあるので少し待つ)
+    Menu.buildFromTemplate(tpl).popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve({ status: 'none' }); }, 300) });
+  });
+});
+
 /* ---------- 印刷・PDF ----------
    紙面は画面側が用意する(印刷するときだけ本文を出すスタイル)。ここでは印刷ダイアログと PDF の書き出しをする。 */
 ipcMain.handle('print:print', e => {
@@ -288,6 +333,8 @@ function buildMenu() {
     {
       label: T('mHelp'),
       submenu: [
+        { label: T('mMdHelp'), click: showMdHelp },
+        { type: 'separator' },
         { label: T('mAbout'), click: showAbout }
       ]
     }
@@ -305,9 +352,36 @@ async function setLang(l) {
   lang = l;
   writeConfig(Object.assign(readConfig(), { lang: l }));
   buildMenu();
+  if (helpWin && !helpWin.isDestroyed()) { helpWin.setTitle(T('mdHelpTitle')); loadHelp(); }
   if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
 }
 const loadPage = () => win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang } });
+
+/* ---------- Markdown の書き方(別ウィンドウ) ---------- */
+let helpWin = null;
+const loadHelp = () => helpWin.loadFile(path.join(__dirname, 'renderer', 'help.html'), { query: { lang: lang } });
+function showMdHelp() {
+  if (helpWin && !helpWin.isDestroyed()) { if (helpWin.isMinimized()) helpWin.restore(); helpWin.focus(); return; }
+  helpWin = new BrowserWindow({
+    width: 1000, height: 780, minWidth: 480, minHeight: 360,
+    title: T('mdHelpTitle'),
+    icon: ICON,
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0D1224' : '#EEF2FA',
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false }
+  });
+  helpWin.removeMenu();
+  loadHelp();
+  helpWin.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  helpWin.webContents.on('will-navigate', e => e.preventDefault());
+  helpWin.webContents.on('context-menu', (_e, params) => {
+    const tpl = buildTemplate(params, { lang: lang });
+    if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: helpWin });
+  });
+  helpWin.on('closed', () => { helpWin = null; });
+}
 
 /* ---------- バージョン情報 ---------- */
 function showAbout() {
@@ -370,7 +444,7 @@ function createWindow() {
     try { writeConfig(Object.assign(readConfig(), { window: captureBounds(win.getNormalBounds(), win.isMaximized()) })); } catch (err) { /* 覚えられなくても閉じる */ }
     flushRenderer().then(() => { if (win && !win.isDestroyed()) win.close(); });
   });
-  win.on('closed', () => { win = null; });
+  win.on('closed', () => { win = null; if (helpWin && !helpWin.isDestroyed()) helpWin.close(); });
 }
 
 /* ---------- 起動 ---------- */

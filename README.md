@@ -52,7 +52,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.8.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.9.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -90,6 +90,7 @@ This creates an installer (`EverPad Setup 0.8.0.exe`) and a portable executable 
 - The files are kept in the note's `.files` folder. **The app never deletes an attachment, even if you remove it from the text, so that older versions in the history can still show it.** Identical files are stored only once. The size limit is 50 MB per file.
 - You may freely edit the "name" part before `attach:` (avoid `|`, `[` and `]`). Copying the attachment syntax into another note does not work, because the file does not exist in that note; paste the file again instead.
 - A list of the attachments used in the note (thumbnails) is shown below the text.
+- Right-click an image (in the preview, the history's Markdown view or the attachment list) for Copy Image, Open Image, Show Image in Folder and Save Image As…. Right-click a file link for Open File and Show File in Folder. Left-clicking still opens it.
 
 **Printing and PDF**
 
@@ -103,7 +104,26 @@ This creates an installer (`EverPad Setup 0.8.0.exe`) and a portable executable 
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
 - To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered, and the current view (Edit, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
+- The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Edit view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers. Hover over a group for a short explanation.
+- Choose Help → Markdown Guide for the Markdown you can use, with each example shown next to its result. See also "Markdown syntax" below.
 - To check the version you are running, choose Help → About EverPad from the menu. It also shows the Electron version and the data folder.
+
+### Markdown syntax
+
+| Element | You type |
+|---|---|
+| Headings | `# Heading 1`, `## Heading 2` … `###### Heading 6` |
+| Emphasis | `**bold**`, `*italic*`, `~~strikethrough~~`, `` `code` `` |
+| Lists | `- item` (or `*`, `+`; indent by two spaces to nest), `1. item` |
+| Check boxes | `- [ ] to do`, `- [x] done` |
+| Links | `[text](https://example.com)` (http and https only) |
+| Block quotes | `> quoted text` |
+| Code blocks | lines surrounded by ```` ``` ```` |
+| Horizontal rules | `---` |
+| Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
+| Attachments | `![name](attach:…)` (image), `[name](attach:…)` (file), inserted automatically |
+
+Unlike some other Markdown, a line break inside a paragraph is shown as a line break, only attached images are displayed, and HTML tags are shown as plain text.
 
 ### Where notes are stored
 
@@ -154,7 +174,8 @@ main.js          Electron main process (window, menus, data folder, Recycle Bin)
 preload.js       The bridge exposed to the UI (saving, loading and menu actions only)
 store.js         File storage layer (testable without Electron)
 windowstate.js   Remembering and restoring the window position (testable without Electron)
-renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), and the English and Japanese texts (i18n.js)
+renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js),
+                 and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js)
 test/            Automated tests
 ```
@@ -231,7 +252,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.8.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.9.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -269,6 +290,7 @@ npm run dist
 - ファイルの実体は、そのメモの `.files` フォルダに保存されます。**本文から消しても、履歴の古い版で見られるように、アプリはファイルを削除しません。** 同じ内容のファイルは1つだけ保存します。1ファイル 50MB までです。
 - `attach:` の前の「名前」の部分は自由に書き換えられます(`|`、`[`、`]` は使わないでください)。添付の記法を別のメモにコピーしても、そのメモにはファイルの実体がないので表示されません。ファイルを貼り付け直してください。
 - 本文の下に、そのメモで使っている添付の一覧(サムネイル)が表示されます。
+- 画像を右クリックすると(プレビュー、履歴の「Markdown表示」、添付の一覧)、「画像をコピー」「画像を開く」「画像の場所を開く」「名前をつけて画像を保存…」のメニューが出ます。ファイルへのリンクを右クリックすると「ファイルを開く」「ファイルの場所を開く」が出ます。左クリックすると、これまでどおり開きます。
 
 **印刷と PDF**
 
@@ -282,7 +304,26 @@ npm run dist
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
 - 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、いまの表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
+- 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。編集画面だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます。マウスを重ねると、それぞれの説明が出ます。
+- メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョンと、メモの保存先も表示されます。
+
+### Markdown の書き方
+
+| 書式 | 書き方 |
+|---|---|
+| 見出し | `# 見出し1`、`## 見出し2` … `###### 見出し6` |
+| 強調 | `**太字**`、`*斜体*`、`~~取り消し線~~`、`` `コード` `` |
+| 箇条書き | `- 項目`(`*`・`+` も可。空白2つで字下げすると入れ子)、`1. 項目` |
+| チェックボックス | `- [ ] 未完了`、`- [x] 完了` |
+| リンク | `[表示する文字](https://example.com)`(http と https だけ) |
+| 引用 | `> 引用する文` |
+| コードのかたまり | ```` ``` ```` だけの行で前後を囲む |
+| 区切り線 | `---` |
+| 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
+| 添付 | `![名前](attach:…)`(画像)、`[名前](attach:…)`(ファイル)。添付すると自動で書かれます |
+
+一般的な Markdown と違い、段落の中の改行はそのまま改行になり、画像は添付したものだけが表示され、HTML のタグはそのまま文字として表示されます。
 
 ### メモの保存先と形式
 
@@ -333,7 +374,8 @@ main.js          Electron 本体側(ウィンドウ、メニュー、保存先�
 preload.js       画面に渡す窓口(保存・読み込み・メニュー操作だけ)
 store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
-renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)
+renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、
+                 「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)
 test/            自動テスト
 ```

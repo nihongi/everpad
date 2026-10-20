@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachSave: (noteId, name, bytes) => ipcRenderer.invoke('attach:save', noteId, name, bytes),
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
+  attachMenu: (noteId, fileId, name, image, x, y) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y),
   // 印刷・PDF(画面に用意した印刷用の紙面を出す)
   print: () => ipcRenderer.invoke('print:print'),
   savePdf: title => ipcRenderer.invoke('print:pdf', title),
