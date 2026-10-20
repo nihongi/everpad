@@ -18,6 +18,14 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
   attachMenu: (noteId, fileId, name, image, x, y) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y),
+  // プロパティ
+  noteInfo: id => ipcRenderer.invoke('note:info', id),
+  revealNote: (id, kind) => ipcRenderer.invoke('note:reveal', id, kind),
+  copyText: text => ipcRenderer.invoke('app:copyText', text),
+  // テキストの取り込み・書き出し
+  onImport: cb => { ipcRenderer.on('import:texts', (_e, items) => cb(items)); },
+  exportText: (title, text) => ipcRenderer.invoke('export:text', title, text),
+  ready: () => ipcRenderer.send('app:ready'),
   // 印刷・PDF(画面に用意した印刷用の紙面を出す)
   print: () => ipcRenderer.invoke('print:print'),
   savePdf: title => ipcRenderer.invoke('print:pdf', title),

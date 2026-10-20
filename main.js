@@ -3,7 +3,9 @@ const { app, BrowserWindow, Menu, ipcMain, dialog, shell, nativeTheme, session, 
 const { pathToFileURL } = require('url');
 const path = require('path');
 const fs = require('fs');
-const { Store, MAX_ATTACH } = require('./store');
+const { Store, MAX_ATTACH, validId } = require('./store');
+const { decodeText, MAX_IMPORT } = require('./textcodec');
+const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
 const { buildTemplate, buildAttachTemplate } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
@@ -209,6 +211,100 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
   });
 });
 
+/* ---------- プロパティ: メモの実体のファイル ---------- */
+ipcMain.handle('note:info', (e, id) => {
+  if (!fromOurWindow(e) || !validId(id)) return null;
+  const st = p => { try { return { path: p, size: fs.statSync(p).size }; } catch (err) { return { path: p, size: null }; } };
+  const dir = store.filesDir(id);
+  let count = 0, total = 0;
+  try { for (const f of fs.readdirSync(dir)) { const s2 = fs.statSync(path.join(dir, f)); if (s2.isFile() && !f.endsWith('.tmp')) { count++; total += s2.size; } } } catch (err) { /* 添付が無い */ }
+  return { jsonl: st(store.file(id, '.jsonl')), md: st(store.file(id, '.md')), files: { path: dir, exists: fs.existsSync(dir), count: count, total: total } };
+});
+ipcMain.handle('note:reveal', (e, id, kind) => {
+  if (!fromOurWindow(e) || !validId(id)) return false;
+  const p = kind === 'jsonl' ? store.file(id, '.jsonl') : kind === 'md' ? store.file(id, '.md') : kind === 'files' ? store.filesDir(id) : null;
+  if (!p || !fs.existsSync(p)) return false;
+  shell.showItemInFolder(p);
+  return true;
+});
+ipcMain.handle('app:copyText', async (e, text) => {
+  if (!fromOurWindow(e)) return false;
+  await clipboard.writeText(String(text || '').slice(0, 4096));
+  return true;
+});
+
+/* ---------- テキストの取り込み・書き出し ----------
+   取り込み: 「送る」メニュー、起動時の引数、メニューから選んだファイルを読み、文字コードを見分けて画面に渡す(メモを作るのは画面側)。
+   取り込んだメモは EverPad のメモで、元のファイルとは関係を持たない(どこから取り込んだかも記録しない)。 */
+let rendererReady = false;
+const pendingImports = [];
+function importMessage(r) {
+  if (r.reason === 'binary') return T('impBinary');
+  if (r.reason === 'tooLarge') return T('impTooLarge', { mb: MAX_IMPORT / 1024 / 1024 });
+  return T('impUndecodable', { enc: r.encoding, line: r.line, col: r.col, context: r.context, bytes: r.bytes.join(' ') });
+}
+function readTextFile(file) {
+  const name = path.basename(file);
+  try {
+    const st = fs.statSync(file);
+    if (!st.isFile()) return { name: name, ok: false, message: T('impNotFile') };
+    if (st.size > MAX_IMPORT) return { name: name, ok: false, message: T('impTooLarge', { mb: MAX_IMPORT / 1024 / 1024 }) };
+    const r = decodeText(fs.readFileSync(file));
+    return r.ok ? { name: name, ok: true, text: r.text, encoding: r.encoding } : { name: name, ok: false, message: importMessage(r) };
+  } catch (err) { return { name: name, ok: false, message: T('impReadFailed') }; }
+}
+function importFiles(files) {
+  if (!files.length) return;
+  if (!rendererReady || !win || win.isDestroyed()) { pendingImports.push(...files); return; }
+  win.webContents.send('import:texts', files.slice(0, 200).map(readTextFile));
+  if (win.isMinimized()) win.restore();
+  win.focus();
+}
+ipcMain.on('app:ready', e => {
+  if (!fromOurWindow(e)) return;
+  rendererReady = true;
+  if (pendingImports.length) importFiles(pendingImports.splice(0));
+});
+async function pickImport() {
+  const r = await dialog.showOpenDialog(win, {
+    title: T('impPickTitle'),
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: T('impFilterText'), extensions: ['txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'ini', 'json', 'xml', 'html', 'htm'] }, { name: T('impFilterAll'), extensions: ['*'] }]
+  });
+  if (!r.canceled) importFiles(r.filePaths);
+}
+// 書き出し: UTF-8(BOM なし)、改行は CRLF
+let lastExportDir = null;
+ipcMain.handle('export:text', async (e, title, text) => {
+  if (!fromOurWindow(e)) return { status: 'failed' };
+  const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.txt';
+  const r = await dialog.showSaveDialog(win, {
+    title: T('expTitle'),
+    defaultPath: path.join(lastExportDir || app.getPath('documents'), name),
+    filters: [{ name: T('expFilterText'), extensions: ['txt'] }, { name: 'Markdown', extensions: ['md'] }]
+  });
+  if (r.canceled || !r.filePath) return { status: 'cancelled' };
+  try {
+    fs.writeFileSync(r.filePath, String(text).replace(/\n/g, '\r\n'), 'utf8');
+    lastExportDir = path.dirname(r.filePath);
+    return { status: 'saved', path: r.filePath };
+  } catch (err) { return { status: 'failed' }; }
+});
+
+/* ---------- 「送る」メニュー ---------- */
+const sendToLink = () => sendToPath(app.getPath('appData'), APP_NAME);
+function setSendTo(on) {
+  const link = sendToLink();
+  try {
+    if (on) {
+      const t = shortcutTarget({ isPackaged: app.isPackaged, execPath: process.execPath, portableExe: process.env.PORTABLE_EXECUTABLE_FILE, appPath: app.getAppPath() });
+      fs.mkdirSync(path.dirname(link), { recursive: true });
+      if (!shell.writeShortcutLink(link, 'create', { target: t.target, args: t.args, description: APP_NAME, icon: t.target, iconIndex: 0 })) throw new Error('shortcut');
+    } else if (fs.existsSync(link)) fs.unlinkSync(link);
+  } catch (err) { dialog.showErrorBox(APP_NAME, T('sendToFailed')); }
+  buildMenu();
+}
+
 /* ---------- 印刷・PDF ----------
    紙面は画面側が用意する(印刷するときだけ本文を出すスタイル)。ここでは印刷ダイアログと PDF の書き出しをする。 */
 ipcMain.handle('print:print', e => {
@@ -284,11 +380,16 @@ function buildMenu() {
         { label: T('mNewNote'), accelerator: 'CmdOrCtrl+N', click: () => send('new') },
         { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
         { type: 'separator' },
+        { label: T('mImport'), accelerator: 'CmdOrCtrl+O', click: pickImport },
+        { label: T('mExport'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send('export') },
         { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },
         { label: T('mSavePdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
         { type: 'separator' },
+        { label: T('mProps'), accelerator: 'Alt+Enter', click: () => send('props') },
+        { type: 'separator' },
         { label: T('mOpenDir'), click: () => shell.openPath(store.dir) },
         { label: T('mChangeDir'), click: changeFolder },
+        ...(process.platform === 'win32' ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
         { type: 'separator' },
         { role: 'quit', label: T('mQuit') }
       ]
@@ -355,7 +456,7 @@ async function setLang(l) {
   if (helpWin && !helpWin.isDestroyed()) { helpWin.setTitle(T('mdHelpTitle')); loadHelp(); }
   if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
 }
-const loadPage = () => win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang } });
+const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang } }); };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
@@ -452,8 +553,9 @@ function createWindow() {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_e, argv, cwd) => {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+    importFiles(filesFromArgv(argv, { isPackaged: app.isPackaged, appPath: app.getAppPath(), cwd: cwd }).map(f => path.resolve(cwd || '.', f)));
   });
   if (process.platform === 'win32') app.setAppUserModelId(APP_ID);   // タスクバーでアイコンと名前が正しく出るように
   app.whenReady().then(() => {
@@ -470,6 +572,8 @@ if (!app.requestSingleInstanceLock()) {
     openStore();
     buildMenu();
     createWindow();
+    // 「送る」やアイコンへのドラッグ&ドロップで起動されたときのファイル(画面の準備ができてから取り込む)
+    importFiles(filesFromArgv(process.argv, { isPackaged: app.isPackaged, appPath: app.getAppPath(), cwd: process.cwd() }).map(f => path.resolve(f)));
   });
   app.on('window-all-closed', () => app.quit());
   app.on('will-quit', () => { try { store.writeIndex(); } catch (e) { /* 索引は控え */ } });

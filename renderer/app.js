@@ -439,7 +439,7 @@
     toast(T('restored', { k: k }));
   });
   document.addEventListener('keydown', e => {
-    if (S.mode !== 'history') return;
+    if (S.mode !== 'history' || !$('modal').hidden) return;
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON') return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); go(S.rev - 1); }
@@ -967,6 +967,8 @@
     else if (name === 'side') toggleSide();
     else if (name === 'search') { showSide(); $('q').focus(); $('q').select(); }
     else if (name === 'mode:history') toggleHistory();
+    else if (name === 'props') showProps();
+    else if (name === 'export') exportNote();
     else if (name === 'print') printNote('print');
     else if (name === 'pdf') printNote('pdf');
     else if (name.indexOf('mode:') === 0) { if (S.mode === 'history') { stop(); S.hbase = name.slice(5); setMode('history'); } else setMode(name.slice(5), true); }
@@ -1017,6 +1019,105 @@
       printing = false;
     }
   }
+  /* ---------- 画面の上に出す小さな窓 ---------- */
+  let modalBack = null;
+  function openModal(title, body) {
+    modalBack = document.activeElement;
+    $('modalTitle').textContent = title;
+    const b = $('modalBody'); b.textContent = ''; b.appendChild(body);
+    $('modal').hidden = false;
+    $('modalClose').focus();
+  }
+  function closeModal() {
+    if ($('modal').hidden) return;
+    $('modal').hidden = true;
+    $('modalBody').textContent = '';
+    if (modalBack && modalBack.focus) modalBack.focus({ preventScroll: true });
+  }
+  $('modalClose').addEventListener('click', closeModal);
+  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) { e.preventDefault(); e.stopPropagation(); closeModal(); } }, true);
+  const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
+  const fmtSize = b => (b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
+
+  /* ---------- プロパティ: いま開いているメモの情報と、実体のファイル ---------- */
+  async function showProps() {
+    const n = cur();
+    if (!n) return;
+    flush();
+    let info = null;
+    try { info = await api.noteInfo(n.id); } catch (e) { info = null; }
+    if (!info || cur() !== n) return;
+    const t = el('table', 'props');
+    const row = (label, ...cells) => { const tr = el('tr'); tr.appendChild(el('th', '', label)); const td = el('td'); cells.forEach(c => td.appendChild(typeof c === 'string' ? document.createTextNode(c) : c)); tr.appendChild(td); t.appendChild(tr); };
+    const fileCell = (p, sub, kind, exists) => {
+      const box = el('div');
+      box.appendChild(el('div', 'path', p));
+      if (sub) box.appendChild(el('div', 'sub', sub));
+      if (exists) {
+        const acts = el('div', 'acts');
+        const reveal = el('button', 'btn', T('propReveal')); reveal.type = 'button'; reveal.addEventListener('click', () => api.revealNote(n.id, kind));
+        const copy = el('button', 'btn', T('propCopy')); copy.type = 'button'; copy.addEventListener('click', async () => { try { await api.copyText(p); toast(T('propCopied')); } catch (e) { /* 何もしない */ } });
+        acts.append(reveal, copy); box.appendChild(acts);
+      }
+      return box;
+    };
+    const lines = n.text ? n.text.split('\n').length : 0;
+    row(T('propName'), shownTitle(titleOf(n.text)));
+    row(T('propId'), el('span', 'path', n.id));
+    row(T('propCreated'), fmtFull(n.c));
+    row(T('propEdited'), fmtFull(n.t));
+    row(T('propVersions'), String(n.ops.length));
+    row(T('propSize'), T('propSizeVal', { chars: count(n.text), lines: lines }));
+    row(T('propJsonl'), fileCell(info.jsonl.path, info.jsonl.size != null ? fmtSize(info.jsonl.size) : T('propNotYet'), 'jsonl', info.jsonl.size != null));
+    row(T('propMd'), fileCell(info.md.path, info.md.size != null ? fmtSize(info.md.size) : T('propNotYet'), 'md', info.md.size != null));
+    if (info.files.exists) row(T('propFiles'), fileCell(info.files.path, T('propFilesVal', { n: info.files.count, size: fmtSize(info.files.total) }), 'files', true));
+    else row(T('propFiles'), T('propNone'));
+    openModal(T('propTitle'), t);
+  }
+
+  /* ---------- テキストの取り込み・書き出し ----------
+     取り込み: main.js が読んで文字コードを見分けたテキストを、1ファイル1つの新しいメモにする(最初の行が題名)。
+     読めなかったファイルは、まとめて一覧で知らせる。 */
+  api.onImport(async items => {
+    const bad = items.filter(i => !i.ok).map(i => ({ name: i.name, message: i.message }));
+    let last = null, made = 0, lastItem = null;
+    for (const it of items.filter(i => i.ok)) {
+      const n = await makeNote();
+      if (!n) { bad.push({ name: it.name, message: T('createFailed') }); continue; }
+      if (it.text) { const op = makeOp('', it.text, Date.now()); n.ops.push(op); n.text = it.text; syncMeta(n); queueOp(n, op); }
+      S.notes.push(n);
+      last = n; lastItem = it; made++;
+    }
+    if (last) {
+      closeModal();
+      if (S.mode === 'history') stop();
+      S.mode = 'edit';
+      await select(last.id);
+      flush();
+    }
+    if (bad.length) {
+      const box = el('div');
+      box.appendChild(el('p', 'lead', T('impErrSummary', { ok: made, bad: bad.length })));
+      const ul = el('ul', 'implist');
+      for (const b of bad) { const li = el('li'); li.appendChild(el('div', 'fname', b.name)); li.appendChild(el('div', 'why', b.message)); ul.appendChild(li); }
+      box.appendChild(ul);
+      openModal(T('impErrTitle'), box);
+    } else if (made === 1) toast(T('impDone', { name: lastItem.name, enc: lastItem.encoding }));
+    else if (made > 1) toast(T('impDoneN', { n: made }));
+  });
+  // 書き出し: いまのメモを(履歴の表示中は見ている版を)テキストファイルにする
+  async function exportNote() {
+    const n = cur();
+    if (!n) return;
+    const N = n.ops.length, k = S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
+    const text = k === N ? n.text : textAt(n, k);
+    let r = null;
+    try { r = await api.exportText(shownTitle(titleOf(text)), text); } catch (e) { r = { status: 'failed' }; }
+    if (r && r.status === 'saved') toast(T('expDone', { path: r.path }));
+    else if (r && r.status === 'failed') toast(T('expFailed'));
+  }
+
   api.onFlushRequest(() => { flushSync(); api.flushed(); });
   window.addEventListener('pagehide', flushSync);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
@@ -1094,5 +1195,6 @@
     const view = takeView();
     if (view) restoreView(view);
     else setMode('edit', true);
+    api.ready();
   })();
 })();

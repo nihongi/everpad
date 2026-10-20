@@ -52,7 +52,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.9.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.10.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -60,8 +60,11 @@ This creates an installer (`EverPad Setup 0.9.0.exe`) and a portable executable 
 |---|---|
 | New note | `Ctrl+N` |
 | Search all notes | `Ctrl+F` |
+| Import text files | `Ctrl+O` |
+| Export as text | `Ctrl+Shift+E` |
 | Print | `Ctrl+P` |
 | Save as PDF | `Ctrl+Shift+P` |
+| Properties of the current note | `Alt+Enter` |
 | Edit / Preview | `Ctrl+1` / `Ctrl+2` |
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
 | Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
@@ -92,6 +95,14 @@ This creates an installer (`EverPad Setup 0.9.0.exe`) and a portable executable 
 - A list of the attachments used in the note (thumbnails) is shown below the text.
 - Right-click an image (in the preview, the history's Markdown view or the attachment list) for Copy Image, Open Image, Show Image in Folder and Save Image As…. Right-click a file link for Open File and Show File in Folder. Left-clicking still opens it.
 
+**Importing and exporting text**
+
+- Choose File → Import Text… (`Ctrl+O`) to import text files. Each file becomes a new note; its first line becomes the title. Several files can be imported at once.
+- In Explorer, select files and choose Send to → EverPad to import them. EverPad starts if it is not running. To add EverPad to the "Send to" menu, check the box in the installer, or choose File → Add to the "Send to" Menu at any time (choose it again to remove it). Dropping files onto the EverPad icon also imports them. Dropping files onto the EverPad window still attaches them.
+- The encoding is detected automatically: UTF-8 (with or without BOM), UTF-16, Shift_JIS, EUC-JP and ISO-2022-JP. Line breaks are converted to LF. Files larger than 10 MB, files that are not text, and files with data that cannot be read as text are not imported; the reason is shown, including where the unreadable data is (for example, "Read as Shift_JIS, line 12, character 5 … (0x82 0xFF)").
+- An imported note belongs to EverPad and has no link to the original file; EverPad does not record where it was imported from.
+- Choose File → Export as Text… (`Ctrl+Shift+E`) to save the current note as a `.txt` or `.md` file (UTF-8 without BOM, CRLF line breaks). While the history is shown, the version being viewed is exported. Attachments are not included.
+
 **Printing and PDF**
 
 - Choose File → Print… (`Ctrl+P`) to print the current note, or File → Save as PDF… (`Ctrl+Shift+P`) to save it as a PDF.
@@ -101,6 +112,7 @@ This creates an installer (`EverPad Setup 0.9.0.exe`) and a portable executable 
 
 **Other**
 
+- Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions, characters and lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
 - To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered, and the current view (Edit, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
@@ -174,9 +186,12 @@ main.js          Electron main process (window, menus, data folder, Recycle Bin)
 preload.js       The bridge exposed to the UI (saving, loading and menu actions only)
 store.js         File storage layer (testable without Electron)
 windowstate.js   Remembering and restoring the window position (testable without Electron)
+textcodec.js     Detecting the encoding of imported text files (testable without Electron)
+sendto.js        The "Send to" shortcut and reading files passed at startup (testable without Electron)
 renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js)
+build/installer.nsh  The installer's "Send to" check box
 test/            Automated tests
 ```
 
@@ -189,7 +204,7 @@ test/            Automated tests
 
 ### Testing
 
-- The storage layer, the window position logic, the history, Markdown and search logic, and the English and Japanese texts (every key exists in both languages) are covered by automated tests (`npm test`).
+- The storage layer, the window position logic, the encoding detection for imports, the "Send to" helpers, the history, Markdown and search logic, and the English and Japanese texts (every key exists in both languages) are covered by automated tests (`npm test`).
 - The UI has been tested in Chromium with a stand-in for the storage bridge: typing, rewinding, search, restore, delete, and recovery after reload.
 - Running the app with Electron (`npm start`) has been tested on Windows 11 with Electron 44.7.0, including editing, rewinding and search.
 - Building the installer (`npm run dist`) has been tested with electron-builder 26.15.3, together with installing and using the installed app.
@@ -252,7 +267,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.9.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.10.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -260,8 +275,11 @@ npm run dist
 |---|---|
 | 新しいメモ | `Ctrl+N` |
 | 全メモから検索 | `Ctrl+F` |
+| テキストファイルを取り込む | `Ctrl+O` |
+| テキストとして書き出す | `Ctrl+Shift+E` |
 | 印刷 | `Ctrl+P` |
 | PDF として保存 | `Ctrl+Shift+P` |
+| いまのメモのプロパティ | `Alt+Enter` |
 | 編集 / プレビュー | `Ctrl+1` / `Ctrl+2` |
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
@@ -292,6 +310,14 @@ npm run dist
 - 本文の下に、そのメモで使っている添付の一覧(サムネイル)が表示されます。
 - 画像を右クリックすると(プレビュー、履歴の「Markdown表示」、添付の一覧)、「画像をコピー」「画像を開く」「画像の場所を開く」「名前をつけて画像を保存…」のメニューが出ます。ファイルへのリンクを右クリックすると「ファイルを開く」「ファイルの場所を開く」が出ます。左クリックすると、これまでどおり開きます。
 
+**テキストの取り込みと書き出し**
+
+- メニューの「ファイル」→「テキストを取り込む…」(`Ctrl+O`)でテキストファイルを取り込みます。1ファイルが1つの新しいメモになり、最初の行が題名になります。複数のファイルをまとめて取り込めます。
+- エクスプローラーでファイルを選び、「送る」→「EverPad」でも取り込めます。EverPad が起動していなければ起動します。「送る」メニューに追加するには、インストール時にチェックボックスを付けるか、いつでも「ファイル」→「「送る」メニューに登録」を選びます(もう一度選ぶと解除します)。EverPad のアイコンにファイルをドラッグ&ドロップしても取り込めます。EverPad のウィンドウへのドラッグ&ドロップは、これまでどおり添付になります。
+- 文字コードは自動で見分けます(UTF-8(BOM あり・なし)、UTF-16、Shift_JIS、EUC-JP、ISO-2022-JP)。改行は LF にそろえます。10MB を超えるファイル、テキストでないファイル、文字として読めないデータを含むファイルは取り込まず、理由を表示します。読めないデータがあるときは「Shift_JIS として 12行目の 5文字目…(0x82 0xFF)」のように場所も示します。
+- 取り込んだメモは EverPad のメモで、元のファイルとは関係を持ちません(どこから取り込んだかも記録しません)。
+- 「ファイル」→「テキストとして書き出す…」(`Ctrl+Shift+E`)で、いまのメモを `.txt` か `.md` のファイルに保存します(UTF-8・BOM なし、改行は CRLF)。履歴の表示中は、見ている版を書き出します。添付は含まれません。
+
 **印刷と PDF**
 
 - メニューの「ファイル」→「印刷…」(`Ctrl+P`)で、いま開いているメモを印刷します。「ファイル」→「PDF として保存…」(`Ctrl+Shift+P`)では PDF として保存します。
@@ -301,6 +327,7 @@ npm run dist
 
 **その他**
 
+- メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、いまのメモの題名、メモID、作成と最終編集の日時、版数、文字数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
 - 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、いまの表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
@@ -374,9 +401,12 @@ main.js          Electron 本体側(ウィンドウ、メニュー、保存先�
 preload.js       画面に渡す窓口(保存・読み込み・メニュー操作だけ)
 store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
+textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
+sendto.js        「送る」メニューのショートカットと、起動時に渡されたファイルの取り出し(Electron なしでテストできる)
 renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)
+build/installer.nsh  インストーラーの「送る」メニューのチェックボックス
 test/            自動テスト
 ```
 
@@ -389,7 +419,7 @@ test/            自動テスト
 
 ### 動作確認
 
-- 保存層、ウィンドウの位置の処理、履歴・Markdown・検索のロジック、日本語と英語の文言(すべての項目が両方の言語にそろっていること)は、自動テスト(`npm test`)で確認しています。
+- 保存層、ウィンドウの位置の処理、取り込みの文字コードの判定、「送る」メニューの補助、履歴・Markdown・検索のロジック、日本語と英語の文言(すべての項目が両方の言語にそろっていること)は、自動テスト(`npm test`)で確認しています。
 - 画面は、保存の窓口を模した部品をつないで Chromium で動かし、入力、巻き戻し、検索、復元、削除、再読み込み後の復元などを確認しています。
 - Electron を使った起動(`npm start`)と、画面の操作(編集、巻き戻し、検索など)は、Windows 11・Electron 44.7.0 で確認しています。
 - インストーラーの作成(`npm run dist`)は electron-builder 26.15.3 で確認しています。できたインストーラーでのインストールと、インストール後の動作も確認しています。
