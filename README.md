@@ -53,7 +53,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.12.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.13.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -61,6 +61,7 @@ This creates an installer (`EverPad Setup 0.12.0.exe`) and a portable executable
 |---|---|
 | New note | `Ctrl+N` |
 | Search all notes | `Ctrl+F` |
+| Back to the previously viewed note | `Alt+←` |
 | Import text files | `Ctrl+O` |
 | Export as text | `Ctrl+Shift+E` |
 | Print | `Ctrl+P` |
@@ -70,6 +71,7 @@ This creates an installer (`EverPad Setup 0.12.0.exe`) and a portable executable
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
 | Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
 | Find and replace (a bar appears above the editor) | `Ctrl+H` |
+| Insert a link to another note | `Ctrl+K` |
 | Quote / bulleted list / numbered list / code block for the selected lines | `Ctrl+Shift+Q` / `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+K` |
 | Find next / previous | `Enter` / `Shift+Enter` (also `F3` / `Shift+F3` while the bar is open) |
 | Show / hide the left pane (note list and search) | `Ctrl+B` (or the menu button at the top left) |
@@ -88,6 +90,14 @@ This creates an installer (`EverPad Setup 0.12.0.exe`) and a portable executable
 
 - Search can target Latest version or All history. The history search finds every place where the text was ever written, including text that has since been deleted.
 - Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). Replace all is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
+
+**Recently viewed notes and links between notes**
+
+- File → Recently Viewed Notes lists the ten notes you opened most recently (excluding the current one), newest first. Deleted notes stay in the list marked "(deleted)"; choosing one shows a message. A note restored from the Recycle Bin opens again. The list is kept per data folder; Clear List empties it. (Recently updated notes are already at the top of the note list on the left.)
+- File → Back to Previous Note (`Alt+←`) opens the note you viewed before the current one. Pressing it again switches back, so you can go back and forth between two notes, for example after following a link.
+- Write `[text to show](note:note ID)` to link to another note. You do not need to type the ID: choose Edit → Insert Link to Note… (`Ctrl+K`) and pick a note from the list (type to filter by title), or click Copy Link to This Note in the target note's Properties and paste it.
+- Click a link in the preview or the history's Markdown view, or `Ctrl`+click it in the editor, to open that note. Hover over it to see the target's current title. Links point to the note, not to a position in it, and are not broken when the target's title or text changes. If the target is deleted, the link is shown struck through in gray, and clicking it shows a message.
+- To find notes that link to a note, search all notes for `note:` followed by its ID (shown in Properties). In printouts, PDFs and exported text, links stay as written.
 
 **Math**
 
@@ -152,6 +162,7 @@ This creates an installer (`EverPad Setup 0.12.0.exe`) and a portable executable
 | Horizontal rules | `---` |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
+| Links to notes | `[text](note:note ID)`, inserted with `Ctrl+K` |
 | Attachments | `![name](attach:…)` (image), `[name](attach:…)` (file), inserted automatically |
 
 Unlike some other Markdown, a line break inside a paragraph is shown as a line break, only attached images are displayed, and HTML tags are shown as plain text.
@@ -290,7 +301,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.12.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.13.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -298,6 +309,7 @@ npm run dist
 |---|---|
 | 新しいメモ | `Ctrl+N` |
 | 全メモから検索 | `Ctrl+F` |
+| 前に見たメモに戻る | `Alt+←` |
 | テキストファイルを取り込む | `Ctrl+O` |
 | テキストとして書き出す | `Ctrl+Shift+E` |
 | 印刷 | `Ctrl+P` |
@@ -307,6 +319,7 @@ npm run dist
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
 | 検索と置換(編集画面の上にバーが出ます) | `Ctrl+H` |
+| 他のメモへのリンクを挿入 | `Ctrl+K` |
 | 選んだ行を引用 / 箇条書き / 番号付きの箇条書き / コードブロックにする | `Ctrl+Shift+Q` / `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+K` |
 | 次を検索 / 前を検索 | `Enter` / `Shift+Enter`(バーを開いている間は `F3` / `Shift+F3` でも) |
 | 左側(メモ一覧と検索)の表示 / 非表示 | `Ctrl+B`(左上の三本線ボタンでも) |
@@ -325,6 +338,14 @@ npm run dist
 
 - 検索は「最新の版」と「履歴すべて」から選べます。「履歴すべて」では、消したあとの文字も、書かれていた箇所ごとに見つかります。
 - 検索と置換では、大文字/小文字の区別・単語単位・正規表現を選べます。正規表現のときは、置換後の文字列に `$1`(かっこで囲んだ部分)、`$&`(一致した全体)、`\n`(改行)、`\t`(タブ)が使えます。「すべて置換」は1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。`Ctrl+F` は、これまでどおり全メモを対象にした検索です。
+
+**最近見たメモとメモ同士のリンク**
+
+- 「ファイル」→「最近見たメモ」に、最近開いたメモが新しい順に10件(いま開いているメモを除く)並びます。削除したメモも「(削除済み)」と付けて残り、選ぶとお知らせが出ます。ごみ箱から元に戻したメモは、また開けます。一覧は保存先ごとに控え、「一覧を消去」で空にできます(最近更新したメモは、左側の一覧の上にあります)。
+- 「ファイル」→「前に見たメモに戻る」(`Alt+←`)で、いまのメモの前に見ていたメモを開きます。続けて押すと元に戻るので、リンクで移動した後などに、2つのメモを行き来できます。
+- `[表示する文字](note:メモID)` と書くと、他のメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(`Ctrl+K`)で一覧から選ぶ(題名で絞り込めます)か、参照先のメモのプロパティで「このメモへのリンクをコピー」を押して貼り付けます。
+- プレビューや履歴の「Markdown表示」ではクリック、編集画面では `Ctrl`+クリックで、そのメモに移動します。マウスを重ねると、参照先の今の題名が出ます。リンクはメモそのものを指し(メモの中の位置は指しません)、参照先の題名や中身が変わっても切れません。参照先を削除すると、リンクは灰色の取り消し線で表示され、クリックするとお知らせが出ます。
+- あるメモを参照しているメモを探すには、全メモの検索で `note:` に続けてそのメモID(プロパティに表示されます)を探します。印刷・PDF・テキストへの書き出しでは、リンクは書いたまま出ます。
 
 **数式**
 
@@ -389,6 +410,7 @@ npm run dist
 | 区切り線 | `---` |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
+| 他のメモへのリンク | `[表示する文字](note:メモID)`。`Ctrl+K` で挿入できます |
 | 添付 | `![名前](attach:…)`(画像)、`[名前](attach:…)`(ファイル)。添付すると自動で書かれます |
 
 一般的な Markdown と違い、段落の中の改行はそのまま改行になり、画像は添付したものだけが表示され、HTML のタグはそのまま文字として表示されます。

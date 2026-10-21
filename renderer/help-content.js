@@ -40,6 +40,8 @@
           src: '| 品目 | 産地 | 数量 |\n|:---|:---:|---:|\n| りんご | 青森 | 6 |\n| みかん | 愛媛 | 12 |' },
         { h: '数式', note: '$ で囲むと文中の数式、$$ だけの行で囲むと独立した行の数式になります(LaTeX の書き方。\\( \\) と \\[ \\]、```math のコードブロックも使えます)。\\ce{ } で化学式も書けます。金額の $ と区別するため、$ の内側のすぐ隣に空白を入れないでください。$ を文字として書くときは \\$ にします。表の中で | を使うときは \\vert と書きます。数式を右クリックすると、元の LaTeX をコピーできます。',
           src: 'アインシュタインの式は $E = mc^2$ です。\n\n$$\n\\int_0^1 x^2\\,dx = \\frac{1}{3}\n$$\n\n水は $\\ce{H2O}$、価格は \\$5 です。' },
+        { h: '他のメモへのリンク', note: '[表示する文字](note:メモID) と書くと、ほかのメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(Ctrl+K)で一覧から選ぶか、参照先のメモの「プロパティ」で「このメモへのリンクをコピー」を押して貼り付けます。プレビューではクリック、編集画面では Ctrl+クリックで、そのメモに移動します。参照先の題名を変えてもリンクは切れません。参照先を削除すると、灰色の取り消し線で表示されます。',
+          src: '詳しくは [会議メモ](note:20261021-120000-abcd) を参照。', noRender: true },
         { h: '画像・ファイルの添付', note: '画像を貼り付けるか、ファイルをドラッグ&ドロップするか、「添付」ボタンで選ぶと、カーソルの位置に次のように書かれます。! で始まるものは画像、ないものはファイルへのリンクです。「名前」の部分は自由に書き換えられます(| [ ] は使えません)。添付の書き方を別のメモにコピーしても表示されないので、ファイルを貼り付け直してください。',
           src: '![スクリーンショット](attach:0123456789abcdef.png)\n[見積書](attach:fedcba9876543210.pdf)', noRender: true }
       ]
@@ -80,6 +82,8 @@
           src: '| Item | Origin | Qty |\n|:---|:---:|---:|\n| Apples | Aomori | 6 |\n| Oranges | Ehime | 12 |' },
         { h: 'Math', note: 'Surround LaTeX with $ for math inside text, or with lines containing only $$ for a separate line (\\( \\), \\[ \\] and ```math code blocks also work). Use \\ce{ } for chemical formulas. To tell math from prices, do not put a space just inside the $. Write \\$ for a literal dollar sign. In a table, write | as \\vert. Right-click a formula to copy its LaTeX.',
           src: 'Einstein\'s equation is $E = mc^2$.\n\n$$\n\\int_0^1 x^2\\,dx = \\frac{1}{3}\n$$\n\nWater is $\\ce{H2O}$, and the price is \\$5.' },
+        { h: 'Links to other notes', note: 'Write [text to show](note:note ID) to link to another note. You do not need to type the note ID: choose Edit > Insert Link to Note… (Ctrl+K) and pick a note from the list, or open the target note\'s Properties, click Copy Link to This Note, and paste it. Click the link in the preview, or Ctrl+click it in the editor, to open that note. Changing the target\'s title does not break the link. If the target is deleted, the link is shown struck through in gray.',
+          src: 'See [meeting notes](note:20261021-120000-abcd) for details.', noRender: true },
         { h: 'Images and attachments', note: 'Paste an image, drag and drop a file, or choose one with the Attach button, and text like the following is inserted at the cursor. Lines starting with ! are images; the others are links to files. You may change the "name" part freely (do not use |, [ or ]). Copying this syntax into another note does not work; paste the file again instead.',
           src: '![Screenshot](attach:0123456789abcdef.png)\n[Quote](attach:fedcba9876543210.pdf)', noRender: true }
       ]

@@ -104,6 +104,8 @@ function inline(src) {
   const keep = h => { atts.push(h); return '\u0002' + (atts.length - 1) + '\u0002'; };
   s = s.replace(/!\[([^\]]*)\]\(attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)\)/g, (m, alt, id) => keep('<img class="att-img" data-att="' + id + '" alt="' + alt + '" loading="lazy">'));
   s = s.replace(/\[([^\]]+)\]\(attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)\)/g, (m, t, id) => keep('<a class="att-file" href="#" data-att="' + id + '" title="' + t + '">' + t + '</a>'));
+  // 他のメモへのリンク。参照先の題名や、削除されているかは、画面に出すときに app.js が付ける
+  s = s.replace(NOTE_LINK_RE, (m, t, id) => keep('<a class="note-link" href="#" data-note="' + id + '">' + t + '</a>'));
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + '</a>');
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
@@ -185,6 +187,27 @@ function formatLines(text, selStart, selEnd, kind) {
   } else return null;
   const insert = out.join('\n');
   return { from: from, to: to, insert: insert, selStart: from, selEnd: from + insert.length };
+}
+
+/* ---------- 他のメモへのリンク: [表示名](note:メモID) ----------
+   メモID は変わらないので、参照先の題名や中身が変わってもリンクは切れない(メモの中の位置は指さない) */
+const NOTE_LINK_RE = /\[([^\]]+)\]\(note:([A-Za-z0-9_-]{6,64})\)/g;
+/* text の位置 pos にあるリンクの参照先のメモID(無ければ null)。編集画面の Ctrl+クリックで使う */
+function noteLinkAt(text, pos) {
+  const ls = text.lastIndexOf('\n', pos - 1) + 1;
+  let le = text.indexOf('\n', pos); if (le < 0) le = text.length;
+  const line = text.slice(ls, le);
+  for (const m of line.matchAll(NOTE_LINK_RE)) {
+    if (pos >= ls + m.index && pos <= ls + m.index + m[0].length) return m[2];
+  }
+  return null;
+}
+/* リンクを書くときの表示名(リンクの書き方を壊す [ ] と改行は空白にする) */
+const linkText = title => String(title || '').replace(/[[\]\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+/* 最近見たメモの一覧: 開いたメモをいちばん上に移し、max 件までにする。{ id, title, t } の配列を返す */
+function pushRecent(list, id, title, max) {
+  return [{ id: id, title: title, t: Date.now() }].concat((list || []).filter(r => r && r.id !== id)).slice(0, max);
 }
 
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
@@ -490,5 +513,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

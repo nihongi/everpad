@@ -174,7 +174,7 @@
       ul.appendChild(li);
     }
   }
-  function updateTitle() { const t = shownTitle(titleOf(cur().text)); $('docTitle').textContent = t; document.title = t + ' - EverPad'; }
+  function updateTitle() { retitleRecent(cur()); const t = shownTitle(titleOf(cur().text)); $('docTitle').textContent = t; document.title = t + ' - EverPad'; }
   function updateStatus() {
     const n = cur();
     if (!n) return;
@@ -333,6 +333,7 @@
     updateStatus();
     setMode(S.mode);
     rememberActive();
+    touchRecent(cur());
     if (S.frOpen) frRefresh();
     evictOld();
   }
@@ -824,6 +825,11 @@
       img.addEventListener('error', () => img.replaceWith(missingEl(img.alt)), { once: true });
       img.src = api.fileUrl(noteId, img.dataset.att);
     });
+    root.querySelectorAll('a.note-link').forEach(a => {
+      const n = S.notes.find(x => x.id === a.dataset.note);
+      a.classList.toggle('missing', !n);
+      a.title = n ? T('linkTo', { title: shownTitle(n.title) }) : T('linkMissing');
+    });
   }
   async function openAttachment(id) {
     let r = 'none';
@@ -831,6 +837,18 @@
     if (r === 'shown') toast(T('shownInFolder'));
     else if (r === 'missing') toast(T('fileMissing'));
   }
+  // メモへのリンク: プレビューと履歴の「Markdown表示」ではクリック、編集画面では Ctrl+クリックで移動する
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('#preview a.note-link, #hvBody a.note-link');
+    if (!a) return;
+    e.preventDefault();
+    openNoteById(a.dataset.note, 'linkMissing');
+  });
+  $('editor').addEventListener('click', e => {
+    if (!e.ctrlKey || S.mode !== 'edit') return;
+    const id = noteLinkAt($('editor').value, $('editor').selectionStart);
+    if (id) { e.preventDefault(); openNoteById(id, 'linkMissing'); }
+  });
   document.addEventListener('click', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
     if (!t) return;
@@ -989,6 +1007,10 @@
     else if (name === 'search') { showSide(); $('q').focus(); $('q').select(); }
     else if (name === 'mode:history') toggleHistory();
     else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
+    else if (name.indexOf('open:') === 0) openNoteById(name.slice(5), 'noteDeleted');
+    else if (name === 'back') goBack();
+    else if (name === 'recent:clear') clearRecent();
+    else if (name === 'link') pickNoteLink();
     else if (name === 'props') showProps();
     else if (name === 'export') exportNote();
     else if (name === 'print') printNote('print');
@@ -1099,7 +1121,86 @@
     row(T('propMd'), fileCell(info.md.path, info.md.size != null ? fmtSize(info.md.size) : T('propNotYet'), 'md', info.md.size != null));
     if (info.files.exists) row(T('propFiles'), fileCell(info.files.path, T('propFilesVal', { n: info.files.count, size: fmtSize(info.files.total) }), 'files', true));
     else row(T('propFiles'), T('propNone'));
-    openModal(T('propTitle'), t);
+    const linkRow = el('div', 'acts');
+    const copyLink = el('button', 'btn', T('propCopyLink')); copyLink.type = 'button';
+    copyLink.addEventListener('click', async () => { try { await api.copyText('[' + (linkText(shownTitle(titleOf(n.text))) || n.id) + '](note:' + n.id + ')'); toast(T('linkCopied')); } catch (e) { /* 何もしない */ } });
+    linkRow.appendChild(copyLink);
+    const body = el('div'); body.append(t, linkRow);
+    openModal(T('propTitle'), body);
+  }
+
+  /* ---------- 最近見たメモ ----------
+     保存先ごとに localStorage に控える(題名も控えるので、削除したメモも一覧に出せる)。
+     今のメモを除いた最大10件を main.js に送り、「ファイル」→「最近見たメモ」を作ってもらう */
+  const RECENT_MAX = 11;   // 今のメモ + 10件
+  let recent = [];
+  const recentKey = () => 'everpad:recent:' + S.dir;
+  function loadRecent() {
+    try { recent = (JSON.parse(localStorage.getItem(recentKey()) || '[]') || []).filter(r => r && typeof r.id === 'string').slice(0, RECENT_MAX); } catch (e) { recent = []; }
+  }
+  function saveRecent() { try { localStorage.setItem(recentKey(), JSON.stringify(recent)); } catch (e) { /* 控えられなくても動く */ } }
+  function sendRecent() {
+    api.setRecent(recent.filter(r => r.id !== S.active).slice(0, 10).map(r => ({ id: r.id, title: shownTitle(r.title), deleted: !S.notes.some(n => n.id === r.id) })));
+  }
+  function touchRecent(n) { if (!n) return; recent = pushRecent(recent, n.id, titleOf(n.text), RECENT_MAX); saveRecent(); sendRecent(); }
+  function retitleRecent(n) {
+    const r = n && recent.find(x => x.id === n.id), t = n && titleOf(n.text);
+    if (r && r.title !== t) { r.title = t; saveRecent(); }
+  }
+  function clearRecent() { recent = recent.filter(r => r.id === S.active); saveRecent(); sendRecent(); }
+  /* メモを開く(最近見たメモ・リンク・戻る)。削除されていれば知らせる */
+  async function openNoteById(id, missingKey) {
+    if (!S.notes.some(n => n.id === id)) { toast(T(missingKey)); return; }
+    if (id === S.active) return;
+    if (S.mode === 'history') { stop(); S.mode = S.hbase; }
+    closeModal();
+    await select(id);
+    closeSide();
+  }
+  // 前に見たメモ(最近見たメモの、今のメモの次)。続けて使うと、2つのメモを行き来する
+  function goBack() { const r = recent.find(x => x.id !== S.active); if (r) openNoteById(r.id, 'noteDeleted'); }
+
+  /* ---------- メモへのリンクを挿入する ----------
+     題名で絞り込める一覧から選ぶと、カーソルの位置に [題名](note:メモID) を書く(1回の編集) */
+  function pickNoteLink() {
+    if (!cur()) return;
+    if (S.mode !== 'edit') setMode('edit', false);
+    const ed = $('editor'), selS = ed.selectionStart, selE = ed.selectionEnd;
+    const box = el('div', 'linkpick');
+    const input = el('input'); input.type = 'search'; input.placeholder = T('linkFilter'); input.setAttribute('aria-label', T('linkFilter'));
+    const ul = el('ul'); ul.setAttribute('role', 'listbox');
+    box.append(input, ul);
+    let shown = [], at = 0;
+    const choose = n => {
+      closeModal();
+      const text = '[' + (linkText(shownTitle(n.title)) || n.id) + '](note:' + n.id + ')';
+      frInsert(selS, selE, text);
+      ed.focus();
+      ed.setSelectionRange(selS + text.length, selS + text.length);
+    };
+    const paint = () => {
+      const q = input.value.trim().toLowerCase();
+      shown = sorted().filter(n => n.id !== S.active && (!q || shownTitle(n.title).toLowerCase().includes(q))).slice(0, 200);
+      at = Math.min(at, Math.max(0, shown.length - 1));
+      ul.textContent = '';
+      if (!shown.length) { ul.appendChild(el('li', 'none', T('linkNoMatch'))); return; }
+      shown.forEach((n, i) => {
+        const li = el('li'), b = el('button'); b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(i === at));
+        b.append(el('span', 'lt', shownTitle(n.title)), el('span', 'lm', fmtShort(n.t) + T('sep') + T('versions', { n: n.n })));
+        b.addEventListener('click', () => choose(n));
+        li.appendChild(b); ul.appendChild(li);
+      });
+      const sel = ul.querySelector('[aria-selected="true"]'); if (sel) sel.scrollIntoView({ block: 'nearest' });
+    };
+    input.addEventListener('input', () => { at = 0; paint(); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); at = Math.min(at + 1, shown.length - 1); paint(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); at = Math.max(at - 1, 0); paint(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (shown[at]) choose(shown[at]); }
+    });
+    paint();
+    openModal(T('linkPickTitle'), box);
+    input.focus();
   }
 
   /* ---------- テキストの取り込み・書き出し ----------
@@ -1204,6 +1305,8 @@
     try { data = await api.load(); } catch (e) { data = null; }
     if (!data) { toast(T('dirLoadFailed')); return; }
     $('dirPath').textContent = data.dir;
+    S.dir = data.dir;
+    loadRecent();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
     S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, n: r.n, title: r.title, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());

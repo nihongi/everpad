@@ -195,6 +195,9 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .md .math-display .katex-display { margin: 0; }
 .md .math-src { font-family: var(--mono); }
 .md .math-error { font-family: var(--mono); color: var(--del-fg); background: var(--del); border-radius: 3px; padding: 0 .2em; cursor: help; }
+/* 他のメモへのリンク。参照先が削除されていれば、灰色の取り消し線 */
+.md a.note-link { color: var(--accent); text-underline-offset: 3px; text-decoration-style: dotted; }
+.md a.note-link.missing { color: var(--fg-2); text-decoration: line-through; }
 .md .al-l { text-align: left; }
 .md .al-c { text-align: center; }
 .md .al-r { text-align: right; }
@@ -314,3 +317,12 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
   .print-area .md img { max-width: 100%; height: auto; }
   .print-area .md a { color: var(--accent); text-decoration: underline; }
 }
+
+/* メモへのリンクを挿入する窓: 題名で絞り込む一覧 */
+.linkpick input { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
+.linkpick ul { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow-y: auto; }
+.linkpick li button { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 7px 10px; cursor: pointer; }
+.linkpick li button:hover, .linkpick li button[aria-selected="true"] { background: var(--accent-soft); }
+.linkpick .lt { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linkpick .lm { display: block; font-size: 12.5px; color: var(--fg-2); }
+.linkpick .none { color: var(--fg-2); padding: 7px 10px; }

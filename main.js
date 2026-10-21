@@ -224,6 +224,23 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
   });
 });
 
+/* ---------- 最近見たメモ ----------
+   一覧は画面側が持ち(保存先ごと)、メモを開くたびに、今のメモを除いた最大10件を送ってくる。ここではメニューを作り直すだけ */
+let recentItems = [];
+ipcMain.on('recent:set', (e, items) => {
+  if (!fromOurWindow(e) || !Array.isArray(items)) return;
+  recentItems = items.slice(0, 10).filter(x => x && typeof x.id === 'string').map(x => ({ id: x.id, title: String(x.title || '').slice(0, 60), deleted: !!x.deleted }));
+  buildMenu();
+});
+// メニューの & はアクセスキーの印になるので、文字として出すときは && にする
+const menuLabel = t => String(t).replace(/&/g, '&&');
+function recentMenu() {
+  const items = recentItems.length
+    ? recentItems.map(r => ({ label: menuLabel(r.title + (r.deleted ? ' ' + T('recentDeleted') : '')), click: () => send('open:' + r.id) }))
+    : [{ label: T('mRecentNone'), enabled: false }];
+  return items.concat([{ type: 'separator' }, { label: T('mRecentClear'), enabled: recentItems.length > 0, click: () => send('recent:clear') }]);
+}
+
 /* ---------- プロパティ: メモの実体のファイル ---------- */
 ipcMain.handle('note:info', (e, id) => {
   if (!fromOurWindow(e) || !validId(id)) return null;
@@ -393,6 +410,9 @@ function buildMenu() {
         { label: T('mNewNote'), accelerator: 'CmdOrCtrl+N', click: () => send('new') },
         { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
         { type: 'separator' },
+        { label: T('mRecent'), submenu: recentMenu() },
+        { label: T('mBack'), accelerator: 'Alt+Left', click: () => send('back') },
+        { type: 'separator' },
         { label: T('mImport'), accelerator: 'CmdOrCtrl+O', click: pickImport },
         { label: T('mExport'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send('export') },
         { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },
@@ -416,6 +436,7 @@ function buildMenu() {
         { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', click: () => send('attach') },
         { label: T('mReplace'), accelerator: 'CmdOrCtrl+H', click: () => send('replace') },
         { label: T('mFormat'), submenu: formatItems(T, kind => send('fmt:' + kind)) },
+        { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', click: () => send('link') },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
