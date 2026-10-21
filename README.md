@@ -52,7 +52,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.10.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.11.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -69,6 +69,7 @@ This creates an installer (`EverPad Setup 0.10.0.exe`) and a portable executable
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
 | Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
 | Find and replace (a bar appears above the editor) | `Ctrl+H` |
+| Quote / bulleted list / numbered list / code block for the selected lines | `Ctrl+Shift+Q` / `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+K` |
 | Find next / previous | `Enter` / `Shift+Enter` (also `F3` / `Shift+F3` while the bar is open) |
 | Show / hide the left pane (note list and search) | `Ctrl+B` (or the menu button at the top left) |
 | Show / hide line numbers | `Ctrl+L` (or the Line numbers button at the bottom right) |
@@ -86,6 +87,13 @@ This creates an installer (`EverPad Setup 0.10.0.exe`) and a portable executable
 
 - Search can target Latest version or All history. The history search finds every place where the text was ever written, including text that has since been deleted.
 - Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). Replace all is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
+
+**Formatting lines**
+
+- Choose Edit → Format → Quote, Bulleted List, Numbered List or Code Block (also on the editor's right-click menu) to format every line the selection touches, or the cursor's line when nothing is selected. A selection that ends right at the start of a line does not include that line.
+- Quotes add `> ` to each line (`>` on empty lines, so the quote is not broken). Bulleted and numbered lists add `- ` or `1. `, `2. ` … after the indentation and skip empty lines; applying one to the other switches between them. Code blocks add a ```` ``` ```` line before and after the lines.
+- If all the lines already have that format, it is removed instead (for a code block: when the lines are surrounded by ```` ``` ```` lines). Tables and headings are processed the same way, without exceptions.
+- The change is recorded in the history as a single edit and can be undone with `Ctrl+Z`. Available in the Edit view.
 
 **Images and attachments**
 
@@ -112,11 +120,11 @@ This creates an installer (`EverPad Setup 0.10.0.exe`) and a portable executable
 
 **Other**
 
-- Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions, characters and lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path.
+- Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions, characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
 - To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered, and the current view (Edit, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
-- The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Edit view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers. Hover over a group for a short explanation.
+- The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Edit view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
 - Choose Help → Markdown Guide for the Markdown you can use, with each example shown next to its result. See also "Markdown syntax" below.
 - To check the version you are running, choose Help → About EverPad from the menu. It also shows the Electron version and the data folder.
 
@@ -267,7 +275,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.10.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.11.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -284,6 +292,7 @@ npm run dist
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
 | 検索と置換(編集画面の上にバーが出ます) | `Ctrl+H` |
+| 選んだ行を引用 / 箇条書き / 番号付きの箇条書き / コードブロックにする | `Ctrl+Shift+Q` / `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+K` |
 | 次を検索 / 前を検索 | `Enter` / `Shift+Enter`(バーを開いている間は `F3` / `Shift+F3` でも) |
 | 左側(メモ一覧と検索)の表示 / 非表示 | `Ctrl+B`(左上の三本線ボタンでも) |
 | 行番号の表示 / 非表示 | `Ctrl+L`(右下の「行番号」ボタンでも) |
@@ -301,6 +310,13 @@ npm run dist
 
 - 検索は「最新の版」と「履歴すべて」から選べます。「履歴すべて」では、消したあとの文字も、書かれていた箇所ごとに見つかります。
 - 検索と置換では、大文字/小文字の区別・単語単位・正規表現を選べます。正規表現のときは、置換後の文字列に `$1`(かっこで囲んだ部分)、`$&`(一致した全体)、`\n`(改行)、`\t`(タブ)が使えます。「すべて置換」は1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。`Ctrl+F` は、これまでどおり全メモを対象にした検索です。
+
+**行の書式**
+
+- メニューの「編集」→「書式」→「引用」「箇条書き」「番号付きの箇条書き」「コードブロック」(編集画面の右クリックメニューにもあります)で、選択がかかっている行すべてを、選んでいなければカーソルのある行を、まとめてその書式にします。選択の終わりが行の先頭ちょうどのときは、その行は含めません。
+- 引用は各行の先頭に `> ` を付けます(空の行には `>` を付けて、引用が途切れないようにします)。箇条書きと番号付きは、字下げの後に `- ` や `1. `・`2. `… を付け、空の行は飛ばします。箇条書きと番号付きは互いに切り替わります。コードブロックは、対象の行の前後に ```` ``` ```` だけの行を入れます。
+- すべての行がすでにその書式なら、外します(コードブロックは、前後が ```` ``` ```` の行のとき)。表や見出しの行も区別せずに処理します。
+- 1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。編集画面で使えます。
 
 **画像・ファイルの添付**
 
@@ -327,11 +343,11 @@ npm run dist
 
 **その他**
 
-- メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、いまのメモの題名、メモID、作成と最終編集の日時、版数、文字数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。
+- メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、いまのメモの題名、メモID、作成と最終編集の日時、版数、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
 - 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、いまの表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
-- 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。編集画面だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます。マウスを重ねると、それぞれの説明が出ます。
+- 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。編集画面だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョンと、メモの保存先も表示されます。
 

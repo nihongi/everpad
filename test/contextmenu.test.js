@@ -26,3 +26,21 @@ test('読み取り専用の場所の「すべて選択」は、渡された関�
   item.click();
   assert.equal(called, 1);
 });
+
+test('右クリック: 編集画面(テキストエリア)だけに「書式」が出て、選ぶと種類が渡される', () => {
+  const got = [];
+  const onFormat = k => got.push(k);
+  const area = buildTemplate({ isEditable: true, formControlType: 'text-area', editFlags: {} }, { onFormat });
+  const fmt = area.find(x => x.label === '書式');
+  assert.ok(fmt, '書式が無い');
+  assert.deepStrictEqual(fmt.submenu.map(x => x.label), ['引用', '箇条書き', '番号付きの箇条書き', 'コードブロック']);
+  assert.deepStrictEqual(fmt.submenu.map(x => x.accelerator), ['CmdOrCtrl+Shift+Q', 'CmdOrCtrl+Shift+8', 'CmdOrCtrl+Shift+7', 'CmdOrCtrl+Shift+K']);
+  fmt.submenu.forEach(x => x.click());
+  assert.deepStrictEqual(got, ['quote', 'bullet', 'numbered', 'code']);
+  // 検索欄などの1行の入力欄には出さない
+  const input = buildTemplate({ isEditable: true, formControlType: 'input-text', editFlags: {} }, { onFormat });
+  assert.ok(!input.some(x => x.label === '書式'));
+  // 英語
+  const en = buildTemplate({ isEditable: true, formControlType: 'text-area', editFlags: {} }, { onFormat, lang: 'en' });
+  assert.deepStrictEqual(en.find(x => x.label === 'Format').submenu.map(x => x.label), ['Quote', 'Bulleted List', 'Numbered List', 'Code Block']);
+});

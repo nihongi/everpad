@@ -18,7 +18,7 @@ function buildTemplate(params, opts) {
       { label: T('mDelete'), role: 'delete', enabled: !!f.canDelete },
       { type: 'separator' },
       { label: T('mSelectAll'), role: 'selectAll', enabled: !!f.canSelectAll, accelerator: 'CmdOrCtrl+A', registerAccelerator: false }
-    ];
+    ].concat(params.formControlType === 'text-area' && opts && opts.onFormat ? [{ type: 'separator' }, { label: T('mFormat'), submenu: formatItems(T, opts.onFormat) }] : []);
   }
   // 編集できない場所(プレビュー・履歴など): 文字を選んでいるときだけ出す
   if (params.selectionText && params.selectionText.trim()) {
@@ -32,6 +32,16 @@ function buildTemplate(params, opts) {
   }
   return [];
 }
+/* 書式(選んだ行をまとめて引用・箇条書き・番号付き・コードブロックにする)。メニューバーと右クリックで同じ項目を使う */
+function formatItems(T, onFormat) {
+  return [
+    { label: T('mFmtQuote'), accelerator: 'CmdOrCtrl+Shift+Q', click: () => onFormat('quote') },
+    { label: T('mFmtBullet'), accelerator: 'CmdOrCtrl+Shift+8', click: () => onFormat('bullet') },
+    { label: T('mFmtNumbered'), accelerator: 'CmdOrCtrl+Shift+7', click: () => onFormat('numbered') },
+    { label: T('mFmtCode'), accelerator: 'CmdOrCtrl+Shift+K', click: () => onFormat('code') }
+  ];
+}
+
 /* 添付の画像・ファイルを右クリックしたときのメニュー。actions は { copy, open, show, save } のクリック時の処理 */
 function buildAttachTemplate(image, actions, lang) {
   const T = key => I18N.t(lang || 'ja', key);
@@ -49,4 +59,4 @@ function buildAttachTemplate(image, actions, lang) {
     { label: T('mShowFile'), click: actions.show }
   ];
 }
-module.exports = { buildTemplate, buildAttachTemplate };
+module.exports = { buildTemplate, buildAttachTemplate, formatItems };

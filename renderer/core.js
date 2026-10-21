@@ -77,6 +77,54 @@ function selectionInfo(s) {
   return { chars: countChars(s) - nl, lines: s ? nl + 1 - (s.length > 1 && s.endsWith('\n') ? 1 : 0) : 0 };
 }
 
+/* メモ全体の文字数・単語数・行数(Notepad++ の「要約」と同じ数え方)
+   - 文字数: 改行を含まない(絵文字なども1文字)
+   - 単語数: 空白・改行と半角の記号 \ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^ 以外が続く部分を1語とする
+     (全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられる)
+   - 行数: 改行で区切った行の数(空のメモは1行、最後が改行なら空の行も1行と数える) */
+const WORD_RE = /[^ \t\\.,;:!?()+\r\n\-*/=\][{}&~"'`|@$%<>^]+/g;
+function textStats(text) {
+  const nl = (text.match(/\n/g) || []).length;
+  return { chars: countChars(text) - nl, words: (text.match(WORD_RE) || []).length, lines: nl + 1 };
+}
+
+/* ---------- 選んだ行をまとめて引用・箇条書き・番号付き・コードブロックにする ----------
+   対象は選択がかかっている行すべて(選択が無ければカーソルの行。選択の終わりが次の行の先頭ちょうどなら、その行は含めない)。
+   すべての行がすでにその書式なら外す(切り替え式)。戻り値は { from, to, insert, selStart, selEnd }:
+   text の from〜to を insert に置き換え、その後に selStart〜selEnd を選ぶ。 */
+const FENCE = /^\s*```/;
+function formatLines(text, selStart, selEnd, kind) {
+  let end = selEnd;
+  if (selEnd > selStart && text[selEnd - 1] === '\n') end = selEnd - 1;
+  const from = text.lastIndexOf('\n', selStart - 1) + 1;
+  let to = text.indexOf('\n', end); if (to < 0) to = text.length;
+  const lines = text.slice(from, to).split('\n');
+  const filled = lines.filter(l => l.trim() !== '');
+  let out;
+  if (kind === 'quote') {
+    out = lines.every(l => l.startsWith('>')) ? lines.map(l => l.replace(/^> ?/, '')) : lines.map(l => (l === '' ? '>' : '> ' + l));
+  } else if (kind === 'bullet') {
+    const on = filled.length > 0 && filled.every(l => /^\s*[-*+] /.test(l));
+    out = lines.map(l => (l.trim() === '' ? l : on ? l.replace(/^(\s*)[-*+] /, '$1') : l.replace(/^(\s*)(?:\d+[.)] )?/, '$1- ')));
+  } else if (kind === 'numbered') {
+    const on = filled.length > 0 && filled.every(l => /^\s*\d+[.)] /.test(l));
+    let k = 0;
+    out = lines.map(l => (l.trim() === '' ? l : on ? l.replace(/^(\s*)\d+[.)] /, '$1') : l.replace(/^(\s*)(?:[-*+] )?/, (m, sp) => sp + (++k) + '. ')));
+  } else if (kind === 'code') {
+    // 選んだ行の前後がコードブロックの囲みなら外す。選んだ行の最初と最後が囲みでも外す
+    const prevS = from > 0 ? text.lastIndexOf('\n', from - 2) + 1 : -1;
+    const nextE = to < text.length ? (text.indexOf('\n', to + 1) < 0 ? text.length : text.indexOf('\n', to + 1)) : -1;
+    if (prevS >= 0 && nextE >= 0 && FENCE.test(text.slice(prevS, from - 1)) && /^\s*```\s*$/.test(text.slice(to + 1, nextE))) {
+      const body = lines.join('\n');
+      return { from: prevS, to: nextE, insert: body, selStart: prevS, selEnd: prevS + body.length };
+    }
+    if (lines.length >= 2 && FENCE.test(lines[0]) && /^\s*```\s*$/.test(lines[lines.length - 1])) out = lines.slice(1, -1);
+    else out = ['```'].concat(lines, ['```']);
+  } else return null;
+  const insert = out.join('\n');
+  return { from: from, to: to, insert: insert, selStart: from, selEnd: from + insert.length };
+}
+
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
 const titleOf = text => {
   for (const ln of text.split('\n')) { const t = ln.replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
@@ -369,5 +417,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

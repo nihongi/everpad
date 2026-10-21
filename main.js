@@ -6,7 +6,7 @@ const fs = require('fs');
 const { Store, MAX_ATTACH, validId } = require('./store');
 const { decodeText, MAX_IMPORT } = require('./textcodec');
 const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
-const { buildTemplate, buildAttachTemplate } = require('./contextmenu');
+const { buildTemplate, buildAttachTemplate, formatItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
 
@@ -402,6 +402,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', click: () => send('attach') },
         { label: T('mReplace'), accelerator: 'CmdOrCtrl+H', click: () => send('replace') },
+        { label: T('mFormat'), submenu: formatItems(T, kind => send('fmt:' + kind)) },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
@@ -532,7 +533,7 @@ function createWindow() {
 
   // 右クリック: Electronには標準のメニューが無いので、切り取り・コピー・貼り付けなどを自前で出す
   win.webContents.on('context-menu', (_e, params) => {
-    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), lang: lang });
+    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), lang: lang });
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: win });
   });
 

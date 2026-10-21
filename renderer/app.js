@@ -181,10 +181,10 @@
     // 履歴の表示中は、いま表示している版の本文で数える(タイムスライダーに合わせて変わる)
     const hist = S.mode === 'history' && S.histText != null;
     const text = hist ? S.histText : n.text;
-    const lines = text ? text.split('\n').length : 0;
+    const st = textStats(text);   // 文字数は改行を含まない。行数は空のメモでも1行
     const total = hist
-      ? { cls: 'st-total', text: T('statusAt', { k: S.rev, chars: count(text), lines: lines }), title: T('statusAtTitle') }
-      : { cls: 'st-total', text: T('status', { chars: count(text), lines: lines, versions: n.ops.length }), title: T('statusTitle') };
+      ? { cls: 'st-total', text: T('statusAt', { k: S.rev, chars: st.chars, lines: st.lines }), title: T('statusAtTitle') }
+      : { cls: 'st-total', text: T('status', { chars: st.chars, lines: st.lines, versions: n.ops.length }), title: T('statusTitle') };
     // カーソル・選択・全体を、見出し付きの別々のまとまりにして区切り線で分ける
     const parts = caretParts().concat(total);
     const box = $('stLeft');
@@ -746,6 +746,18 @@
     }
     if (prev && prev !== ed && $('frbar').contains(prev)) prev.focus();
   }
+  /* 選んだ行をまとめて引用・箇条書き・番号付き・コードブロックにする(すでにその書式なら外す)。
+     1回の編集として履歴に残り、Ctrl+Z で戻せる。編集画面でだけ使える */
+  function applyFormat(kind) {
+    if (S.mode !== 'edit' || !$('modal').hidden) return;
+    const ed = $('editor');
+    const r = formatLines(ed.value, ed.selectionStart, ed.selectionEnd, kind);
+    if (!r) return;
+    if (ed.value.slice(r.from, r.to) !== r.insert) frInsert(r.from, r.to, r.insert);
+    ed.focus();
+    ed.setSelectionRange(r.selStart, r.selEnd);
+    queueStatus();
+  }
   function frGo(dir) {
     const re = frRegex();
     if (!re || re.error) { frRefresh(); return null; }
@@ -967,6 +979,7 @@
     else if (name === 'side') toggleSide();
     else if (name === 'search') { showSide(); $('q').focus(); $('q').select(); }
     else if (name === 'mode:history') toggleHistory();
+    else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
     else if (name === 'props') showProps();
     else if (name === 'export') exportNote();
     else if (name === 'print') printNote('print');
@@ -1044,7 +1057,9 @@
   async function showProps() {
     const n = cur();
     if (!n) return;
-    flush();
+    // 書き込み待ちの編集と本文(.md)を先に書き出して、ファイルの大きさを最新にする
+    await flush();
+    if (textDirty.has(n.id)) { textDirty.delete(n.id); try { await api.saveText(n.id, n.text); } catch (e) { /* .md は控え */ } }
     let info = null;
     try { info = await api.noteInfo(n.id); } catch (e) { info = null; }
     if (!info || cur() !== n) return;
@@ -1062,13 +1077,15 @@
       }
       return box;
     };
-    const lines = n.text ? n.text.split('\n').length : 0;
+    const stats = textStats(n.text);
     row(T('propName'), shownTitle(titleOf(n.text)));
     row(T('propId'), el('span', 'path', n.id));
     row(T('propCreated'), fmtFull(n.c));
     row(T('propEdited'), fmtFull(n.t));
     row(T('propVersions'), String(n.ops.length));
-    row(T('propSize'), T('propSizeVal', { chars: count(n.text), lines: lines }));
+    row(T('propChars'), stats.chars.toLocaleString('en-US'));
+    row(T('propWords'), stats.words.toLocaleString('en-US'));
+    row(T('propLines'), stats.lines.toLocaleString('en-US'));
     row(T('propJsonl'), fileCell(info.jsonl.path, info.jsonl.size != null ? fmtSize(info.jsonl.size) : T('propNotYet'), 'jsonl', info.jsonl.size != null));
     row(T('propMd'), fileCell(info.md.path, info.md.size != null ? fmtSize(info.md.size) : T('propNotYet'), 'md', info.md.size != null));
     if (info.files.exists) row(T('propFiles'), fileCell(info.files.path, T('propFilesVal', { n: info.files.count, size: fmtSize(info.files.total) }), 'files', true));
