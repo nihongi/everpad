@@ -185,6 +185,30 @@ ipcMain.handle('attach:open', (e, noteId, fileId) => {
 
 /* 添付を右クリックしたときのメニュー(画像: コピー・開く・場所を開く・名前をつけて保存、ファイル: 開く・場所を開く)。
    選んだ操作の結果を返す(画面側で知らせる)。x, y は右クリックした位置(画像をコピーできない形式のときに使う) */
+// 左の一覧(と検索結果)でメモを右クリックしたときのメニュー。先頭に対象の題名を出し、選んだ操作の名前を返す(操作は画面側で行う)
+ipcMain.handle('note:menu', (e, title) => {
+  if (!fromOurWindow(e)) return null;
+  return new Promise(resolve => {
+    let chosen = false;
+    const pick = key => () => { chosen = true; resolve(key); };
+    const menu = Menu.buildFromTemplate([
+      { label: menuLabel('「' + String(title || '').slice(0, 40) + '」'), enabled: false },
+      { type: 'separator' },
+      { label: T('nmOpen'), click: pick('open') },
+      { label: T('nmCopyLink'), click: pick('copyLink') },
+      { label: T('mExportMenu'), submenu: [
+        { label: T('mExportText'), click: pick('exportText') },
+        { label: T('mExportPdf'), click: pick('exportPdf') },
+        { label: T('mExportArchive'), click: pick('exportArchive') }
+      ] },
+      { type: 'separator' },
+      { label: T('nmProps'), click: pick('props') },
+      { label: T('nmDelete'), click: pick('delete') }
+    ]);
+    menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve(null); }, 300) });
+  });
+});
+
 // 数式を右クリックしたときのメニュー: 元の LaTeX をコピーする
 ipcMain.handle('math:menu', (e, tex) => {
   if (!fromOurWindow(e)) return null;

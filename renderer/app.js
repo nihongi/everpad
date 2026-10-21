@@ -168,6 +168,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'note';
+      b.dataset.id = n.id;
       if (n.id === S.active) b.setAttribute('aria-current', 'true');
       b.innerHTML = '<span class="nt">' + esc(shownTitle(n.title)) + '</span><span class="nm">' + fmtShort(n.t) + T('sep') + T('versions', { n: n.n }) + '</span>';
       b.addEventListener('click', () => { select(n.id); closeSide(); });
@@ -559,6 +560,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'hit';
+      b.dataset.id = r.id;
       let meta = '';
       if (hist) {
         const range = r.a === r.b ? T('rangeOne', { a: r.a }) : T('rangeMany', { a: r.a, b: r.b });
@@ -637,11 +639,28 @@
     $('editor').focus();
   }
   $('newBtn').addEventListener('click', createNote);
-  $('delBtn').addEventListener('click', async () => {
-    const id = S.active;
+  $('delBtn').addEventListener('click', () => deleteNote(S.active));
+  async function deleteNote(id) {
+    const target = S.notes.find(n => n.id === id);
+    if (!target) return;
     let yes = false;
-    try { yes = await api.confirmTrash(T('confirmTrash', { title: shownTitle(titleOf(cur().text)) })); } catch (e) { yes = false; }
-    if (!yes || S.active !== id) return;
+    try { yes = await api.confirmTrash(T('confirmTrash', { title: shownTitle(target.loaded ? titleOf(target.text) : target.title) })); } catch (e) { yes = false; }
+    if (!yes || !S.notes.includes(target)) return;
+    if (id !== S.active) {
+      // 開いていないメモ: 開いているメモはそのまま
+      pendingOps.delete(id);
+      textDirty.delete(id);
+      await chain;
+      let ok = false;
+      try { ok = await api.remove(id); } catch (e) { ok = false; }
+      if (!ok) { toast(T('deleteFailed')); return; }
+      S.notes = S.notes.filter(n => n.id !== id);
+      renderList();
+      sendRecent();
+      if (S.q) runSearch();
+      toast(T('deleted'));
+      return;
+    }
     // 次に開くメモを先に読み込んでおく(読めないときは何も消さない)
     let next = sorted().find(n => n.id !== id) || null;
     if (next && !(await ensureLoaded(next.id))) { toast(T('deleteAborted')); return; }
@@ -658,7 +677,7 @@
     show(next.id);
     if (S.q) runSearch();
     toast(T('deleted'));
-  });
+  }
 
   /* ---------- 検索と置換(編集画面の上に出すバー) ---------- */
   const FR = { cs: false, word: false, re: false };
@@ -1059,11 +1078,11 @@
      ページの上に題名と最終編集の日時、下に印刷(作成)の日時とページ番号を入れる。 */
   const cssStr = v => '"' + String(v).replace(/[\r\n]+/g, ' ').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
   let printing = false;
-  async function printNote(kind) {
-    const n = cur();
+  async function printNote(kind, target) {
+    const n = target || cur();
     if (!n || printing) return;
     printing = true;
-    const N = n.ops.length, k = S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
+    const N = n.ops.length, k = !target && S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
     const text = k === N ? n.text : textAt(n, k);
     const op = k > 0 ? n.ops[k - 1] : null;
     const title = shownTitle(titleOf(text));
@@ -1122,15 +1141,15 @@
   const fmtSize = b => (b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
 
   /* ---------- プロパティ: いま開いているメモの情報と、実体のファイル ---------- */
-  async function showProps() {
-    const n = cur();
+  async function showProps(target) {
+    const n = target || cur();
     if (!n) return;
     // 書き込み待ちの編集と本文(.md)を先に書き出して、ファイルの大きさを最新にする
     await flush();
     if (textDirty.has(n.id)) { textDirty.delete(n.id); try { await api.saveText(n.id, n.text); } catch (e) { /* .md は控え */ } }
     let info = null;
     try { info = await api.noteInfo(n.id); } catch (e) { info = null; }
-    if (!info || cur() !== n) return;
+    if (!info || !S.notes.includes(n) || (!target && cur() !== n)) return;
     const t = el('table', 'props');
     const row = (label, ...cells) => { const tr = el('tr'); tr.appendChild(el('th', '', label)); const td = el('td'); cells.forEach(c => td.appendChild(typeof c === 'string' ? document.createTextNode(c) : c)); tr.appendChild(td); t.appendChild(tr); };
     const fileCell = (p, sub, kind, exists) => {
@@ -1165,6 +1184,40 @@
     linkRow.appendChild(copyLink);
     const body = el('div'); body.append(t, linkRow);
     openModal(T('propTitle'), body);
+  }
+
+  /* ---------- 左の一覧(と検索結果)の右クリックメニュー ----------
+     今開いているメモとは関係なく、右クリックしたメモに対して操作する。メニューを開いている間は、その行に枠を付ける。
+     アプリケーションキー(Shift+F10)でも出る(フォーカスのある行が対象) */
+  document.addEventListener('contextmenu', async e => {
+    const row = e.target.closest && e.target.closest('#noteList .note[data-id], #resList .hit[data-id]');
+    if (!row) return;
+    e.preventDefault();
+    const id = row.dataset.id, n = S.notes.find(x => x.id === id);
+    if (!n) return;
+    document.querySelectorAll('.ctx-target').forEach(x => x.classList.remove('ctx-target'));
+    row.classList.add('ctx-target');
+    let action = null;
+    try { action = await api.noteMenu(shownTitle(n.loaded ? titleOf(n.text) : n.title)); } catch (err) { action = null; }
+    row.classList.remove('ctx-target');
+    if (action) noteAction(action, id);
+  });
+  async function noteAction(action, id) {
+    if (action === 'open') { openNoteById(id, 'noteDeleted'); return; }
+    if (action === 'delete') { deleteNote(id); return; }
+    if (action === 'copyLink') {
+      const n = S.notes.find(x => x.id === id);
+      if (!n) return;
+      try { await api.copyText('[' + (linkText(shownTitle(n.loaded ? titleOf(n.text) : n.title)) || id) + '](note:' + id + ')'); toast(T('linkCopied')); } catch (err) { /* 何もしない */ }
+      return;
+    }
+    // プロパティ・エクスポートは中身が要るので、開いていないメモは読み込む(最近見たメモには記録しない)
+    const n = await ensureLoaded(id);
+    if (!n) { toast(T('loadFailed')); return; }
+    if (action === 'props') showProps(n);
+    else if (action === 'exportText') exportNote(n);
+    else if (action === 'exportPdf') printNote('pdf', n);
+    else if (action === 'exportArchive') exportArchive(n);
   }
 
   /* ---------- 最近見たメモ ----------
@@ -1297,8 +1350,8 @@
     return n;
   }
   // EverPad アーカイブとしてエクスポート: 書き込み待ちの編集と本文を先に書き出してから、main.js にまとめてもらう
-  async function exportArchive() {
-    const n = cur();
+  async function exportArchive(target) {
+    const n = target || cur();
     if (!n) return;
     await flush();
     if (textDirty.has(n.id)) { textDirty.delete(n.id); try { await api.saveText(n.id, n.text); } catch (e) { /* .md は控え */ } }
@@ -1308,10 +1361,10 @@
     else if (r && r.status === 'failed') toast(T('arcExportFailed'));
   }
   // 書き出し: いまのメモを(履歴の表示中は見ている版を)テキストファイルにする
-  async function exportNote() {
-    const n = cur();
+  async function exportNote(target) {
+    const n = target || cur();
     if (!n) return;
-    const N = n.ops.length, k = S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
+    const N = n.ops.length, k = !target && S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
     const text = k === N ? n.text : textAt(n, k);
     let r = null;
     try { r = await api.exportText(shownTitle(titleOf(text)), text); } catch (e) { r = { status: 'failed' }; }

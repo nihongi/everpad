@@ -53,7 +53,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.14.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.15.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -154,6 +154,7 @@ This creates an installer (`EverPad Setup 0.14.0.exe`) and a portable executable
 
 **Other**
 
+- Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF or EverPad archive; the latest version), Properties… and Delete…. The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
 - Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, or the attachment name. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions, characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
@@ -318,7 +319,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.14.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.15.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -419,6 +420,7 @@ npm run dist
 
 **その他**
 
+- 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・EverPad アーカイブ。最新の版を書き出します)「プロパティ…」「削除…」です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
 - プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
