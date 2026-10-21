@@ -34,9 +34,70 @@ function textAt(n, k) {
 }
 
 /* ---------- Markdown(簡易版) ---------- */
+/* ---------- 数式(KaTeX) ----------
+   画面では katex.min.js と mhchem が読み込まれている(window.katex)。読み込まれていないとき(テストなど)は LaTeX をそのまま出す。
+   外部を参照するコマンド(\href・\includegraphics など)は trust: false で無効。誤りがあれば、元の LaTeX を赤字で出し、
+   マウスを重ねると誤りの内容が出る。data-tex に元の LaTeX を持たせ、右クリックでコピーできるようにする。
+   block: 段落の外の、独立した数式(<div>)。段落の中では <span> にする */
+const MATH_OPTS = { throwOnError: true, trust: false, strict: 'ignore', output: 'html', maxExpand: 1000, maxSize: 50 };
+function renderMath(tex, display, block) {
+  const tag = block ? 'div' : 'span';
+  const cls = 'math' + (display ? ' math-display' : '');
+  const attr = ' data-tex="' + esc(tex) + '"';
+  const K = typeof katex !== 'undefined' ? katex : null;
+  if (!K) return '<' + tag + ' class="' + cls + ' math-src"' + attr + '>' + esc(tex) + '</' + tag + '>';
+  try {
+    return '<' + tag + ' class="' + cls + '"' + attr + '>' + K.renderToString(tex, Object.assign({ displayMode: !!display }, MATH_OPTS)) + '</' + tag + '>';
+  } catch (e) {
+    const msg = String((e && e.message) || e).replace(/^KaTeX parse error:\s*/, '');
+    return '<' + tag + ' class="' + cls + ' math-error"' + attr + ' title="' + esc(msg) + '">' + esc(tex) + '</' + tag + '>';
+  }
+}
+/* 文中の $…$ を探す。金額の $ を数式にしないよう、Pandoc と同じ規則にする:
+   開きの $ の直後は空白でない。閉じの $ の直前は空白でなく、直後は数字でない */
+function inlineDollars(s, keep) {
+  let out = '', i = 0;
+  for (;;) {
+    const a = s.indexOf('$', i);
+    if (a < 0) break;
+    if (s[a + 1] === '$') { out += s.slice(i, a + 2); i = a + 2; continue; }   // 閉じの無い $$ は数式にしない
+    if (a + 1 >= s.length || /\s/.test(s[a + 1])) { out += s.slice(i, a + 1); i = a + 1; continue; }
+    let b = s.indexOf('$', a + 1), close = -1;
+    while (b >= 0) { if (!/\s/.test(s[b - 1]) && !/\d/.test(s[b + 1] || '')) { close = b; break; } b = s.indexOf('$', b + 1); }
+    if (close < 0) break;
+    out += s.slice(i, a) + keep(s.slice(a + 1, close), false);
+    i = close + 1;
+  }
+  return out + s.slice(i);
+}
+/* 段落の外の数式: $$ … $$ / \[ … \](1行でも、前後を区切りだけの行で囲んだ複数行でも)。{ tex, next } か null */
+function mathBlock(lines, i) {
+  const t = lines[i].trim();
+  const pair = t.startsWith('$$') ? ['$$', '$$'] : t.startsWith('\\[') ? ['\\[', '\\]'] : null;
+  if (!pair) return null;
+  const [o, c] = pair;
+  if (t.length >= o.length + c.length && t.endsWith(c) && t !== o) {
+    const inner = t.slice(o.length, t.length - c.length);
+    return inner.indexOf(o) < 0 && inner.trim() ? { tex: inner.trim(), next: i + 1 } : null;
+  }
+  for (let j = i + 1; j < lines.length; j++) {
+    const u = lines[j].trim();
+    if (u.endsWith(c)) return { tex: [t.slice(o.length)].concat(lines.slice(i + 1, j), [u.slice(0, u.length - c.length)]).join('\n').trim(), next: j + 1 };
+  }
+  return null;
+}
+
 function inline(src) {
   const codes = [];
   let s = src.replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return '\u0001' + (codes.length - 1) + '\u0001'; });
+  // 数式: \$ は区切りにしない(数式の外では $ の文字、数式の中では \$ に戻す)。ほかの書式の影響を受けないよう、先に退避する
+  const maths = [];
+  const keepMath = (tex, display) => { maths.push(renderMath(tex.replace(/\u0003/g, '\\$'), display, false)); return '\u0004' + (maths.length - 1) + '\u0004'; };
+  s = s.replace(/\\\$/g, '\u0003');
+  s = s.replace(/\\\((.+?)\\\)/g, (m, t) => keepMath(t, false));
+  s = s.replace(/\\\[(.+?)\\\]/g, (m, t) => keepMath(t, true));
+  s = s.replace(/\$\$(.+?)\$\$/g, (m, t) => keepMath(t, true));
+  s = inlineDollars(s, keepMath);
   s = esc(s);
   // 添付: ![名前](attach:ID) は画像、[名前](attach:ID) はファイルへのリンク。ほかの書式の影響を受けないよう、いったん退避する
   const atts = [];
@@ -48,6 +109,7 @@ function inline(src) {
   s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
   s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
   s = s.replace(/\u0002(\d+)\u0002/g, (_, i) => atts[+i]);
+  s = s.replace(/\u0004(\d+)\u0004/g, (_, i) => maths[+i]).replace(/\u0003/g, '$');
   return s.replace(/\u0001(\d+)\u0001/g, (_, i) => '<code>' + esc(codes[+i]) + '</code>');
 }
 
@@ -205,6 +267,17 @@ function md(text) {
   while (i < lines.length) {
     const ln = lines[i];
     let m;
+    // 数式のかたまり: ```math のコードブロック、$$ … $$、\[ … \]
+    if (/^\s*```math\s*$/.test(ln)) {
+      flush();
+      const buf = [];
+      for (i++; i < lines.length && !/^\s*```\s*$/.test(lines[i]); i++) buf.push(lines[i]);
+      i++;
+      out.push(renderMath(buf.join('\n'), true, true));
+      continue;
+    }
+    const mb = mathBlock(lines, i);
+    if (mb) { flush(); out.push(renderMath(mb.tex, true, true)); i = mb.next; continue; }
     if (/^\s*```/.test(ln)) {
       flush();
       const f = mdFence(lines, i);

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
   attachMenu: (noteId, fileId, name, image, x, y) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y),
+  mathMenu: tex => ipcRenderer.invoke('math:menu', tex),
   // プロパティ
   noteInfo: id => ipcRenderer.invoke('note:info', id),
   revealNote: (id, kind) => ipcRenderer.invoke('note:reveal', id, kind),

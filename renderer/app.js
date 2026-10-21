@@ -451,7 +451,7 @@
   function highlight(root, q) {
     if (!q) return;
     const re = new RegExp(escRe(q), 'gi');
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && n.parentElement.closest('.math') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
     const nodes = [];
     while (w.nextNode()) nodes.push(w.currentNode);
     for (const nd of nodes) {
@@ -838,6 +838,15 @@
     openAttachment(t.dataset.att);
   });
   // 右クリック: 画像は「コピー・開く・場所を開く・名前をつけて保存」、ファイルは「開く・場所を開く」(左クリックはこれまでどおり開く)
+  // 数式を右クリック: 元の LaTeX をコピーできる
+  document.addEventListener('contextmenu', async e => {
+    const m = e.target.closest && e.target.closest('#preview .math, #hvBody .math');
+    if (!m || (window.getSelection().toString().trim() && !window.getSelection().isCollapsed)) return;
+    e.preventDefault();
+    let r = null;
+    try { r = await api.mathMenu(m.dataset.tex || ''); } catch (err) { r = null; }
+    if (r && r.status === 'copied') toast(T('texCopied'));
+  });
   document.addEventListener('contextmenu', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
     if (!t) return;

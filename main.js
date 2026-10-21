@@ -169,6 +169,19 @@ ipcMain.handle('attach:open', (e, noteId, fileId) => {
 /* 添付を右クリックしたときのメニュー(画像: コピー・開く・場所を開く・名前をつけて保存、ファイル: 開く・場所を開く)。
    選んだ操作の結果を返す(画面側で知らせる)。x, y は右クリックした位置(画像をコピーできない形式のときに使う) */
 let lastSaveDir = null;
+// 数式を右クリックしたときのメニュー: 元の LaTeX をコピーする
+ipcMain.handle('math:menu', (e, tex) => {
+  if (!fromOurWindow(e)) return null;
+  return new Promise(resolve => {
+    let chosen = false;
+    const menu = Menu.buildFromTemplate([{ label: T('mCopyTex'), click: async () => {
+      chosen = true;
+      try { await clipboard.writeText(String(tex || '').slice(0, 100000)); resolve({ status: 'copied' }); } catch (err) { resolve({ status: 'none' }); }
+    } }]);
+    menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve({ status: 'none' }); }, 300) });
+  });
+});
+
 ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
   if (!fromOurWindow(e)) return null;
   const p = store.attachmentPath(noteId, fileId);

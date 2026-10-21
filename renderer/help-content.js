@@ -38,6 +38,8 @@
           src: '上の文章\n\n---\n\n下の文章' },
         { h: '表', note: '1行目が見出し、2行目が区切りです。区切りの :--- は左寄せ、:---: は中央、---: は右寄せです。セルの中に | を書くときは \\| にします。',
           src: '| 品目 | 産地 | 数量 |\n|:---|:---:|---:|\n| りんご | 青森 | 6 |\n| みかん | 愛媛 | 12 |' },
+        { h: '数式', note: '$ で囲むと文中の数式、$$ だけの行で囲むと独立した行の数式になります(LaTeX の書き方。\\( \\) と \\[ \\]、```math のコードブロックも使えます)。\\ce{ } で化学式も書けます。金額の $ と区別するため、$ の内側のすぐ隣に空白を入れないでください。$ を文字として書くときは \\$ にします。表の中で | を使うときは \\vert と書きます。数式を右クリックすると、元の LaTeX をコピーできます。',
+          src: 'アインシュタインの式は $E = mc^2$ です。\n\n$$\n\\int_0^1 x^2\\,dx = \\frac{1}{3}\n$$\n\n水は $\\ce{H2O}$、価格は \\$5 です。' },
         { h: '画像・ファイルの添付', note: '画像を貼り付けるか、ファイルをドラッグ&ドロップするか、「添付」ボタンで選ぶと、カーソルの位置に次のように書かれます。! で始まるものは画像、ないものはファイルへのリンクです。「名前」の部分は自由に書き換えられます(| [ ] は使えません)。添付の書き方を別のメモにコピーしても表示されないので、ファイルを貼り付け直してください。',
           src: '![スクリーンショット](attach:0123456789abcdef.png)\n[見積書](attach:fedcba9876543210.pdf)', noRender: true }
       ]
@@ -76,6 +78,8 @@
           src: 'Text above\n\n---\n\nText below' },
         { h: 'Tables', note: 'The first row is the header and the second row is the separator. In the separator, :--- aligns left, :---: centers and ---: aligns right. To put | in a cell, write \\|.',
           src: '| Item | Origin | Qty |\n|:---|:---:|---:|\n| Apples | Aomori | 6 |\n| Oranges | Ehime | 12 |' },
+        { h: 'Math', note: 'Surround LaTeX with $ for math inside text, or with lines containing only $$ for a separate line (\\( \\), \\[ \\] and ```math code blocks also work). Use \\ce{ } for chemical formulas. To tell math from prices, do not put a space just inside the $. Write \\$ for a literal dollar sign. In a table, write | as \\vert. Right-click a formula to copy its LaTeX.',
+          src: 'Einstein\'s equation is $E = mc^2$.\n\n$$\n\\int_0^1 x^2\\,dx = \\frac{1}{3}\n$$\n\nWater is $\\ce{H2O}$, and the price is \\$5.' },
         { h: 'Images and attachments', note: 'Paste an image, drag and drop a file, or choose one with the Attach button, and text like the following is inserted at the cursor. Lines starting with ! are images; the others are links to files. You may change the "name" part freely (do not use |, [ or ]). Copying this syntax into another note does not work; paste the file again instead.',
           src: '![Screenshot](attach:0123456789abcdef.png)\n[Quote](attach:fedcba9876543210.pdf)', noRender: true }
       ]
