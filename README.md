@@ -53,7 +53,7 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.13.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.14.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 ### Usage
 
@@ -62,10 +62,10 @@ This creates an installer (`EverPad Setup 0.13.0.exe`) and a portable executable
 | New note | `Ctrl+N` |
 | Search all notes | `Ctrl+F` |
 | Back to the previously viewed note | `Alt+←` |
-| Import text files | `Ctrl+O` |
-| Export as text | `Ctrl+Shift+E` |
+| Import (EverPad archives and text files) | `Ctrl+O` |
+| Export as a text file | `Ctrl+Shift+E` |
 | Print | `Ctrl+P` |
-| Save as PDF | `Ctrl+Shift+P` |
+| Export as PDF | `Ctrl+Shift+P` |
 | Properties of the current note | `Alt+Enter` |
 | Edit / Preview | `Ctrl+1` / `Ctrl+2` |
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
@@ -101,7 +101,7 @@ This creates an installer (`EverPad Setup 0.13.0.exe`) and a portable executable
 
 **Math**
 
-- Write LaTeX between `$` for math inside text (`$E = mc^2$`), or between lines containing only `$$` for a formula on its own line. `\( … \)`, `\[ … \]` and ````math` code blocks also work. Chemical formulas can be written with `\ce{…}` (mhchem), for example `$\ce{H2O}$`.
+- Write LaTeX between `$` for math inside text (`$E = mc^2$`), or between lines containing only `$$` for a formula on its own line. `\( … \)`, `\[ … \]` and ```` ```math ```` code blocks also work. Chemical formulas can be written with `\ce{…}` (mhchem), for example `$\ce{H2O}$`.
 - Formulas are shown in the preview, the history's Markdown view, printouts and PDFs. The editor and search keep the LaTeX as text.
 - To keep prices such as "$5 and $10" from becoming math, the same rule as Pandoc and GitHub is used: there must be no space just inside the `$`, and the closing `$` must not be followed by a digit. Write `\$` for a literal dollar sign.
 - In a table, `|` inside a formula is taken as a cell separator; write `\vert` instead.
@@ -123,23 +123,38 @@ This creates an installer (`EverPad Setup 0.13.0.exe`) and a portable executable
 - A list of the attachments used in the note (thumbnails) is shown below the text.
 - Right-click an image (in the preview, the history's Markdown view or the attachment list) for Copy Image, Open Image, Show Image in Folder and Save Image As…. Right-click a file link for Open File and Show File in Folder. Left-clicking still opens it.
 
-**Importing and exporting text**
+**Importing and exporting**
 
-- Choose File → Import Text… (`Ctrl+O`) to import text files. Each file becomes a new note; its first line becomes the title. Several files can be imported at once.
+- File → Import… (`Ctrl+O`) imports EverPad archives (`.everpad`) and text files. EverPad tells them apart by their contents, so you can choose several files of both kinds at once.
+- File → Export has three formats: Text File… (`Ctrl+Shift+E`), PDF… (`Ctrl+Shift+P`, see "Printing and PDF") and EverPad Archive…. Printing (File → Print…) is a separate command because it does not create a file.
+- The file dialogs open in the folder you used last time, remembered separately for importing and exporting (all export formats and Save Image As… share one folder) and kept after EverPad is closed. The first time, or if that folder no longer exists, importing opens the data folder and exporting opens Documents.
+
+**EverPad archives**
+
+- File → Export → EverPad Archive… saves the current note as one `.everpad` file containing its text, its whole history and its attachments (the whole note, even while the history is shown). It is a ZIP file: rename it to `.zip` to look inside (`manifest.json`, `note.jsonl`, `note.md` and `files/`).
+- Importing an archive restores the note with its history and attachments. If a note with the same ID already exists, you choose: **Overwrite** replaces the existing note's text, history and attachments (this cannot be undone in EverPad; the original files are moved to the Recycle Bin), **Import with a New ID** imports it as a separate note, or **Cancel**.
+- An imported note is shown at the top of the note list: EverPad records when it was imported (in the history file's header line, which older versions ignore) and sorts the list by the later of the last edit and the import. Properties shows the import time.
+- The installer associates `.everpad` files with EverPad, so double-clicking an archive imports it. Sending archives with "Send to" or dropping them onto the EverPad icon also works.
+- Archives are checked before importing (format, note ID, history, attachment names and size); damaged or invalid archives are not imported.
+
+**Importing text files**
+
+- Each text file becomes a new note; its first line becomes the title.
 - In Explorer, select files and choose Send to → EverPad to import them. EverPad starts if it is not running. To add EverPad to the "Send to" menu, check the box in the installer, or choose File → Add to the "Send to" Menu at any time (choose it again to remove it). Dropping files onto the EverPad icon also imports them. Dropping files onto the EverPad window still attaches them.
 - The encoding is detected automatically: UTF-8 (with or without BOM), UTF-16, Shift_JIS, EUC-JP and ISO-2022-JP. Line breaks are converted to LF. Files larger than 10 MB, files that are not text, and files with data that cannot be read as text are not imported; the reason is shown, including where the unreadable data is (for example, "Read as Shift_JIS, line 12, character 5 … (0x82 0xFF)").
 - An imported note belongs to EverPad and has no link to the original file; EverPad does not record where it was imported from.
-- Choose File → Export as Text… (`Ctrl+Shift+E`) to save the current note as a `.txt` or `.md` file (UTF-8 without BOM, CRLF line breaks). While the history is shown, the version being viewed is exported. Attachments are not included.
+- File → Export → Text File… (`Ctrl+Shift+E`) saves the current note as a `.txt` or `.md` file (UTF-8 without BOM, CRLF line breaks). While the history is shown, the version being viewed is exported. Attachments are not included.
 
 **Printing and PDF**
 
-- Choose File → Print… (`Ctrl+P`) to print the current note, or File → Save as PDF… (`Ctrl+Shift+P`) to save it as a PDF.
+- Choose File → Print… (`Ctrl+P`) to print the current note, or File → Export → PDF… (`Ctrl+Shift+P`) to save it as a PDF.
 - The note is printed with the same formatting as the preview (headings, tables, check boxes and attached images), whichever view you are in. While the history is shown, the version you are viewing is printed.
 - Each page shows the note title and the time of the last edit at the top, and the time it was printed (or the PDF was created) and the page number at the bottom. When a past version is printed, its version number is shown too.
 - Even in dark mode, notes are printed as dark text on white paper. PDFs use A4 paper (Letter in the United States and Canada).
 
 **Other**
 
+- Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, or the attachment name. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions, characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
@@ -156,9 +171,9 @@ This creates an installer (`EverPad Setup 0.13.0.exe`) and a portable executable
 | Emphasis | `**bold**`, `*italic*`, `~~strikethrough~~`, `` `code` `` |
 | Lists | `- item` (or `*`, `+`; indent by two spaces to nest), `1. item` |
 | Check boxes | `- [ ] to do`, `- [x] done` |
-| Links | `[text](https://example.com)` (http and https only) |
+| Links | `[text](https://example.com)` (opened in the browser), `[text](#heading)` (jumps to a heading in the same note). Other links, such as relative paths, are shown as links but cannot be opened |
 | Block quotes | `> quoted text` |
-| Code blocks | lines surrounded by ```` ``` ```` |
+| Code blocks | lines surrounded by ```` ``` ```` (or `~~~`); to put ```` ``` ```` lines inside, surround with ````` ```` ````` |
 | Horizontal rules | `---` |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
@@ -217,6 +232,8 @@ preload.js       The bridge exposed to the UI (saving, loading and menu actions 
 store.js         File storage layer (testable without Electron)
 windowstate.js   Remembering and restoring the window position (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
+archive.js       EverPad archives: building, checking and reading (testable without Electron)
+ziplite.js       Minimal ZIP reading and writing for archives, using Node.js zlib (testable without Electron)
 sendto.js        The "Send to" shortcut and reading files passed at startup (testable without Electron)
 renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
@@ -301,7 +318,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.13.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.14.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 ### 使い方
 
@@ -310,11 +327,11 @@ npm run dist
 | 新しいメモ | `Ctrl+N` |
 | 全メモから検索 | `Ctrl+F` |
 | 前に見たメモに戻る | `Alt+←` |
-| テキストファイルを取り込む | `Ctrl+O` |
-| テキストとして書き出す | `Ctrl+Shift+E` |
+| インポート(EverPad アーカイブとテキストファイル) | `Ctrl+O` |
+| テキストファイルとしてエクスポート | `Ctrl+Shift+E` |
 | 印刷 | `Ctrl+P` |
-| PDF として保存 | `Ctrl+Shift+P` |
-| いまのメモのプロパティ | `Alt+Enter` |
+| PDF としてエクスポート | `Ctrl+Shift+P` |
+| 今のメモのプロパティ | `Alt+Enter` |
 | 編集 / プレビュー | `Ctrl+1` / `Ctrl+2` |
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
@@ -329,7 +346,7 @@ npm run dist
 
 **表示と履歴**
 
-- 表示は「編集」と「プレビュー」の2つで、どちらにも履歴の表示があります。「履歴」ボタンを押すと、いまの表示のままタイムスライダーが出ます。編集の履歴では、その版で変わった文字が色で示され、プレビューの履歴では、その版が整形して表示されます。履歴の表示中に「編集」「プレビュー」を押すと、同じ版のまま切り替わります。もう一度「履歴」を押すと通常の表示に戻ります。
+- 表示は「編集」と「プレビュー」の2つで、どちらにも履歴の表示があります。「履歴」ボタンを押すと、今の表示のままタイムスライダーが出ます。編集の履歴では、その版で変わった文字が色で示され、プレビューの履歴では、その版が整形して表示されます。履歴の表示中に「編集」「プレビュー」を押すと、同じ版のまま切り替わります。もう一度「履歴」を押すと通常の表示に戻ります。
 - 再生の速さは、とてもゆっくり・ゆっくり・ふつう・速い・とても速いの5段階から選べます。
 - 「この版に戻す」を押すと、その版の内容が新しい編集として追加されます。これまでの履歴は消えません。
 - メモの本文はウィンドウの幅に合わせて広がります。行番号は、折り返した行も1行として数え、履歴の表示にも付きます。これらの設定は次回も使われます。
@@ -342,14 +359,14 @@ npm run dist
 **最近見たメモとメモ同士のリンク**
 
 - 「ファイル」→「最近見たメモ」に、最近開いたメモが新しい順に10件(いま開いているメモを除く)並びます。削除したメモも「(削除済み)」と付けて残り、選ぶとお知らせが出ます。ごみ箱から元に戻したメモは、また開けます。一覧は保存先ごとに控え、「一覧を消去」で空にできます(最近更新したメモは、左側の一覧の上にあります)。
-- 「ファイル」→「前に見たメモに戻る」(`Alt+←`)で、いまのメモの前に見ていたメモを開きます。続けて押すと元に戻るので、リンクで移動した後などに、2つのメモを行き来できます。
+- 「ファイル」→「前に見たメモに戻る」(`Alt+←`)で、今のメモの前に見ていたメモを開きます。続けて押すと元に戻るので、リンクで移動した後などに、2つのメモを行き来できます。
 - `[表示する文字](note:メモID)` と書くと、他のメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(`Ctrl+K`)で一覧から選ぶ(題名で絞り込めます)か、参照先のメモのプロパティで「このメモへのリンクをコピー」を押して貼り付けます。
 - プレビューや履歴の「Markdown表示」ではクリック、編集画面では `Ctrl`+クリックで、そのメモに移動します。マウスを重ねると、参照先の今の題名が出ます。リンクはメモそのものを指し(メモの中の位置は指しません)、参照先の題名や中身が変わっても切れません。参照先を削除すると、リンクは灰色の取り消し線で表示され、クリックするとお知らせが出ます。
 - あるメモを参照しているメモを探すには、全メモの検索で `note:` に続けてそのメモID(プロパティに表示されます)を探します。印刷・PDF・テキストへの書き出しでは、リンクは書いたまま出ます。
 
 **数式**
 
-- LaTeX の数式を `$` で囲むと文中の数式(`$E = mc^2$`)、`$$` だけの行で前後を囲むと独立した行の数式になります。`\( … \)`・`\[ … \]`・````math` のコードブロックも使えます。化学式は `\ce{…}`(mhchem)で書けます(例: `$\ce{H2O}$`)。
+- LaTeX の数式を `$` で囲むと文中の数式(`$E = mc^2$`)、`$$` だけの行で前後を囲むと独立した行の数式になります。`\( … \)`・`\[ … \]`・```` ```math ```` のコードブロックも使えます。化学式は `\ce{…}`(mhchem)で書けます(例: `$\ce{H2O}$`)。
 - 数式は、プレビュー、履歴の「Markdown表示」、印刷・PDF で表示されます。編集画面と検索では、LaTeX の文字のまま扱います。
 - 「$5 と $10」のような金額が数式にならないよう、Pandoc や GitHub と同じ規則にしています。`$` の内側のすぐ隣に空白を入れないでください。また、閉じの `$` の直後が数字のときは数式になりません。`$` を文字として書くときは `\$` にします。
 - 表の中の数式で `|` を使うと、セルの区切りと見なされます。`\vert` と書いてください。
@@ -371,27 +388,42 @@ npm run dist
 - 本文の下に、そのメモで使っている添付の一覧(サムネイル)が表示されます。
 - 画像を右クリックすると(プレビュー、履歴の「Markdown表示」、添付の一覧)、「画像をコピー」「画像を開く」「画像の場所を開く」「名前をつけて画像を保存…」のメニューが出ます。ファイルへのリンクを右クリックすると「ファイルを開く」「ファイルの場所を開く」が出ます。左クリックすると、これまでどおり開きます。
 
-**テキストの取り込みと書き出し**
+**インポートとエクスポート**
 
-- メニューの「ファイル」→「テキストを取り込む…」(`Ctrl+O`)でテキストファイルを取り込みます。1ファイルが1つの新しいメモになり、最初の行が題名になります。複数のファイルをまとめて取り込めます。
+- 「ファイル」→「インポート…」(`Ctrl+O`)で、EverPad アーカイブ(`.everpad`)とテキストファイルを取り込みます。中身で見分けるので、両方の種類をまとめて選べます。
+- 「ファイル」→「エクスポート」には、「テキストファイル…」(`Ctrl+Shift+E`)、「PDF…」(`Ctrl+Shift+P`。「印刷と PDF」を参照)、「EverPad アーカイブ…」の3つの形式があります。印刷(「ファイル」→「印刷…」)はファイルを作らないので、別の項目にしています。
+- ファイルを選ぶ窓は、前回使ったフォルダを開きます。インポートとエクスポートで別々に覚え(エクスポートは、どの形式も「名前をつけて画像を保存…」も同じフォルダを共有します)、EverPad を終了しても引き継ぎます。初めてのときや、そのフォルダが無くなったときは、インポートは保存先フォルダ、エクスポートはドキュメントを開きます。
+
+**EverPad アーカイブ**
+
+- 「ファイル」→「エクスポート」→「EverPad アーカイブ…」で、今のメモの本文・全履歴・添付を1つの `.everpad` ファイルに保存します(履歴の表示中でも、メモ全体を保存します)。中身は ZIP 形式で、拡張子を `.zip` に変えると中を見られます(`manifest.json`・`note.jsonl`・`note.md`・`files/`)。
+- アーカイブをインポートすると、履歴と添付ごとメモが戻ります。同じ ID のメモが既にあるときは、次から選びます。**上書き**は、いまあるメモの本文・履歴・添付をアーカイブの内容に置き換えます(EverPad からは元に戻せません。元のファイルはごみ箱に移ります)。**新しい ID で取り込む**は、別のメモとして取り込みます。**中止**は何もしません。
+- インポートしたメモは、一覧のいちばん上に出ます。インポートした日時を履歴ファイルの見出し行に記録し(古いバージョンの EverPad はこの項目を無視します)、一覧は「最後に編集した日時」と「インポートした日時」の新しいほうで並べます。インポートした日時はプロパティに出ます。
+- インストーラーが `.everpad` ファイルを EverPad に関連付けるので、アーカイブをダブルクリックするとインポートします。「送る」や、EverPad のアイコンへのドラッグ&ドロップでもインポートできます。
+- インポートの前に、形式・メモID・履歴・添付のファイル名・大きさを確かめます。壊れたアーカイブや正しくないアーカイブは取り込みません。
+
+**テキストファイルのインポート**
+
+- 1ファイルが1つの新しいメモになり、最初の行が題名になります。
 - エクスプローラーでファイルを選び、「送る」→「EverPad」でも取り込めます。EverPad が起動していなければ起動します。「送る」メニューに追加するには、インストール時にチェックボックスを付けるか、いつでも「ファイル」→「「送る」メニューに登録」を選びます(もう一度選ぶと解除します)。EverPad のアイコンにファイルをドラッグ&ドロップしても取り込めます。EverPad のウィンドウへのドラッグ&ドロップは、これまでどおり添付になります。
 - 文字コードは自動で見分けます(UTF-8(BOM あり・なし)、UTF-16、Shift_JIS、EUC-JP、ISO-2022-JP)。改行は LF にそろえます。10MB を超えるファイル、テキストでないファイル、文字として読めないデータを含むファイルは取り込まず、理由を表示します。読めないデータがあるときは「Shift_JIS として 12行目の 5文字目…(0x82 0xFF)」のように場所も示します。
 - 取り込んだメモは EverPad のメモで、元のファイルとは関係を持ちません(どこから取り込んだかも記録しません)。
-- 「ファイル」→「テキストとして書き出す…」(`Ctrl+Shift+E`)で、いまのメモを `.txt` か `.md` のファイルに保存します(UTF-8・BOM なし、改行は CRLF)。履歴の表示中は、見ている版を書き出します。添付は含まれません。
+- 「ファイル」→「エクスポート」→「テキストファイル…」(`Ctrl+Shift+E`)で、今のメモを `.txt` か `.md` のファイルに保存します(UTF-8・BOM なし、改行は CRLF)。履歴の表示中は、見ている版を書き出します。添付は含まれません。
 
 **印刷と PDF**
 
-- メニューの「ファイル」→「印刷…」(`Ctrl+P`)で、いま開いているメモを印刷します。「ファイル」→「PDF として保存…」(`Ctrl+Shift+P`)では PDF として保存します。
+- メニューの「ファイル」→「印刷…」(`Ctrl+P`)で、いま開いているメモを印刷します。「ファイル」→「エクスポート」→「PDF…」(`Ctrl+Shift+P`)では PDF として保存します。
 - どの表示から実行しても、プレビューと同じ整形した見た目(見出し、表、チェックボックス、添付画像)で出ます。履歴の表示中は、見ている版を出します。
 - 各ページの上に題名と最後に編集した日時、下に印刷した日時(PDF では作成した日時)とページ番号が入ります。過去の版を出したときは、版の番号も入ります。
 - ダークモードで使っていても、白い紙に黒い文字で出ます。PDF の用紙は A4 です(米国とカナダでは Letter)。
 
 **その他**
 
-- メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、いまのメモの題名、メモID、作成と最終編集の日時、版数、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
+- プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
+- メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
-- 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、いまの表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
+- 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
 - 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。編集画面だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョンと、メモの保存先も表示されます。
@@ -404,9 +436,9 @@ npm run dist
 | 強調 | `**太字**`、`*斜体*`、`~~取り消し線~~`、`` `コード` `` |
 | 箇条書き | `- 項目`(`*`・`+` も可。空白2つで字下げすると入れ子)、`1. 項目` |
 | チェックボックス | `- [ ] 未完了`、`- [x] 完了` |
-| リンク | `[表示する文字](https://example.com)`(http と https だけ) |
+| リンク | `[表示する文字](https://example.com)`(ブラウザで開く)、`[表示する文字](#見出し)`(同じメモの見出しへ移動)。相対パスなど、それ以外のリンクはリンクの見た目で表示するが、開けない |
 | 引用 | `> 引用する文` |
-| コードのかたまり | ```` ``` ```` だけの行で前後を囲む |
+| コードブロック | ```` ``` ```` だけの行で前後を囲む(`~~~` も可)。中に ```` ``` ```` の行を書くときは ````` ```` ````` で囲む |
 | 区切り線 | `---` |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
@@ -465,6 +497,8 @@ preload.js       画面に渡す窓口(保存・読み込み・メニュー操�
 store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
+archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)
+ziplite.js       アーカイブに使う最小限の ZIP の読み書き。Node.js の zlib を使う(Electron なしでテストできる)
 sendto.js        「送る」メニューのショートカットと、起動時に渡されたファイルの取り出し(Electron なしでテストできる)
 renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)

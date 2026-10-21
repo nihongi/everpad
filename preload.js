@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   // テキストの取り込み・書き出し
   onImport: cb => { ipcRenderer.on('import:texts', (_e, items) => cb(items)); },
   exportText: (title, text) => ipcRenderer.invoke('export:text', title, text),
+  exportArchive: (id, title) => ipcRenderer.invoke('export:archive', id, title),
   ready: () => ipcRenderer.send('app:ready'),
   // 印刷・PDF(画面に用意した印刷用の紙面を出す)
   print: () => ipcRenderer.invoke('print:print'),

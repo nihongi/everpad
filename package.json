@@ -1,7 +1,7 @@
 {
   "name": "everpad",
   "productName": "EverPad",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
@@ -26,6 +26,8 @@
       "windowstate.js",
       "sendto.js",
       "textcodec.js",
+      "archive.js",
+      "ziplite.js",
       "build/icon.ico",
       "build/icon.png",
       "renderer/**/*",
@@ -54,7 +56,16 @@
       "enableNodeOptionsEnvironmentVariable": false,
       "onlyLoadAppFromAsar": true,
       "enableEmbeddedAsarIntegrityValidation": true
-    }
+    },
+    "fileAssociations": [
+      {
+        "ext": "everpad",
+        "name": "EverPad.Archive",
+        "description": "EverPad Archive",
+        "icon": "icon.ico",
+        "role": "Editor"
+      }
+    ]
   },
   "devDependencies": {
     "electron": "^44.7.0",

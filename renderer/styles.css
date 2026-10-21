@@ -123,7 +123,7 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .ibtn svg { width: 18px; height: 18px; fill: currentColor; display: block; }
 
 /* ---- main ---- */
-.main { background: var(--surface); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.main { position: relative; background: var(--surface); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
 #menuBtn { display: inline-grid; }
 #menuBtn[aria-pressed="true"] { background: var(--surface-2); }
@@ -198,6 +198,8 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 /* 他のメモへのリンク。参照先が削除されていれば、灰色の取り消し線 */
 .md a.note-link { color: var(--accent); text-underline-offset: 3px; text-decoration-style: dotted; }
 .md a.note-link.missing { color: var(--fg-2); text-decoration: line-through; }
+/* EverPad では開けないリンク(相対パスなど)。リンクの見た目にして、クリックすると知らせる */
+.md .link-other { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .md .al-l { text-align: left; }
 .md .al-c { text-align: center; }
 .md .al-r { text-align: right; }
@@ -326,3 +328,7 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .linkpick .lt { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .linkpick .lm { display: block; font-size: 12.5px; color: var(--fg-2); }
 .linkpick .none { color: var(--fg-2); padding: 7px 10px; }
+
+/* リンクにマウスを重ねている間、行き先を左下に出す(ブラウザの下端の表示と同じ) */
+.link-status { position: absolute; left: 8px; bottom: 36px; z-index: 15; max-width: min(60%, 40rem); padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--fg-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; box-shadow: 0 1px 4px color-mix(in srgb, var(--fg) 15%, transparent); }
+.link-status[hidden] { display: none; }

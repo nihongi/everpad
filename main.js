@@ -3,9 +3,11 @@ const { app, BrowserWindow, Menu, ipcMain, dialog, shell, nativeTheme, session, 
 const { pathToFileURL } = require('url');
 const path = require('path');
 const fs = require('fs');
-const { Store, MAX_ATTACH, validId } = require('./store');
+const { Store, MAX_ATTACH, validId, validFileId } = require('./store');
 const { decodeText, MAX_IMPORT } = require('./textcodec');
 const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
+const { buildArchive, readArchive, looksLikeArchive } = require('./archive');
+const { titleOf } = require('./renderer/core');
 const { buildTemplate, buildAttachTemplate, formatItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
@@ -40,6 +42,21 @@ function writeConfig(c) {
   fs.writeFileSync(configPath(), JSON.stringify(c, null, 2));
 }
 const defaultDir = () => path.join(app.getPath('documents'), APP_NAME);
+
+/* ---------- ファイルを選ぶ窓で最初に開くフォルダ ----------
+   インポートとエクスポートで別々に、前回ファイルを選んだフォルダを config.json に覚える(終了しても引き継ぐ)。
+   エクスポートはテキスト・PDF・アーカイブ・添付の保存で共有する。
+   前回の情報が無いとき(または、そのフォルダが無くなったとき)は、インポートは保存先フォルダ、エクスポートはドキュメント */
+function lastDir(kind) {
+  const d = (readConfig().lastDirs || {})[kind];
+  try { if (typeof d === 'string' && d && fs.statSync(d).isDirectory()) return d; } catch (e) { /* 無くなった */ }
+  return null;
+}
+function rememberDir(kind, file) {
+  try { const c = readConfig(); c.lastDirs = Object.assign({}, c.lastDirs, { [kind]: path.dirname(file) }); writeConfig(c); } catch (e) { /* 覚えられなくても動く */ }
+}
+const importStartDir = () => lastDir('import') || store.dir;
+const exportStartDir = () => lastDir('export') || app.getPath('documents');
 
 function openStore() {
   const wanted = readConfig().dataDir || defaultDir();
@@ -168,7 +185,6 @@ ipcMain.handle('attach:open', (e, noteId, fileId) => {
 
 /* 添付を右クリックしたときのメニュー(画像: コピー・開く・場所を開く・名前をつけて保存、ファイル: 開く・場所を開く)。
    選んだ操作の結果を返す(画面側で知らせる)。x, y は右クリックした位置(画像をコピーできない形式のときに使う) */
-let lastSaveDir = null;
 // 数式を右クリックしたときのメニュー: 元の LaTeX をコピーする
 ipcMain.handle('math:menu', (e, tex) => {
   if (!fromOurWindow(e)) return null;
@@ -206,9 +222,9 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
       const ext = path.extname(p);
       let nm = String(name || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 120) || T('file');
       if (ext && path.extname(nm).toLowerCase() !== ext.toLowerCase()) nm += ext;
-      const r = await dialog.showSaveDialog(win, { title: T('saveAsTitle'), defaultPath: path.join(lastSaveDir || app.getPath('documents'), nm) });
+      const r = await dialog.showSaveDialog(win, { title: T('saveAsTitle'), defaultPath: path.join(exportStartDir(), nm) });
       if (r.canceled || !r.filePath) return { status: 'none' };
-      try { fs.copyFileSync(p, r.filePath); lastSaveDir = path.dirname(r.filePath); return { status: 'saved', path: r.filePath }; }
+      try { fs.copyFileSync(p, r.filePath); rememberDir('export', r.filePath); return { status: 'saved', path: r.filePath }; }
       catch (err) { return { status: 'saveFailed' }; }
     }
   };
@@ -283,10 +299,76 @@ function readTextFile(file) {
     return r.ok ? { name: name, ok: true, text: r.text, encoding: r.encoding } : { name: name, ok: false, message: importMessage(r) };
   } catch (err) { return { name: name, ok: false, message: T('impReadFailed') }; }
 }
+/* ---------- アーカイブ(.everpad)のインポート ----------
+   同じ ID のメモがあれば「上書き / 新しい ID で取り込む / 中止」を選んでもらう。
+   上書きは、いまあるメモのファイルをごみ箱に移してから書く(EverPad からは元に戻せない)。
+   インポートしたメモは、取り込んだ時刻を記録して、一覧のいちばん上に出す */
+const MAX_ARCHIVE = 1024 * 1024 * 1024;   // 1GB
+const pad2 = n => String(n).padStart(2, '0');
+function newNoteId() {
+  for (;;) {
+    const d = new Date();
+    const id = '' + d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds()) + '-' + Math.random().toString(36).slice(2, 6).padEnd(4, '0');
+    if (!fs.existsSync(store.file(id, '.jsonl'))) return id;
+  }
+}
+function archiveMessage(e) {
+  if (e.code === 'notArchive') return T('arcNotArchive');
+  if (e.code === 'newerFormat') return T('arcNewer');
+  if (e.code === 'tooLarge') return T('arcTooLarge', { mb: MAX_ARCHIVE / 1024 / 1024 });
+  return T('arcBroken');
+}
+function startsWithZip(file) {
+  try { const fd = fs.openSync(file, 'r'); const b = Buffer.alloc(4); fs.readSync(fd, b, 0, 4, 0); fs.closeSync(fd); return b.readUInt32LE(0) === 0x04034b50; } catch (e) { return false; }
+}
+async function importArchive(file, flushOnce) {
+  const name = path.basename(file);
+  let arc;
+  try {
+    if (fs.statSync(file).size > MAX_ARCHIVE) return { name: name, ok: false, message: T('arcTooLarge', { mb: MAX_ARCHIVE / 1024 / 1024 }) };
+    const buf = fs.readFileSync(file);
+    if (!looksLikeArchive(buf)) return { name: name, ok: false, message: T('arcNotArchive') };
+    arc = readArchive(buf);
+  } catch (e) { return { name: name, ok: false, message: e.code ? archiveMessage(e) : T('impReadFailed') }; }
+  let id = arc.manifest.id, replaced = false;
+  if (fs.existsSync(store.file(id, '.jsonl'))) {
+    await flushOnce();   // 開いているメモの書き込み待ちの編集を、先に書き出しておく
+    const title = titleOf(store.readLatest(id) || '') || T('untitled');
+    const r = await dialog.showMessageBox(win, {
+      type: 'warning', title: APP_NAME, noLink: true, defaultId: 1, cancelId: 2,
+      buttons: [T('arcOverwrite'), T('arcNewId'), T('arcCancel')],
+      message: T('arcExistsQ', { title: title }),
+      detail: T('arcExistsDetail')
+    });
+    if (r.response === 2) return null;   // 中止(知らせない)
+    if (r.response === 0) {
+      for (const p of store.paths(id)) {
+        try { await shell.trashItem(p); } catch (err) { fs.rmSync(p, { recursive: true, force: true }); }   // ごみ箱が使えないときだけ直接削除
+      }
+      store.forget(id);
+      replaced = true;
+    } else id = newNoteId();
+  }
+  try { store.importNote(id, arc, Date.now()); } catch (e) { return { name: name, ok: false, message: T('arcWriteFailed') }; }
+  return { name: name, ok: true, kind: 'archive', id: id, replaced: replaced };
+}
+// インポートは順番に1つずつ行う(確認の窓が重ならないように)
+let importChain = Promise.resolve();
 function importFiles(files) {
   if (!files.length) return;
   if (!rendererReady || !win || win.isDestroyed()) { pendingImports.push(...files); return; }
-  win.webContents.send('import:texts', files.slice(0, 200).map(readTextFile));
+  importChain = importChain.then(() => runImport(files.slice(0, 200))).catch(() => {});
+}
+async function runImport(files) {
+  let flushed = null;
+  const flushOnce = () => flushed || (flushed = flushRenderer());
+  const items = [];
+  for (const file of files) {
+    if (startsWithZip(file)) { const r = await importArchive(file, flushOnce); if (r) items.push(r); }
+    else items.push(readTextFile(file));
+  }
+  if (!items.length || !win || win.isDestroyed()) return;
+  win.webContents.send('import:texts', items);
   if (win.isMinimized()) win.restore();
   win.focus();
 }
@@ -295,30 +377,60 @@ ipcMain.on('app:ready', e => {
   rendererReady = true;
   if (pendingImports.length) importFiles(pendingImports.splice(0));
 });
+const TEXT_EXTS = ['txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'ini', 'json', 'xml', 'html', 'htm'];
 async function pickImport() {
   const r = await dialog.showOpenDialog(win, {
     title: T('impPickTitle'),
+    defaultPath: importStartDir(),
     properties: ['openFile', 'multiSelections'],
-    filters: [{ name: T('impFilterText'), extensions: ['txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'ini', 'json', 'xml', 'html', 'htm'] }, { name: T('impFilterAll'), extensions: ['*'] }]
+    filters: [
+      { name: T('impFilterSupported'), extensions: ['everpad'].concat(TEXT_EXTS) },
+      { name: T('arcFilter'), extensions: ['everpad'] },
+      { name: T('impFilterText'), extensions: TEXT_EXTS },
+      { name: T('impFilterAll'), extensions: ['*'] }
+    ]
   });
-  if (!r.canceled) importFiles(r.filePaths);
+  if (r.canceled || !r.filePaths.length) return;
+  rememberDir('import', r.filePaths[0]);
+  importFiles(r.filePaths);
 }
 // 書き出し: UTF-8(BOM なし)、改行は CRLF
-let lastExportDir = null;
 ipcMain.handle('export:text', async (e, title, text) => {
   if (!fromOurWindow(e)) return { status: 'failed' };
   const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.txt';
   const r = await dialog.showSaveDialog(win, {
     title: T('expTitle'),
-    defaultPath: path.join(lastExportDir || app.getPath('documents'), name),
+    defaultPath: path.join(exportStartDir(), name),
     filters: [{ name: T('expFilterText'), extensions: ['txt'] }, { name: 'Markdown', extensions: ['md'] }]
   });
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
   try {
     fs.writeFileSync(r.filePath, String(text).replace(/\n/g, '\r\n'), 'utf8');
-    lastExportDir = path.dirname(r.filePath);
+    rememberDir('export', r.filePath);
     return { status: 'saved', path: r.filePath };
   } catch (err) { return { status: 'failed' }; }
+});
+
+// EverPad アーカイブとしてエクスポート(本文・全履歴・添付を1つのファイルに)
+ipcMain.handle('export:archive', async (e, id, title) => {
+  if (!fromOurWindow(e) || !validId(id)) return { status: 'failed' };
+  let data;
+  try {
+    const jsonl = fs.readFileSync(store.file(id, '.jsonl'));
+    const head = JSON.parse(jsonl.toString('utf8').split('\n')[0]);
+    const dir = store.filesDir(id), files = [];
+    if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir)) { if (validFileId(f)) files.push({ fileId: f, data: fs.readFileSync(path.join(dir, f)) }); }
+    data = buildArchive({ id: id, title: String(title || ''), created: head.c, jsonl: jsonl, md: store.readLatest(id) || '', files: files }, app.getVersion());
+  } catch (err) { return { status: 'failed' }; }
+  const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.everpad';
+  const r = await dialog.showSaveDialog(win, {
+    title: T('arcExportTitle'),
+    defaultPath: path.join(exportStartDir(), name),
+    filters: [{ name: T('arcFilter'), extensions: ['everpad'] }]
+  });
+  if (r.canceled || !r.filePath) return { status: 'cancelled' };
+  try { fs.writeFileSync(r.filePath, data); rememberDir('export', r.filePath); return { status: 'saved', path: r.filePath }; }
+  catch (err) { return { status: 'failed' }; }
 });
 
 /* ---------- 「送る」メニュー ---------- */
@@ -345,20 +457,19 @@ ipcMain.handle('print:print', e => {
 });
 // 用紙: 米国・カナダは Letter、それ以外は A4
 const paperSize = () => (/[-_](US|CA)\b/i.test(app.getLocale() + ' ' + (app.getPreferredSystemLanguages()[0] || '')) ? 'Letter' : 'A4');
-let lastPdfDir = null;
 ipcMain.handle('print:pdf', async (e, title) => {
   if (!fromOurWindow(e)) return { status: 'failed' };
   const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.pdf';
   const r = await dialog.showSaveDialog(win, {
     title: T('pdfSaveTitle'),
-    defaultPath: path.join(lastPdfDir || app.getPath('documents'), name),
+    defaultPath: path.join(exportStartDir(), name),
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
   try {
     const data = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: paperSize() });
     fs.writeFileSync(r.filePath, data);
-    lastPdfDir = path.dirname(r.filePath);
+    rememberDir('export', r.filePath);
     return { status: 'saved', path: r.filePath };
   } catch (err) { return { status: 'failed' }; }
 });
@@ -414,9 +525,12 @@ function buildMenu() {
         { label: T('mBack'), accelerator: 'Alt+Left', click: () => send('back') },
         { type: 'separator' },
         { label: T('mImport'), accelerator: 'CmdOrCtrl+O', click: pickImport },
-        { label: T('mExport'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send('export') },
+        { label: T('mExportMenu'), submenu: [
+          { label: T('mExportText'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send('export') },
+          { label: T('mExportPdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
+          { label: T('mExportArchive'), click: () => send('archive') }
+        ] },
         { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },
-        { label: T('mSavePdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
         { type: 'separator' },
         { label: T('mProps'), accelerator: 'Alt+Enter', click: () => send('props') },
         { type: 'separator' },

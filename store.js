@@ -152,7 +152,29 @@ class Store {
         fs.renameSync(tmp, f);
       } catch (e) { /* 読み込みは続ける */ }
     }
-    return { id: id, c: r.head.c, ops: r.ops };
+    return { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, ops: r.ops };
+  }
+
+  /* アーカイブから取り込んだメモを書く(同じ ID のメモがあれば、呼ぶ側が先にごみ箱へ移しておく)。
+     見出し行の id を差し替え、取り込んだ日時(imported)を記録する。本文(.md)は履歴から作り直す。
+     添付と本文を先に書き、履歴(.jsonl)を最後に書く(途中で失敗しても、中途半端なメモが一覧に出ないように) */
+  importNote(id, arc, importedAt) {
+    const f = this.file(id, '.jsonl');
+    if (fs.existsSync(f)) throw storeError('exists', 'メモが既にあります');
+    if (arc.files.length) {
+      const dir = this.filesDir(id);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const x of arc.files) { if (!validFileId(x.fileId)) throw storeError('badId', '添付のファイル名が正しくありません'); fs.writeFileSync(path.join(dir, x.fileId), x.data); }
+    }
+    let text = '';
+    for (const o of arc.ops) text = applyWire(text, o);
+    fs.writeFileSync(this.file(id, '.md'), text);
+    const head = Object.assign({}, arc.head, { id: id, imported: importedAt });
+    const tmp = f + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(head) + '\n' + arc.ops.map(o => JSON.stringify(o)).join('\n') + (arc.ops.length ? '\n' : ''));
+    fs.renameSync(tmp, f);
+    this.forget(id);
+    return true;
   }
 
   loadAll() {
@@ -220,11 +242,12 @@ class Store {
         let text = '';
         for (const o of note.ops) text = applyWire(text, o);
         st = this._stat(id) || st;               // 壊れた行を直した場合は、直した後のファイルで記録する
-        e = idx[id] = { c: note.c, t: note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, n: note.ops.length, title: core.titleOf(text), size: st.size, mtime: st.mtime };
+        // 並びの時刻は、最後に編集した時刻と取り込んだ時刻の新しいほう(取り込んだメモを一覧の上に出す)
+        e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, n: note.ops.length, title: core.titleOf(text), size: st.size, mtime: st.mtime };
         this._dirty();
       }
       seen.add(id);
-      out.push({ id: id, c: e.c, t: e.t, n: e.n, title: e.title });
+      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, n: e.n, title: e.title });
     }
     for (const id of Object.keys(idx)) if (!seen.has(id)) { delete idx[id]; this._dirty(); }
     out.sort((a, b) => a.c - b.c);

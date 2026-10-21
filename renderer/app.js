@@ -45,7 +45,7 @@
   const nOps = n => (n.loaded ? n.ops.length : n.n);
   function syncMeta(n) {
     n.n = n.ops.length;
-    n.t = n.ops.length ? n.ops[n.ops.length - 1].t : n.c;
+    n.t = Math.max(n.ops.length ? n.ops[n.ops.length - 1].t : n.c, n.imported || 0);   // インポートしたメモは一覧の上に出す
     n.title = titleOf(n.text);
   }
   function unload(n) { delete n.ops; delete n.text; delete n._cp; n.loaded = false; }
@@ -66,6 +66,7 @@
         n.loading = null;
         if (!r) return null;
         n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
+        n.imported = r.imported || 0;
         n._cp = null;
         n.text = textAt(n, n.ops.length);
         n.loaded = true; n.used = ++useSeq;
@@ -828,7 +829,8 @@
     root.querySelectorAll('a.note-link').forEach(a => {
       const n = S.notes.find(x => x.id === a.dataset.note);
       a.classList.toggle('missing', !n);
-      a.title = n ? T('linkTo', { title: shownTitle(n.title) }) : T('linkMissing');
+      a.removeAttribute('title');
+      a.dataset.status = n ? T('linkStatusNote', { title: shownTitle(n.title) }) : T('linkStatusMissing');
     });
   }
   async function openAttachment(id) {
@@ -837,6 +839,40 @@
     if (r === 'shown') toast(T('shownInFolder'));
     else if (r === 'missing') toast(T('fileMissing'));
   }
+  /* リンクにマウスを重ねている間、行き先を左下に出す */
+  const LINK_SEL = '#preview a, #hvBody a, #preview .link-other, #hvBody .link-other';
+  function linkStatusText(el) {
+    if (el.classList.contains('note-link')) return el.dataset.status || '';
+    if (el.classList.contains('att-file')) return T('linkStatusAttach', { name: el.textContent });
+    if (el.classList.contains('link-other')) { const t = el.dataset.target || ''; return t[0] === '#' ? t : T('linkStatusOther', { href: t }); }
+    return el.getAttribute('href') || '';
+  }
+  document.addEventListener('mouseover', e => {
+    const el = e.target.closest && e.target.closest(LINK_SEL);
+    const box = $('linkStatus');
+    const text = el ? linkStatusText(el) : '';
+    box.textContent = text;
+    box.hidden = !text;
+  });
+  document.addEventListener('scroll', () => { $('linkStatus').hidden = true; }, true);
+  // EverPad では開けないリンク(相対パスなど): クリックしたら行き先を知らせる
+  document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('#preview .link-other, #hvBody .link-other');
+    if (!t) return;
+    e.preventDefault();
+    const target = t.dataset.target || '';
+    if (target[0] === '#') {
+      // 同じメモの中の見出しへ(GitHub と同じ規則で、見出しの文字からページ内リンクの名前を作って探す)
+      let want = target.slice(1); try { want = decodeURIComponent(want); } catch (err) { /* そのまま */ }
+      want = want.toLowerCase();
+      const root = t.closest('#preview, #hvBody');
+      const seen = {};
+      const h = [...root.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(el => { const s = headingSlug(el.textContent); const k = seen[s] ? s + '-' + seen[s] : s; seen[s] = (seen[s] || 0) + 1; return k === want; });
+      if (h) h.scrollIntoView({ block: 'start' }); else toast(T('linkUnsupported', { href: target }));
+      return;
+    }
+    toast(T('linkUnsupported', { href: target }));
+  });
   // メモへのリンク: プレビューと履歴の「Markdown表示」ではクリック、編集画面では Ctrl+クリックで移動する
   document.addEventListener('click', e => {
     const a = e.target.closest && e.target.closest('#preview a.note-link, #hvBody a.note-link');
@@ -1013,6 +1049,7 @@
     else if (name === 'link') pickNoteLink();
     else if (name === 'props') showProps();
     else if (name === 'export') exportNote();
+    else if (name === 'archive') exportArchive();
     else if (name === 'print') printNote('print');
     else if (name === 'pdf') printNote('pdf');
     else if (name.indexOf('mode:') === 0) { if (S.mode === 'history') { stop(); S.hbase = name.slice(5); setMode('history'); } else setMode(name.slice(5), true); }
@@ -1112,7 +1149,8 @@
     row(T('propName'), shownTitle(titleOf(n.text)));
     row(T('propId'), el('span', 'path', n.id));
     row(T('propCreated'), fmtFull(n.c));
-    row(T('propEdited'), fmtFull(n.t));
+    row(T('propEdited'), fmtFull(n.ops.length ? n.ops[n.ops.length - 1].t : n.c));
+    if (n.imported) row(T('propImported'), fmtFull(n.imported));
     row(T('propVersions'), String(n.ops.length));
     row(T('propChars'), stats.chars.toLocaleString('en-US'));
     row(T('propWords'), stats.words.toLocaleString('en-US'));
@@ -1209,7 +1247,14 @@
   api.onImport(async items => {
     const bad = items.filter(i => !i.ok).map(i => ({ name: i.name, message: i.message }));
     let last = null, made = 0, lastItem = null;
+    let lastArc = null;
     for (const it of items.filter(i => i.ok)) {
+      if (it.kind === 'archive') {
+        const n = await adoptNote(it.id);
+        if (!n) { bad.push({ name: it.name, message: T('loadFailed') }); continue; }
+        last = n; lastItem = it; lastArc = n; made++;
+        continue;
+      }
       const n = await makeNote();
       if (!n) { bad.push({ name: it.name, message: T('createFailed') }); continue; }
       if (it.text) { const op = makeOp('', it.text, Date.now()); n.ops.push(op); n.text = it.text; syncMeta(n); queueOp(n, op); }
@@ -1230,9 +1275,38 @@
       for (const b of bad) { const li = el('li'); li.appendChild(el('div', 'fname', b.name)); li.appendChild(el('div', 'why', b.message)); ul.appendChild(li); }
       box.appendChild(ul);
       openModal(T('impErrTitle'), box);
-    } else if (made === 1) toast(T('impDone', { name: lastItem.name, enc: lastItem.encoding }));
+    } else if (made === 1 && lastArc) toast(T(lastItem.replaced ? 'arcReplaced' : 'arcDone', { title: shownTitle(lastArc.title) }));
+    else if (made === 1) toast(T('impDone', { name: lastItem.name, enc: lastItem.encoding }));
     else if (made > 1) toast(T('impDoneN', { n: made }));
   });
+  /* main.js が保存先に書いたメモを読み込み、一覧に入れる(同じ ID が既にあれば、中身を差し替える) */
+  async function adoptNote(id) {
+    let r = null;
+    try { r = await api.loadNote(id); } catch (e) { r = null; }
+    if (!r) return null;
+    let n = S.notes.find(x => x.id === id);
+    if (!n) { n = { id: id }; S.notes.push(n); }
+    pendingOps.delete(id); textDirty.delete(id);
+    n.c = r.c; n.imported = r.imported || 0;
+    n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
+    n._cp = null;
+    n.text = textAt(n, n.ops.length);
+    n.loaded = true; n.used = ++useSeq;
+    syncMeta(n);
+    if (n.id === S.active) { $('editor').value = n.text; }
+    return n;
+  }
+  // EverPad アーカイブとしてエクスポート: 書き込み待ちの編集と本文を先に書き出してから、main.js にまとめてもらう
+  async function exportArchive() {
+    const n = cur();
+    if (!n) return;
+    await flush();
+    if (textDirty.has(n.id)) { textDirty.delete(n.id); try { await api.saveText(n.id, n.text); } catch (e) { /* .md は控え */ } }
+    let r = null;
+    try { r = await api.exportArchive(n.id, shownTitle(titleOf(n.text))); } catch (e) { r = { status: 'failed' }; }
+    if (r && r.status === 'saved') toast(T('arcExported', { path: r.path }));
+    else if (r && r.status === 'failed') toast(T('arcExportFailed'));
+  }
   // 書き出し: いまのメモを(履歴の表示中は見ている版を)テキストファイルにする
   async function exportNote() {
     const n = cur();
@@ -1308,7 +1382,7 @@
     S.dir = data.dir;
     loadRecent();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
-    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, n: r.n, title: r.title, loaded: false }));
+    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, n: r.n, title: r.title, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());
     let last = null;
     try { last = localStorage.getItem('everpad:active'); } catch (e) { /* 無くても動く */ }

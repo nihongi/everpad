@@ -87,9 +87,36 @@ function mathBlock(lines, i) {
   return null;
 }
 
+/* 文中のコード表記(CommonMark と同じ): バッククォートを何個重ねても、同じ数のバッククォートで閉じるまでがコード。
+   中にバッククォートを書くときは、外側を多く重ねる(`` `x` `` → `x`)。前後に空白が1つずつあれば取り除く。
+   閉じる側が無いバッククォートは、ただの文字として残す */
+function codeSpans(src, keep) {
+  let out = '', i = 0;
+  while (i < src.length) {
+    const a = src.indexOf('`', i);
+    if (a < 0) { out += src.slice(i); break; }
+    out += src.slice(i, a);
+    let n = 0; while (src[a + n] === '`') n++;
+    let close = -1;
+    for (let k = a + n; k < src.length;) {
+      const j = src.indexOf('`', k);
+      if (j < 0) break;
+      let m = 0; while (src[j + m] === '`') m++;
+      if (m === n) { close = j; break; }
+      k = j + m;
+    }
+    if (close < 0) { out += src.slice(a, a + n); i = a + n; continue; }
+    let c = src.slice(a + n, close);
+    if (c.length >= 2 && c[0] === ' ' && c[c.length - 1] === ' ' && c.trim() !== '') c = c.slice(1, -1);
+    out += keep(c);
+    i = close + n;
+  }
+  return out;
+}
+
 function inline(src) {
   const codes = [];
-  let s = src.replace(/`([^`]+)`/g, (_, c) => { codes.push(c); return '\u0001' + (codes.length - 1) + '\u0001'; });
+  let s = codeSpans(src, c => { codes.push(c); return '\u0001' + (codes.length - 1) + '\u0001'; });
   // 数式: \$ は区切りにしない(数式の外では $ の文字、数式の中では \$ に戻す)。ほかの書式の影響を受けないよう、先に退避する
   const maths = [];
   const keepMath = (tex, display) => { maths.push(renderMath(tex.replace(/\u0003/g, '\\$'), display, false)); return '\u0004' + (maths.length - 1) + '\u0004'; };
@@ -107,6 +134,13 @@ function inline(src) {
   // 他のメモへのリンク。参照先の題名や、削除されているかは、画面に出すときに app.js が付ける
   s = s.replace(NOTE_LINK_RE, (m, t, id) => keep('<a class="note-link" href="#" data-note="' + id + '">' + t + '</a>'));
   s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + '</a>');
+  // それ以外のリンク: GitHub と同じく表示名をリンクの見た目で出す(<a> にはしない)。
+  //   #見出し … 同じメモの中の見出しへ移動する(日本語の見出しも使える)
+  //   相対パスなど([LICENSE](LICENSE)) … EverPad には開く先が無いので、クリックすると知らせる。
+  //     「[重要](後で確認)」のような普通の文章を崩さないよう、行き先が URL やファイル名に使う半角の文字だけのときに限る
+  const other = (t, u) => keep('<span class="link-other" data-target="' + u + '">' + t + '</span>');
+  s = s.replace(/\[([^\]]+)\]\((#[^\s()]+)\)/g, (m, t, u) => other(t, u));
+  s = s.replace(/\[([^\]]+)\]\(([A-Za-z0-9._~:/?#@!$&'*+,;=%-]+)\)/g, (m, t, u) => other(t, u));
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
   s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
@@ -116,11 +150,21 @@ function inline(src) {
 }
 
 /* コードブロック: 開始行の字下げ分を各行から取り除いて読む。読み終えた次の行番号と、HTMLを返す */
+/* コードブロックの囲み(CommonMark と同じ): ``` か ~~~ を3つ以上並べた行で始め、同じ文字を同じ数以上並べただけの行で閉じる。
+   中に ``` の行を書きたいときは、```` か ~~~ で囲む。閉じる行が無ければ最後までをコードとする */
+const FENCE_OPEN_RE = /^\s*(`{3,}|~{3,})(.*)$/;
+/* 囲みの開始の行か。バッククォートの囲みは、後ろにバッククォートがあれば囲みではない(```` ``` ```` は文中のコード表記) */
+const FENCE_OPEN = { test: line => { const m = line.match(FENCE_OPEN_RE); return !!m && !(m[1][0] === '`' && m[2].indexOf('`') >= 0); } };
+function fenceCloses(line, open) {
+  const m = line.match(/^\s*(`{3,}|~{3,})\s*$/);
+  return !!m && m[1][0] === open[0] && m[1].length >= open.length;
+}
 function mdFence(lines, i) {
   const ind = lines[i].match(/^\s*/)[0].length;
+  const open = lines[i].match(FENCE_OPEN_RE)[1];
   const buf = [];
   i++;
-  while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i].replace(new RegExp('^\\s{0,' + ind + '}'), '')); i++; }
+  while (i < lines.length && !fenceCloses(lines[i], open)) { buf.push(lines[i].replace(new RegExp('^\\s{0,' + ind + '}'), '')); i++; }
   return { next: i + 1, html: '<pre><code>' + esc(buf.join('\n')) + '</code></pre>' };
 }
 
@@ -210,6 +254,10 @@ function pushRecent(list, id, title, max) {
   return [{ id: id, title: title, t: Date.now() }].concat((list || []).filter(r => r && r.id !== id)).slice(0, max);
 }
 
+/* 見出しの文字から、GitHub と同じ規則で、ページ内リンク(#…)の名前を作る:
+   小文字にし、文字・数字・空白・- ・_ 以外を取り除き、空白を - にする(日本語などの文字はそのまま) */
+const headingSlug = text => String(text).trim().toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
+
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
 const titleOf = text => {
   for (const ln of text.split('\n')) { const t = ln.replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
@@ -242,7 +290,14 @@ function mdList(lines, i, out) {
       let j = i;
       while (j < lines.length && /^\s*$/.test(lines[j])) j++;
       if (!stack.length || j >= lines.length) break;
-      if (/^\s+```/.test(lines[j])) { const f = mdFence(lines, j); html += f.html; i = f.next; continue; }
+      if (/^\s+/.test(lines[j]) && FENCE_OPEN.test(lines[j])) { const f = mdFence(lines, j); html += f.html; i = f.next; continue; }
+      // 項目より字下げした段落は、その項目の続き(GitHub と同じ)
+      const lead = s => s.match(/^\s*/)[0].replace(/\t/g, '  ').length;
+      if (lead(lines[j]) >= stack[stack.length - 1].ind + 2 && !re.test(lines[j])) {
+        const buf = [];
+        while (j < lines.length && /\S/.test(lines[j]) && !re.test(lines[j]) && lead(lines[j]) >= stack[stack.length - 1].ind + 2 && !FENCE_OPEN.test(lines[j])) { buf.push(lines[j].trim()); j++; }
+        if (buf.length) { html += '<p>' + buf.map(inline).join('<br>') + '</p>'; i = j; continue; }
+      }
       if (j > i && re.test(lines[j])) {
         const n = lines[j].match(re);
         const top = n[1].replace(/\t/g, '  ').length <= stack[0].ind;
@@ -254,7 +309,12 @@ function mdList(lines, i, out) {
     const tag = /\d/.test(m[2]) ? 'ol' : 'ul';
     while (stack.length && ind < stack[stack.length - 1].ind) html += '</li></' + stack.pop().tag + '>';
     if (stack.length && ind === stack[stack.length - 1].ind) html += '</li><li>';
-    else { html += '<' + tag + '><li>'; stack.push({ ind: ind, tag: tag }); }
+    else {
+      // 番号付きは、最初の項目に書いた番号から数える(4. から始めれば 4, 5, … と表示する)
+      const start = tag === 'ol' ? parseInt(m[2], 10) : 1;
+      html += '<' + tag + (start !== 1 ? ' start="' + start + '"' : '') + '><li>';
+      stack.push({ ind: ind, tag: tag });
+    }
     const t = m[3].match(/^\[( |x|X)\]\s+(.*)$/);
     html += t ? '<input type="checkbox" disabled' + (t[1] !== ' ' ? ' checked' : '') + '> ' + inline(t[2]) : inline(m[3]);
     i++;
@@ -291,17 +351,18 @@ function md(text) {
     const ln = lines[i];
     let m;
     // 数式のかたまり: ```math のコードブロック、$$ … $$、\[ … \]
-    if (/^\s*```math\s*$/.test(ln)) {
+    const mf = ln.match(/^\s*(`{3,}|~{3,})math\s*$/);
+    if (mf) {
       flush();
       const buf = [];
-      for (i++; i < lines.length && !/^\s*```\s*$/.test(lines[i]); i++) buf.push(lines[i]);
+      for (i++; i < lines.length && !fenceCloses(lines[i], mf[1]); i++) buf.push(lines[i]);
       i++;
       out.push(renderMath(buf.join('\n'), true, true));
       continue;
     }
     const mb = mathBlock(lines, i);
     if (mb) { flush(); out.push(renderMath(mb.tex, true, true)); i = mb.next; continue; }
-    if (/^\s*```/.test(ln)) {
+    if (FENCE_OPEN.test(ln)) {
       flush();
       const f = mdFence(lines, i);
       i = f.next;
@@ -513,5 +574,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

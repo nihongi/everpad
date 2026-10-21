@@ -17,3 +17,4 @@ body { background: var(--surface); }
 .help .src { margin: 0; font: 14px/1.7 var(--mono); background: var(--surface-2); border-radius: 8px; padding: 10px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .help .out { border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; background: var(--surface); }
 @media (max-width: 640px) { .help .pair { grid-template-columns: minmax(0, 1fr); } }
+.help-status { position: fixed; bottom: 8px; }

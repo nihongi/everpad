@@ -18,6 +18,14 @@
     html += '</div></section>';
   }
   root.innerHTML = html;
+  // リンクにマウスを重ねている間、行き先を左下に出す
+  const box = document.getElementById('linkStatus');
+  document.addEventListener('mouseover', e => {
+    const a = e.target.closest && e.target.closest('a[href]');
+    const href = a && /^https?:/i.test(a.getAttribute('href')) ? a.getAttribute('href') : '';
+    box.textContent = href;
+    box.hidden = !href;
+  });
   // 例のチェックボックスは押しても変わらないようにする(プレビューと同じ)
   root.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.disabled = true; });
 
