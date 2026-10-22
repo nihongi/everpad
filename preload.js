@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld('memoApi', {
   noteMenu: title => ipcRenderer.invoke('note:menu', title),
   // 最近見たメモ(メニューを作り直してもらう)
   setRecent: items => ipcRenderer.send('recent:set', items),
+  // 画面の状態(メニューの押せる・押せないに使う)
+  setUiState: st => ipcRenderer.send('ui:state', st),
   // プロパティ
   noteInfo: id => ipcRenderer.invoke('note:info', id),
   revealNote: (id, kind) => ipcRenderer.invoke('note:reveal', id, kind),

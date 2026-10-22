@@ -308,6 +308,15 @@
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
     queueStatus();
+    sendUiState();
+  }
+  /* メニューの押せる・押せないのための画面の状態を main.js に送る */
+  function sendUiState() {
+    const back = typeof recent !== 'undefined' && recent.some(r => r.id !== S.active && S.notes.some(n => n.id === r.id));
+    // 行番号が出るのは、編集画面と、編集から入った履歴の表示(変更箇所の表示)だけ
+    const lines = S.mode === 'edit' || (S.mode === 'history' && S.hbase === 'edit');
+    $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
+    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back });
   }
   // 「編集」「プレビュー」: 履歴表示の最中なら、履歴のまま(同じ版で)表示を切り替える
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
@@ -1231,6 +1240,7 @@
   }
   function saveRecent() { try { localStorage.setItem(recentKey(), JSON.stringify(recent)); } catch (e) { /* 控えられなくても動く */ } }
   function sendRecent() {
+    sendUiState();
     api.setRecent(recent.filter(r => r.id !== S.active).slice(0, 10).map(r => ({ id: r.id, title: shownTitle(r.title), deleted: !S.notes.some(n => n.id === r.id) })));
   }
   function touchRecent(n) { if (!n) return; recent = pushRecent(recent, n.id, titleOf(n.text), RECENT_MAX); saveRecent(); sendRecent(); }

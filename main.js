@@ -264,6 +264,18 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
   });
 });
 
+/* ---------- 画面の状態に合わせて、実行できないメニューを押せなくする ----------
+   edit: 編集画面か(書式・リンクの挿入・添付・検索と置換は編集画面だけ)、lines: 行番号が出る表示か(プレビューでは出ない)、
+   back: 「前に見たメモに戻る」で戻れるメモがあるか。押せない項目はキー操作も効かない */
+let ui = { edit: true, lines: true, back: false };
+ipcMain.on('ui:state', (e, st) => {
+  if (!fromOurWindow(e) || !st) return;
+  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back };
+  if (next.edit === ui.edit && next.lines === ui.lines && next.back === ui.back) return;
+  ui = next;
+  buildMenu();
+});
+
 /* ---------- 最近見たメモ ----------
    一覧は画面側が持ち(保存先ごと)、メモを開くたびに、今のメモを除いた最大10件を送ってくる。ここではメニューを作り直すだけ */
 let recentItems = [];
@@ -546,7 +558,7 @@ function buildMenu() {
         { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
         { type: 'separator' },
         { label: T('mRecent'), submenu: recentMenu() },
-        { label: T('mBack'), accelerator: 'Alt+Left', click: () => send('back') },
+        { label: T('mBack'), accelerator: 'Alt+Left', enabled: ui.back, click: () => send('back') },
         { type: 'separator' },
         { label: T('mImport'), accelerator: 'CmdOrCtrl+O', click: pickImport },
         { label: T('mExportMenu'), submenu: [
@@ -571,10 +583,10 @@ function buildMenu() {
         { role: 'undo', label: T('mUndo') },
         { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
-        { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', click: () => send('attach') },
-        { label: T('mReplace'), accelerator: 'CmdOrCtrl+H', click: () => send('replace') },
-        { label: T('mFormat'), submenu: formatItems(T, kind => send('fmt:' + kind)) },
-        { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', click: () => send('link') },
+        { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', enabled: ui.edit, click: () => send('attach') },
+        { label: T('mReplace'), accelerator: 'CmdOrCtrl+H', enabled: ui.edit, click: () => send('replace') },
+        { label: T('mFormat'), enabled: ui.edit, submenu: formatItems(T, kind => send('fmt:' + kind)).map(x => Object.assign(x, { enabled: ui.edit })) },
+        { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', enabled: ui.edit, click: () => send('link') },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
@@ -589,7 +601,7 @@ function buildMenu() {
         { label: T('mModePreview'), accelerator: 'CmdOrCtrl+2', click: () => send('mode:preview') },
         { label: T('mModeHistory'), accelerator: 'CmdOrCtrl+3', click: () => send('mode:history') },
         { label: T('mSide'), accelerator: 'CmdOrCtrl+B', click: () => send('side') },
-        { label: T('mLines'), accelerator: 'CmdOrCtrl+L', click: () => send('lines') },
+        { label: T('mLines'), accelerator: 'CmdOrCtrl+L', enabled: ui.lines, click: () => send('lines') },
         { type: 'separator' },
         { role: 'zoomIn', label: T('mZoomIn') },
         { role: 'zoomOut', label: T('mZoomOut') },
@@ -658,17 +670,22 @@ function showMdHelp() {
 }
 
 /* ---------- バージョン情報 ---------- */
-function showAbout() {
-  dialog.showMessageBox(win, {
+const HOMEPAGE = 'https://github.com/nihongi/everpad/';   // 公開場所
+async function showAbout() {
+  const r = await dialog.showMessageBox(win, {
     type: 'info',
     title: T('aboutTitle'),
     message: T('aboutVersion', { v: app.getVersion() }),
     detail: 'Electron ' + process.versions.electron + ' / Chromium ' + process.versions.chrome + ' / Node.js ' + process.versions.node + '\n'
       + T('aboutDataDir', { dir: store.dir }) + '\n\n'
+      + HOMEPAGE + '\n\n'
       + 'Copyright (c) 2026 Nobuyoshi NIHONGI\nMIT License',
-    buttons: ['OK'],
+    buttons: [T('aboutOpenSite'), 'OK'],
+    defaultId: 1,
+    cancelId: 1,
     noLink: true
   });
+  if (r.response === 0) shell.openExternal(HOMEPAGE);
 }
 
 /* ---------- ウィンドウ ---------- */

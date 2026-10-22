@@ -1,12 +1,17 @@
 {
   "name": "everpad",
   "productName": "EverPad",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
   "author": "Nobuyoshi NIHONGI",
   "license": "MIT",
+  "homepage": "https://github.com/nihongi/everpad/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nihongi/everpad.git"
+  },
   "scripts": {
     "vendor:katex": "node tools/vendor-katex.js",
     "prestart": "node tools/vendor-katex.js",

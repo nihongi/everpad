@@ -165,7 +165,8 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 #stLeft > span + span { border-left: 1px solid var(--line); margin-left: 10px; padding-left: 10px; }
 #stLeft .st-sel { color: var(--accent); font-weight: 700; }
 .tgl { border: 1px solid var(--line); background: transparent; color: var(--fg-2); border-radius: 6px; padding: 0 10px; font-size: 12.5px; line-height: 1.7; cursor: pointer; }
-.tgl:hover { background: var(--surface-2); }
+.tgl:hover:not(:disabled) { background: var(--surface-2); }
+.tgl:disabled { opacity: .45; cursor: default; }
 .tgl[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 700; }
 .status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 7px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 
