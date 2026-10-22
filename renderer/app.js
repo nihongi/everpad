@@ -667,7 +667,7 @@
       renderList();
       sendRecent();
       if (S.q) runSearch();
-      toast(T('deleted'));
+      toast(T(ok === 'folder' ? 'deletedToFolder' : 'deleted'));
       return;
     }
     // 次に開くメモを先に読み込んでおく(読めないときは何も消さない)
@@ -685,7 +685,7 @@
     ++selTok;
     show(next.id);
     if (S.q) runSearch();
-    toast(T('deleted'));
+    toast(T(ok === 'folder' ? 'deletedToFolder' : 'deleted'));
   }
 
   /* ---------- 検索と置換(編集画面の上に出すバー) ---------- */

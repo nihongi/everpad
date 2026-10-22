@@ -11,6 +11,8 @@ const { titleOf } = require('./renderer/core');
 const { buildTemplate, buildAttachTemplate, formatItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
+const { portableLayout, dataDirToConfig, dataDirFromConfig } = require('./portable');
+const datalock = require('./datalock');
 
 /* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
    Node.js 側(--inspect、NODE_OPTIONS、ELECTRON_RUN_AS_NODE)は package.json の electronFuses で実行ファイルごと無効にしてある。
@@ -23,6 +25,23 @@ if (app.isPackaged) {
 
 const APP_NAME = 'EverPad';
 const APP_ID = 'local.everpad.app';
+
+/* ---------- portable 版 ----------
+   portable 版は、実行ファイルと同じフォルダの「EverPad Data」に設定とメモを置く(インストール版とは設定を共有しない)。
+   設定の場所が別になるので、インストール版と portable 版は同時に起動できる。書き込めない場所なら %APPDATA% の別のフォルダを使う */
+const portableDir = process.env.PORTABLE_EXECUTABLE_DIR || '';
+function canWriteDir(dir) {
+  try {
+    fs.mkdirSync(path.join(dir, 'settings'), { recursive: true });
+    const probe = path.join(dir, 'settings', '.write-test');
+    fs.writeFileSync(probe, '');
+    fs.unlinkSync(probe);
+    return true;
+  } catch (e) { return false; }
+}
+const layout = portableLayout({ portableDir: portableDir, appData: app.getPath('appData'), documents: app.getPath('documents'), canWrite: canWriteDir });
+if (layout.userData) app.setPath('userData', layout.userData);
+const isPortable = layout.mode !== 'installed';
 const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 let win = null;
 let store = null;
@@ -41,7 +60,7 @@ function writeConfig(c) {
   fs.mkdirSync(path.dirname(configPath()), { recursive: true });
   fs.writeFileSync(configPath(), JSON.stringify(c, null, 2));
 }
-const defaultDir = () => path.join(app.getPath('documents'), APP_NAME);
+const defaultDir = () => layout.notes || path.join(app.getPath('documents'), APP_NAME);
 
 /* ---------- ファイルを選ぶ窓で最初に開くフォルダ ----------
    インポートとエクスポートで別々に、前回ファイルを選んだフォルダを config.json に覚える(終了しても引き継ぐ)。
@@ -58,17 +77,49 @@ function rememberDir(kind, file) {
 const importStartDir = () => lastDir('import') || store.dir;
 const exportStartDir = () => lastDir('export') || app.getPath('documents');
 
+let lockTimer = null;
 function openStore() {
-  const wanted = readConfig().dataDir || defaultDir();
-  try {
-    store = new Store(wanted);
-    store.init();
-  } catch (e) {
-    const fallback = path.join(app.getPath('userData'), 'notes');
-    dialog.showErrorBox(APP_NAME, T('dirFallback', { wanted: wanted, fallback: fallback }));
-    store = new Store(fallback);
-    store.init();
+  for (;;) {
+    const wanted = dataDirFromConfig(readConfig().dataDir, layout) || defaultDir();
+    const st = datalock.checkLock(wanted, Date.now(), null, process.pid);
+    if (st.busy) {
+      const by = st.info.kind === 'portable' ? T('lockByPortable', { dir: st.info.dir || '' }) : T('lockByInstalled');
+      const r = dialog.showMessageBoxSync({ type: 'warning', title: APP_NAME, noLink: true, defaultId: 0, cancelId: 1,
+        buttons: [T('lockChoose'), T('mQuit')], message: T('lockBusy'), detail: T('lockBusyDetail', { dir: wanted, by: by }) });
+      const pick = r === 0 ? dialog.showOpenDialogSync({ title: T('dirPickTitle'), properties: ['openDirectory', 'createDirectory'] }) : null;
+      if (!pick || !pick[0]) return false;
+      writeConfig(Object.assign(readConfig(), { dataDir: dataDirToConfig(pick[0], layout) }));
+      continue;
+    }
+    try {
+      store = new Store(wanted);
+      store.init();
+    } catch (e) {
+      const fallback = path.join(app.getPath('userData'), 'notes');
+      dialog.showErrorBox(APP_NAME, T('dirFallback', { wanted: wanted, fallback: fallback }));
+      store = new Store(fallback);
+      store.init();
+    }
+    // 使用中の印を置き、開いている間は30秒ごとに新しくする(異常終了したときは、古い印として無視される)
+    try { datalock.writeLock(store.dir, { pid: process.pid, kind: isPortable ? 'portable' : 'installed', dir: portableDir, started: Date.now() }); } catch (e) { /* 書けなくても動く */ }
+    lockTimer = setInterval(() => datalock.touchLock(store.dir), 30 * 1000);
+    if (lockTimer.unref) lockTimer.unref();
+    return true;
   }
+}
+
+/* ---------- ごみ箱 ----------
+   ごみ箱の無い場所(USB メモリなどのリムーバブルドライブ、ネットワークのフォルダ)では、Windows は「ごみ箱へ」の操作でも
+   元に戻せない形で消してしまう。ドライブの最上位に $Recycle.Bin が無ければ、保存先の .trash フォルダに移す。 */
+const hasRecycleBin = p => { try { return fs.existsSync(path.join(path.parse(path.resolve(p)).root, '$Recycle.Bin')); } catch (e) { return false; } };
+async function moveToTrash(p) {
+  if (hasRecycleBin(p)) { try { await shell.trashItem(p); return 'recycle'; } catch (e) { /* .trash に移す */ } }
+  const dir = path.join(store.dir, '.trash');
+  fs.mkdirSync(dir, { recursive: true });
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const stamp = '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  fs.renameSync(p, path.join(dir, stamp + '-' + path.basename(p)));
+  return 'folder';
 }
 
 /* ---------- 画面との通信 ---------- */
@@ -130,11 +181,10 @@ ipcMain.handle('memo:confirmTrash', async (e, message) => {
 ipcMain.handle('memo:remove', async (e, id) => {
   if (!fromOurWindow(e)) return false;
   try {
-    for (const p of store.paths(id)) {
-      try { await shell.trashItem(p); } catch (err) { fs.rmSync(p, { recursive: true, force: true }); } // ゴミ箱が使えないときだけ直接削除
-    }
+    let where = 'recycle';
+    for (const p of store.paths(id)) { if ((await moveToTrash(p)) === 'folder') where = 'folder'; }
     store.forget(id);
-    return true;
+    return where;   // 'recycle'(ごみ箱)か 'folder'(保存先の .trash)
   } catch (err) { return false; }
 });
 ipcMain.handle('memo:openFolder', e => {
@@ -379,7 +429,7 @@ async function importArchive(file, flushOnce) {
     if (r.response === 2) return null;   // 中止(知らせない)
     if (r.response === 0) {
       for (const p of store.paths(id)) {
-        try { await shell.trashItem(p); } catch (err) { fs.rmSync(p, { recursive: true, force: true }); }   // ごみ箱が使えないときだけ直接削除
+        try { await moveToTrash(p); } catch (err) { return { name: name, ok: false, message: T('arcWriteFailed') }; }
       }
       store.forget(id);
       replaced = true;
@@ -470,7 +520,7 @@ ipcMain.handle('export:archive', async (e, id, title) => {
 });
 
 /* ---------- 「送る」メニュー ---------- */
-const sendToLink = () => sendToPath(app.getPath('appData'), APP_NAME);
+const sendToLink = () => sendToPath(app.getPath('appData'), isPortable ? APP_NAME + ' (Portable)' : APP_NAME);
 function setSendTo(on) {
   const link = sendToLink();
   try {
@@ -543,7 +593,7 @@ async function changeFolder() {
   });
   if (choice.response !== 0) return;
   await flushRenderer();
-  writeConfig(Object.assign(readConfig(), { dataDir: r.filePaths[0] }));
+  writeConfig(Object.assign(readConfig(), { dataDir: dataDirToConfig(r.filePaths[0], layout) }));
   closing = true;
   app.relaunch();
   app.quit();
@@ -747,7 +797,7 @@ if (!app.requestSingleInstanceLock()) {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
     importFiles(filesFromArgv(argv, { isPackaged: app.isPackaged, appPath: app.getAppPath(), cwd: cwd }).map(f => path.resolve(cwd || '.', f)));
   });
-  if (process.platform === 'win32') app.setAppUserModelId(APP_ID);   // タスクバーでアイコンと名前が正しく出るように
+  if (process.platform === 'win32') app.setAppUserModelId(isPortable ? APP_ID + '.portable' : APP_ID);   // タスクバーでアイコンと名前が正しく出るように
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     protocol.handle('everpad-file', req => {
@@ -759,12 +809,20 @@ if (!app.requestSingleInstanceLock()) {
       } catch (err) { return new Response('bad request', { status: 400 }); }
     });
     initLang();
-    openStore();
+    if (!openStore()) { app.exit(0); return; }
+    // portable 版を書き込めない場所に置いたときは、設定とメモの場所を一度だけ知らせる
+    if (layout.mode === 'portableFallback' && !readConfig().portableFallbackNotified) {
+      dialog.showMessageBoxSync({ type: 'info', title: APP_NAME, noLink: true, buttons: ['OK'], message: T('portableFallback'), detail: T('portableFallbackDetail', { dir: portableDir, settings: app.getPath('userData'), notes: store.dir }) });
+      writeConfig(Object.assign(readConfig(), { portableFallbackNotified: true }));
+    }
     buildMenu();
     createWindow();
     // 「送る」やアイコンへのドラッグ&ドロップで起動されたときのファイル(画面の準備ができてから取り込む)
     importFiles(filesFromArgv(process.argv, { isPackaged: app.isPackaged, appPath: app.getAppPath(), cwd: process.cwd() }).map(f => path.resolve(f)));
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('will-quit', () => { try { store.writeIndex(); } catch (e) { /* 索引は控え */ } });
+  app.on('will-quit', () => {
+    try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
+    if (store) datalock.releaseLock(store.dir, process.pid);
+  });
 }

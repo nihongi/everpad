@@ -55,7 +55,26 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.16.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.17.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+
+**Uninstalling**: the uninstaller never deletes your data folder (your notes stay). It offers a check box (off by default) to also delete EverPad's settings (`%APPDATA%\EverPad`: the data folder location, language, window position, recently viewed notes and so on). Settings are kept per Windows user, so only the settings of the user running the uninstaller are deleted, also when EverPad was installed for all users; other users' settings are not touched. Updates and silent uninstalls (`/S`) never delete settings.
+
+### Portable version
+
+The portable executable (`EverPad 0.17.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+
+```
+EverPad 0.17.0.exe
+EverPad Data\
+  settings\   settings, recently viewed notes, caches
+  notes\      the data folder (default)
+```
+
+- The data folder inside `EverPad Data` is remembered relative to the executable, so it keeps working when the drive letter changes.
+- The portable and installed versions do not share settings, and can run at the same time. Their "Send to" entries have different names (`EverPad (Portable)` and `EverPad`), and they appear as separate taskbar buttons.
+- If the folder of the executable cannot be written to (for example, inside Program Files), settings are saved in `%APPDATA%\EverPad Portable` and notes in `Documents\EverPad Portable`; EverPad tells you once.
+- Versions before 0.17.0 stored the portable version's settings and notes in `%APPDATA%\EverPad` and `Documents\EverPad`. Those notes are not moved: choose File → Change Data Folder… and select `Documents\EverPad`, or copy the note files into `EverPad Data\notes`.
+- Everything EverPad saves stays in `EverPad Data` (plus the "Send to" shortcut if you add it). Windows itself still records some traces, and the portable executable unpacks itself into a temporary folder (`%TEMP%`) each time it starts.
 
 ### Usage
 
@@ -202,8 +221,8 @@ The data folder also contains `.everpad-index.json`, an index for the note list 
 
 - To back up, just copy the data folder.
 - If a `.jsonl` file is damaged partway through, the readable part is used and the original file is kept under the name `.corrupt-…`.
-- Deleting a note moves its files and its attachment folder to the Recycle Bin.
-- Do not open the same data folder from two apps at the same time (EverPad itself prevents a second instance). If you share the folder between computers with OneDrive or similar, close EverPad on one computer before opening it on another.
+- Deleting a note moves its files and its attachment folder to the Recycle Bin. On drives without a Recycle Bin (USB drives, network folders), they are moved to a `.trash` folder inside the data folder instead, because Windows would otherwise delete them permanently. Overwriting a note by importing an archive works the same way. Empty `.trash` yourself when you no longer need it.
+- The same data folder cannot be opened by two EverPads at the same time on one computer: while open, EverPad keeps a `.everpad-lock` file in it, and another EverPad (for example the portable version) that tries to open the folder asks you to choose another folder or quit. The lock is ignored if it is left over from a crash. If you share the folder between computers with OneDrive or similar, close EverPad on one computer before opening it on another.
 
 ### Performance with many notes
 
@@ -235,6 +254,8 @@ main.js          Electron main process (window, menus, data folder, Recycle Bin)
 preload.js       The bridge exposed to the UI (saving, loading and menu actions only)
 store.js         File storage layer (testable without Electron)
 windowstate.js   Remembering and restoring the window position (testable without Electron)
+portable.js      Where the portable version keeps its settings and notes (testable without Electron)
+datalock.js      The lock that keeps two EverPads from opening the same data folder (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
 archive.js       EverPad archives: building, checking and reading (testable without Electron)
 ziplite.js       Minimal ZIP reading and writing for archives, using Node.js zlib (testable without Electron)
@@ -322,7 +343,26 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.16.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.17.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+
+**アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(既定はオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
+
+### portable 版
+
+portable 版(`EverPad 0.17.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+
+```
+EverPad 0.17.0.exe
+EverPad Data\
+  settings\   設定、最近見たメモ、キャッシュ
+  notes\      メモの保存先(既定)
+```
+
+- `EverPad Data` の中の保存先は実行ファイルからの相対で覚えるので、ドライブ文字が変わっても動きます。
+- インストール版とは設定を共有せず、同時に起動できます。「送る」メニューの名前(`EverPad (Portable)` と `EverPad`)と、タスクバーのボタンも別になります。
+- 実行ファイルのフォルダに書き込めない場合(Program Files の中など)は、設定を `%APPDATA%\EverPad Portable` に、メモを `ドキュメント\EverPad Portable` に保存します。そのことは一度だけ知らせます。
+- 0.17.0 より前の portable 版は、設定とメモを `%APPDATA%\EverPad` と `ドキュメント\EverPad` に保存していました。そのメモは移しません。「ファイル」→「保存先フォルダを変更…」で `ドキュメント\EverPad` を選ぶか、メモのファイルを `EverPad Data\notes` にコピーしてください。
+- EverPad が保存するものは `EverPad Data` の中だけです(「送る」に登録したときのショートカットを除く)。ただし、Windows 自体が記録するものは残ります。また、portable 版は起動のたびに一時フォルダ(`%TEMP%`)に自分自身を展開して動きます。
 
 ### 使い方
 
@@ -469,8 +509,8 @@ npm run dist
 
 - バックアップは、保存先フォルダをコピーするだけです。
 - `.jsonl` が途中で壊れていた場合は、読める範囲までを使い、元のファイルを `.corrupt-…` という名前で残します。
-- メモを削除すると、そのメモのファイルと添付のフォルダがごみ箱に入ります。
-- 同じ保存先を2つのアプリで同時に開かないでください(EverPad 自体は二重起動を防ぎます)。OneDrive などで複数のパソコンから同じフォルダを使う場合は、片方の EverPad を閉じてから、もう一方で開いてください。
+- メモを削除すると、そのメモのファイルと添付のフォルダがごみ箱に入ります。ごみ箱の無いドライブ(USB メモリ、ネットワークのフォルダ)では、Windows が元に戻せない形で消してしまうため、代わりに保存先の中の `.trash` フォルダに移します。アーカイブのインポートでメモを上書きするときも同じです。`.trash` の中身は、要らなくなったらご自身で削除してください。
+- 1台のパソコンで、同じ保存先を2つの EverPad で同時に開くことはできません。EverPad は開いている間、保存先に `.everpad-lock` を置き、同じ保存先を開こうとした別の EverPad(portable 版など)は、別の保存先を選ぶか終了するかを尋ねます。異常終了で残った印は無視します。OneDrive などで複数のパソコンから同じフォルダを使う場合は、片方の EverPad を閉じてから、もう一方で開いてください。
 
 ### メモが増えたときの動き
 
@@ -502,6 +542,8 @@ main.js          Electron 本体側(ウィンドウ、メニュー、保存先�
 preload.js       画面に渡す窓口(保存・読み込み・メニュー操作だけ)
 store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
+portable.js      portable 版の設定とメモの保存場所(Electron なしでテストできる)
+datalock.js      同じ保存先を2つの EverPad で開かないための印(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
 archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)
 ziplite.js       アーカイブに使う最小限の ZIP の読み書き。Node.js の zlib を使う(Electron なしでテストできる)
