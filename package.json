@@ -1,7 +1,8 @@
 {
   "name": "everpad",
   "productName": "EverPad",
-  "version": "0.17.0",
+  "desktopName": "everpad.desktop",
+  "version": "0.18.0",
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
@@ -18,7 +19,7 @@
     "start": "electron .",
     "test": "node --test",
     "predist": "node tools/vendor-katex.js",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder"
   },
   "build": {
     "appId": "local.everpad.app",
@@ -34,6 +35,7 @@
       "archive.js",
       "datalock.js",
       "portable.js",
+      "macmenu.js",
       "ziplite.js",
       "build/icon.ico",
       "build/icon.png",
@@ -45,6 +47,15 @@
       "target": [
         "nsis",
         "portable"
+      ],
+      "fileAssociations": [
+        {
+          "ext": "everpad",
+          "name": "EverPad.Archive",
+          "description": "EverPad Archive",
+          "icon": "icon.ico",
+          "role": "Editor"
+        }
       ]
     },
     "nsis": {
@@ -57,22 +68,46 @@
       ],
       "include": "build/installer.nsh"
     },
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "extendInfo": {
+        "NSDocumentsFolderUsageDescription": "EverPad saves your notes in the Documents folder."
+      },
+      "fileAssociations": [
+        {
+          "ext": "everpad",
+          "name": "EverPad Archive",
+          "description": "EverPad Archive",
+          "role": "Editor"
+        }
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Office",
+      "executableName": "everpad",
+      "target": [
+        "AppImage"
+      ],
+      "syncDesktopName": true
+    },
     "electronFuses": {
       "runAsNode": false,
       "enableNodeCliInspectArguments": false,
       "enableNodeOptionsEnvironmentVariable": false,
       "onlyLoadAppFromAsar": true,
       "enableEmbeddedAsarIntegrityValidation": true
-    },
-    "fileAssociations": [
-      {
-        "ext": "everpad",
-        "name": "EverPad.Archive",
-        "description": "EverPad Archive",
-        "icon": "icon.ico",
-        "role": "Editor"
-      }
-    ]
+    }
   },
   "devDependencies": {
     "electron": "^44.7.0",

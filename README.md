@@ -26,7 +26,7 @@ This program was created with the help of Claude Code.
 
 ### Requirements
 
-- Windows 10 / 11
+- Windows 10 / 11 (macOS and Linux builds can be made from the source, but have not been tested; see "macOS and Linux (untested)" below)
 - [Node.js](https://nodejs.org/) (LTS, v20 or later)
 
 ### Getting started
@@ -55,16 +55,16 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.17.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
+This creates an installer (`EverPad Setup 0.18.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway".
 
 **Uninstalling**: the uninstaller never deletes your data folder (your notes stay). It offers a check box (off by default) to also delete EverPad's settings (`%APPDATA%\EverPad`: the data folder location, language, window position, recently viewed notes and so on). Settings are kept per Windows user, so only the settings of the user running the uninstaller are deleted, also when EverPad was installed for all users; other users' settings are not touched. Updates and silent uninstalls (`/S`) never delete settings.
 
 ### Portable version
 
-The portable executable (`EverPad 0.17.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.18.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.17.0.exe
+EverPad 0.18.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -75,6 +75,36 @@ EverPad Data\
 - If the folder of the executable cannot be written to (for example, inside Program Files), settings are saved in `%APPDATA%\EverPad Portable` and notes in `Documents\EverPad Portable`; EverPad tells you once.
 - Versions before 0.17.0 stored the portable version's settings and notes in `%APPDATA%\EverPad` and `Documents\EverPad`. Those notes are not moved: choose File → Change Data Folder… and select `Documents\EverPad`, or copy the note files into `EverPad Data\notes`.
 - Everything EverPad saves stays in `EverPad Data` (plus the "Send to" shortcut if you add it). Windows itself still records some traces, and the portable executable unpacks itself into a temporary folder (`%TEMP%`) each time it starts.
+
+### macOS and Linux (untested)
+
+EverPad is developed and tested on Windows. Because it is built with Electron, it can also be built for macOS and Linux, and it includes the changes needed for them (described below). However, these builds have **not been tested on a real Mac or Linux computer**, so treat them as experimental.
+
+**Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
+
+- macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
+- Linux: `EverPad-0.18.0.AppImage` (x64)
+
+**macOS**
+
+- The menus follow the macOS layout: an EverPad menu (About EverPad, Services, Hide EverPad, Quit EverPad and so on) on the left, and a Window menu.
+- Shortcuts use ⌘ instead of Ctrl (⌘N, ⌘F and so on). These differ, because macOS uses the Windows keys for something else: Back to Previous Note ⌘[, Properties ⌘I, Find and replace ⌥⌘F, Quote ⌘' (⌘H hides the app and ⇧⌘Q logs out). Redo is ⇧⌘Z, and a link to another note opens with ⌘-click in the editor.
+- Closing the window does not quit EverPad: it stays in the Dock, and clicking the Dock icon opens the window again. Quit with ⌘Q. Unsaved edits are saved when the window closes. While EverPad is running, its data folder stays locked (see "Where notes are stored").
+- `.everpad` files can be opened by double-clicking them in Finder, with Open With, or by dragging them onto the Dock icon. Import text files by dragging them into the window, or with File → Import….
+- Settings are saved in `~/Library/Application Support/EverPad`, and notes in `~/Documents/EverPad`. The first time, macOS asks whether EverPad may access the Documents folder.
+- The app is not signed or notarized by Apple. A copy you built yourself normally opens, but a downloaded copy may be refused with a message such as "EverPad is damaged and can't be opened". Run `xattr -cr /Applications/EverPad.app` in Terminal to allow it, only if you trust where the copy came from.
+- To uninstall, move EverPad to the Trash. Settings in `~/Library/Application Support/EverPad` and your notes are not deleted.
+- The "Send to" menu entry and the installer options are Windows only.
+
+**Linux (AppImage)**
+
+- The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
+- After downloading, allow the file to run (`chmod +x EverPad-0.18.0.AppImage`, or the file's properties).
+- Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
+- On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
+- Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
+- While running, the AppImage is mounted read-only under `/tmp`.
+- Menus and windows behave as on Windows (closing the window quits EverPad).
 
 ### Usage
 
@@ -99,6 +129,8 @@ EverPad Data\
 | Show / hide line numbers | `Ctrl+L` (or the Line numbers button at the bottom right) |
 | Previous / next version in the history | `←` / `→` |
 | Play / pause the history | `Space` |
+
+On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (untested)").
 
 **Views and history**
 
@@ -221,7 +253,7 @@ The data folder also contains `.everpad-index.json`, an index for the note list 
 
 - To back up, just copy the data folder.
 - If a `.jsonl` file is damaged partway through, the readable part is used and the original file is kept under the name `.corrupt-…`.
-- Deleting a note moves its files and its attachment folder to the Recycle Bin. On drives without a Recycle Bin (USB drives, network folders), they are moved to a `.trash` folder inside the data folder instead, because Windows would otherwise delete them permanently. Overwriting a note by importing an archive works the same way. Empty `.trash` yourself when you no longer need it.
+- Deleting a note moves its files and its attachment folder to the Recycle Bin. On drives without a Recycle Bin (USB drives, network folders), they are moved to a `.trash` folder inside the data folder instead, because Windows would otherwise delete them permanently. Overwriting a note by importing an archive works the same way. Empty `.trash` yourself when you no longer need it. On macOS and Linux, files go to the system Trash, and to `.trash` only if that fails.
 - The same data folder cannot be opened by two EverPads at the same time on one computer: while open, EverPad keeps a `.everpad-lock` file in it, and another EverPad (for example the portable version) that tries to open the folder asks you to choose another folder or quit. The lock is ignored if it is left over from a crash. If you share the folder between computers with OneDrive or similar, close EverPad on one computer before opening it on another.
 
 ### Performance with many notes
@@ -254,7 +286,8 @@ main.js          Electron main process (window, menus, data folder, Recycle Bin)
 preload.js       The bridge exposed to the UI (saving, loading and menu actions only)
 store.js         File storage layer (testable without Electron)
 windowstate.js   Remembering and restoring the window position (testable without Electron)
-portable.js      Where the portable version keeps its settings and notes (testable without Electron)
+portable.js      Where the portable version (and the Linux AppImage) keeps its settings and notes (testable without Electron)
+macmenu.js       The macOS menu layout and shortcut keys (testable without Electron)
 datalock.js      The lock that keeps two EverPads from opening the same data folder (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
 archive.js       EverPad archives: building, checking and reading (testable without Electron)
@@ -314,7 +347,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 
 ### 動かすために必要なもの
 
-- Windows 10 / 11
+- Windows 10 / 11(macOS 版と Linux 版もソースから作れますが、動作は確かめていません。下の「macOS と Linux(未確認)」を見てください)
 - [Node.js](https://nodejs.org/ja)(LTS 版。v20 以降)
 
 ### 起動する
@@ -343,16 +376,16 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.17.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.18.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。
 
 **アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(既定はオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
 
 ### portable 版
 
-portable 版(`EverPad 0.17.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.18.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.17.0.exe
+EverPad 0.18.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -363,6 +396,36 @@ EverPad Data\
 - 実行ファイルのフォルダに書き込めない場合(Program Files の中など)は、設定を `%APPDATA%\EverPad Portable` に、メモを `ドキュメント\EverPad Portable` に保存します。そのことは一度だけ知らせます。
 - 0.17.0 より前の portable 版は、設定とメモを `%APPDATA%\EverPad` と `ドキュメント\EverPad` に保存していました。そのメモは移しません。「ファイル」→「保存先フォルダを変更…」で `ドキュメント\EverPad` を選ぶか、メモのファイルを `EverPad Data\notes` にコピーしてください。
 - EverPad が保存するものは `EverPad Data` の中だけです(「送る」に登録したときのショートカットを除く)。ただし、Windows 自体が記録するものは残ります。また、portable 版は起動のたびに一時フォルダ(`%TEMP%`)に自分自身を展開して動きます。
+
+### macOS と Linux(未確認)
+
+EverPad は Windows で作り、Windows で動作を確かめています。Electron で作っているので macOS 版と Linux 版も作れ、そのための対応(下に書いたもの)も入れてあります。ただし、**Mac と Linux の実機では動作を確かめていません**。試験的なものとして扱ってください。
+
+**作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
+
+- macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
+- Linux: `EverPad-0.18.0.AppImage`(x64)
+
+**macOS**
+
+- メニューは Mac の形です。一番左に「EverPad」メニュー(EverPad について、サービス、EverPad を隠す、EverPad を終了など)があり、「ウインドウ」メニューもあります。
+- ショートカットキーは Ctrl の代わりに ⌘ を使います(⌘N、⌘F など)。Windows のキーを Mac が別の操作に使っているため、次のものは違います: 前に見たメモに戻る ⌘[、プロパティ ⌘I、検索と置換 ⌥⌘F、引用 ⌘'(⌘H は「隠す」、⇧⌘Q は「ログアウト」)。やり直しは ⇧⌘Z、編集画面で他のメモへのリンクを開くのは ⌘+クリックです。
+- ウィンドウを閉じても EverPad は終わらず、Dock に残ります。Dock のアイコンを押すと、ウィンドウがまた開きます。終えるときは ⌘Q です。書きかけの編集は、ウィンドウを閉じたときに保存します。EverPad が動いている間は、保存先の印が残ります(「メモの保存先と形式」を見てください)。
+- `.everpad` ファイルは、Finder でダブルクリック、「このアプリケーションで開く」、Dock のアイコンへのドラッグで開けます。テキストファイルは、ウィンドウへのドラッグか、「ファイル」→「インポート…」で取り込みます。
+- 設定は `~/Library/Application Support/EverPad` に、メモは `~/書類/EverPad`(`~/Documents/EverPad`)に保存します。初めて起動したとき、書類フォルダへのアクセスを許可するかを Mac が尋ねます。
+- Apple の署名と公証はしていません。自分で作ったものは普通は開けますが、ダウンロードしたものは「"EverPad"は壊れているため開けません」のような表示で開けないことがあります。入手先が信頼できる場合に限り、ターミナルで `xattr -cr /Applications/EverPad.app` を実行すると開けるようになります。
+- アンインストールは、EverPad をゴミ箱に入れるだけです。`~/Library/Application Support/EverPad` の設定とメモは削除されません。
+- 「送る」メニューへの登録と、インストーラーの追加の設定は Windows だけです。
+
+**Linux(AppImage)**
+
+- AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.18.0.AppImage`、またはファイルのプロパティで)。
+- ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
+- Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
+- インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
+- 動いている間は、`/tmp` の下に読み込み専用で展開されます。
+- メニューとウィンドウは Windows と同じ動きです(ウィンドウを閉じると EverPad は終わります)。
 
 ### 使い方
 
@@ -387,6 +450,8 @@ EverPad Data\
 | 行番号の表示 / 非表示 | `Ctrl+L`(右下の「行番号」ボタンでも) |
 | 履歴で1つ前 / 1つ先の版へ | `←` / `→` |
 | 履歴の再生 / 停止 | `Space` |
+
+macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「macOS と Linux(未確認)」を見てください)。
 
 **表示と履歴**
 
@@ -509,7 +574,7 @@ EverPad Data\
 
 - バックアップは、保存先フォルダをコピーするだけです。
 - `.jsonl` が途中で壊れていた場合は、読める範囲までを使い、元のファイルを `.corrupt-…` という名前で残します。
-- メモを削除すると、そのメモのファイルと添付のフォルダがごみ箱に入ります。ごみ箱の無いドライブ(USB メモリ、ネットワークのフォルダ)では、Windows が元に戻せない形で消してしまうため、代わりに保存先の中の `.trash` フォルダに移します。アーカイブのインポートでメモを上書きするときも同じです。`.trash` の中身は、要らなくなったらご自身で削除してください。
+- メモを削除すると、そのメモのファイルと添付のフォルダがごみ箱に入ります。ごみ箱の無いドライブ(USB メモリ、ネットワークのフォルダ)では、Windows が元に戻せない形で消してしまうため、代わりに保存先の中の `.trash` フォルダに移します。アーカイブのインポートでメモを上書きするときも同じです。`.trash` の中身は、要らなくなったらご自身で削除してください。macOS と Linux では OS のゴミ箱に入れ、入れられなかったときだけ `.trash` に移します。
 - 1台のパソコンで、同じ保存先を2つの EverPad で同時に開くことはできません。EverPad は開いている間、保存先に `.everpad-lock` を置き、同じ保存先を開こうとした別の EverPad(portable 版など)は、別の保存先を選ぶか終了するかを尋ねます。異常終了で残った印は無視します。OneDrive などで複数のパソコンから同じフォルダを使う場合は、片方の EverPad を閉じてから、もう一方で開いてください。
 
 ### メモが増えたときの動き
@@ -542,7 +607,8 @@ main.js          Electron 本体側(ウィンドウ、メニュー、保存先�
 preload.js       画面に渡す窓口(保存・読み込み・メニュー操作だけ)
 store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
-portable.js      portable 版の設定とメモの保存場所(Electron なしでテストできる)
+portable.js      portable 版(と Linux の AppImage)の設定とメモの保存場所(Electron なしでテストできる)
+macmenu.js       macOS のメニューの形とショートカットキー(Electron なしでテストできる)
 datalock.js      同じ保存先を2つの EverPad で開かないための印(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
 archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)

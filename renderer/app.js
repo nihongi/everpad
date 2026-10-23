@@ -6,9 +6,12 @@
 
   /* ---------- 言語 ----------
      main.js が index.html?lang=ja|en で渡す。固定の文言は、data-i18n* の付いた要素を置き換える */
-  const qLang = new URLSearchParams(location.search).get('lang');
+  const query = new URLSearchParams(location.search);
+  const qLang = query.get('lang');
   const LANG = I18N.LANGS.includes(qLang) ? qLang : 'ja';
-  const T = (key, params) => I18N.t(LANG, key, params);
+  // Mac では、文中のショートカットキーを Mac の書き方(⌘)にする
+  const IS_MAC = query.get('os') === 'darwin';
+  const T = (key, params) => (IS_MAC ? macKeys(I18N.t(LANG, key, params)) : I18N.t(LANG, key, params));
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = T(el.dataset.i18nTitle); });
@@ -901,7 +904,7 @@
     }
     toast(T('linkUnsupported', { href: target }));
   });
-  // メモへのリンク: プレビューと履歴の「Markdown表示」ではクリック、編集画面では Ctrl+クリックで移動する
+  // メモへのリンク: プレビューと履歴の「Markdown表示」ではクリック、編集画面では Ctrl+クリック(Mac は ⌘+クリック)で移動する
   document.addEventListener('click', e => {
     const a = e.target.closest && e.target.closest('#preview a.note-link, #hvBody a.note-link');
     if (!a) return;
@@ -909,7 +912,7 @@
     openNoteById(a.dataset.note, 'linkMissing');
   });
   $('editor').addEventListener('click', e => {
-    if (!e.ctrlKey || S.mode !== 'edit') return;
+    if (!(IS_MAC ? e.metaKey : e.ctrlKey) || S.mode !== 'edit') return;   // Mac の Ctrl+クリックは右クリックなので ⌘+クリック
     const id = noteLinkAt($('editor').value, $('editor').selectionStart);
     if (id) { e.preventDefault(); openNoteById(id, 'linkMissing'); }
   });

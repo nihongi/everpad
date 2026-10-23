@@ -2,7 +2,8 @@
 /* portable 版の保存場所(Electron に依存しないので、テストできる)。
    portable 版は、実行ファイルと同じフォルダの「EverPad Data」に、設定(settings)とメモ(notes)を置く。
    そこに書き込めないとき(Program Files の中など)は、%APPDATA%\EverPad Portable と ドキュメント\EverPad Portable を使う。
-   インストール版は今までどおり(%APPDATA%\EverPad と ドキュメント\EverPad)。 */
+   インストール版は今までどおり(%APPDATA%\EverPad と ドキュメント\EverPad)。
+   Linux の AppImage も、AppImage ファイルと同じフォルダを使って同じように動く。 */
 const path = require('path');
 
 const DATA_DIR_NAME = 'EverPad Data';
@@ -31,4 +32,14 @@ function dataDirFromConfig(value, layout) {
   return value;
 }
 
-module.exports = { portableLayout, dataDirToConfig, dataDirFromConfig, DATA_DIR_NAME };
+/* portable 版として動いているときの、実行ファイルのフォルダ(それ以外は '')。
+   Windows の portable 版: electron-builder が PORTABLE_EXECUTABLE_DIR を渡す。
+   Linux の AppImage: APPIMAGE が AppImage ファイルの場所、APPDIR が展開先。他の AppImage から起動されて
+   APPIMAGE を引き継いだだけの場合と区別するため、自分の実行ファイルが APPDIR の中にあるときだけ使う */
+function portableDirFromEnv(env, platform, execPath) {
+  if (env.PORTABLE_EXECUTABLE_DIR) return env.PORTABLE_EXECUTABLE_DIR;
+  if (platform === 'linux' && env.APPIMAGE && env.APPDIR && execPath && execPath.startsWith(env.APPDIR.replace(/\/+$/, '') + '/')) return path.posix.dirname(env.APPIMAGE);
+  return '';
+}
+
+module.exports = { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv, DATA_DIR_NAME };

@@ -11,8 +11,10 @@ const { titleOf } = require('./renderer/core');
 const { buildTemplate, buildAttachTemplate, formatItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
-const { portableLayout, dataDirToConfig, dataDirFromConfig } = require('./portable');
+const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv } = require('./portable');
 const datalock = require('./datalock');
+const { macTemplate } = require('./macmenu');
+const isMac = process.platform === 'darwin';
 
 /* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
    Node.js 側(--inspect、NODE_OPTIONS、ELECTRON_RUN_AS_NODE)は package.json の electronFuses で実行ファイルごと無効にしてある。
@@ -28,8 +30,9 @@ const APP_ID = 'local.everpad.app';
 
 /* ---------- portable 版 ----------
    portable 版は、実行ファイルと同じフォルダの「EverPad Data」に設定とメモを置く(インストール版とは設定を共有しない)。
-   設定の場所が別になるので、インストール版と portable 版は同時に起動できる。書き込めない場所なら %APPDATA% の別のフォルダを使う */
-const portableDir = process.env.PORTABLE_EXECUTABLE_DIR || '';
+   設定の場所が別になるので、インストール版と portable 版は同時に起動できる。書き込めない場所なら %APPDATA% の別のフォルダを使う。
+   Linux の AppImage も、AppImage ファイルと同じフォルダを使って同じように動く */
+const portableDir = portableDirFromEnv(process.env, process.platform, process.execPath);
 function canWriteDir(dir) {
   try {
     fs.mkdirSync(path.join(dir, 'settings'), { recursive: true });
@@ -46,6 +49,7 @@ const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.
 let win = null;
 let store = null;
 let closing = false;
+let quitting = false;   // アプリを終えようとしている(Mac で、ウィンドウを閉じただけのときと区別する)
 let lang = 'ja';
 const T = (key, params) => I18N.t(lang, key, Object.assign({ app: APP_NAME }, params));
 /* 保存先などのエラー(store.js が code を付ける)を、いまの言語の文に直す */
@@ -110,10 +114,11 @@ function openStore() {
 
 /* ---------- ごみ箱 ----------
    ごみ箱の無い場所(USB メモリなどのリムーバブルドライブ、ネットワークのフォルダ)では、Windows は「ごみ箱へ」の操作でも
-   元に戻せない形で消してしまう。ドライブの最上位に $Recycle.Bin が無ければ、保存先の .trash フォルダに移す。 */
+   元に戻せない形で消してしまう。ドライブの最上位に $Recycle.Bin が無ければ、保存先の .trash フォルダに移す。
+   Mac と Linux は OS のごみ箱に入れ、入れられなかったときだけ .trash に移す。 */
 const hasRecycleBin = p => { try { return fs.existsSync(path.join(path.parse(path.resolve(p)).root, '$Recycle.Bin')); } catch (e) { return false; } };
 async function moveToTrash(p) {
-  if (hasRecycleBin(p)) { try { await shell.trashItem(p); return 'recycle'; } catch (e) { /* .trash に移す */ } }
+  if (process.platform !== 'win32' || hasRecycleBin(p)) { try { await shell.trashItem(p); return 'recycle'; } catch (e) { /* .trash に移す */ } }
   const dir = path.join(store.dir, '.trash');
   fs.mkdirSync(dir, { recursive: true });
   const d = new Date(), pad = n => String(n).padStart(2, '0');
@@ -442,7 +447,7 @@ async function importArchive(file, flushOnce) {
 let importChain = Promise.resolve();
 function importFiles(files) {
   if (!files.length) return;
-  if (!rendererReady || !win || win.isDestroyed()) { pendingImports.push(...files); return; }
+  if (!rendererReady || !win || win.isDestroyed()) { pendingImports.push(...files); ensureWindow(); return; }
   importChain = importChain.then(() => runImport(files.slice(0, 200))).catch(() => {});
 }
 async function runImport(files) {
@@ -461,6 +466,7 @@ async function runImport(files) {
 ipcMain.on('app:ready', e => {
   if (!fromOurWindow(e)) return;
   rendererReady = true;
+  for (const name of pendingSends.splice(0)) win.webContents.send('menu', name);
   if (pendingImports.length) importFiles(pendingImports.splice(0));
 });
 const TEXT_EXTS = ['txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'ini', 'json', 'xml', 'html', 'htm'];
@@ -572,7 +578,16 @@ function flushRenderer() {
 }
 
 /* ---------- メニュー ---------- */
-const send = name => { if (win && !win.isDestroyed()) win.webContents.send('menu', name); };
+/* Mac ではウィンドウを閉じてもアプリが残るので、ウィンドウが無いときにメニューやファイルが来たら、ウィンドウを開いてから渡す */
+let pendingSends = [];
+function ensureWindow() {
+  if (!isMac || quitting || !store || !app.isReady() || (win && !win.isDestroyed())) return;
+  createWindow();
+}
+const send = name => {
+  if (win && !win.isDestroyed()) win.webContents.send('menu', name);
+  else if (isMac && !quitting) { pendingSends.push(name); ensureWindow(); }
+};
 
 async function changeFolder() {
   const r = await dialog.showOpenDialog(win, {
@@ -608,7 +623,7 @@ function buildMenu() {
         { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
         { type: 'separator' },
         { label: T('mRecent'), submenu: recentMenu() },
-        { label: T('mBack'), accelerator: 'Alt+Left', enabled: ui.back, click: () => send('back') },
+        { id: 'back', label: T('mBack'), accelerator: 'Alt+Left', enabled: ui.back, click: () => send('back') },
         { type: 'separator' },
         { label: T('mImport'), accelerator: 'CmdOrCtrl+O', click: pickImport },
         { label: T('mExportMenu'), submenu: [
@@ -618,13 +633,13 @@ function buildMenu() {
         ] },
         { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },
         { type: 'separator' },
-        { label: T('mProps'), accelerator: 'Alt+Enter', click: () => send('props') },
+        { id: 'props', label: T('mProps'), accelerator: 'Alt+Enter', click: () => send('props') },
         { type: 'separator' },
         { label: T('mOpenDir'), click: () => shell.openPath(store.dir) },
         { label: T('mChangeDir'), click: changeFolder },
         ...(process.platform === 'win32' ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
         { type: 'separator' },
-        { role: 'quit', label: T('mQuit') }
+        { id: 'quit', role: 'quit', label: T('mQuit') }
       ]
     },
     {
@@ -634,7 +649,7 @@ function buildMenu() {
         { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
         { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', enabled: ui.edit, click: () => send('attach') },
-        { label: T('mReplace'), accelerator: 'CmdOrCtrl+H', enabled: ui.edit, click: () => send('replace') },
+        { id: 'replace', label: T('mReplace'), accelerator: 'CmdOrCtrl+H', enabled: ui.edit, click: () => send('replace') },
         { label: T('mFormat'), enabled: ui.edit, submenu: formatItems(T, kind => send('fmt:' + kind)).map(x => Object.assign(x, { enabled: ui.edit })) },
         { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', enabled: ui.edit, click: () => send('link') },
         { type: 'separator' },
@@ -667,15 +682,17 @@ function buildMenu() {
       ]
     },
     {
+      id: 'help',
       label: T('mHelp'),
       submenu: [
         { label: T('mMdHelp'), click: showMdHelp },
         { type: 'separator' },
-        { label: T('mAbout'), click: showAbout }
+        { id: 'about', label: T('mAbout'), click: showAbout }
       ]
     }
   ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  // Mac は、アプリ名のメニューとウインドウのメニューを足した Mac の形にする(macmenu.js)
+  Menu.setApplicationMenu(Menu.buildFromTemplate(isMac ? macTemplate(template, { T: T, appName: APP_NAME }) : template));
 }
 
 /* ---------- 言語 ---------- */
@@ -691,11 +708,12 @@ async function setLang(l) {
   if (helpWin && !helpWin.isDestroyed()) { helpWin.setTitle(T('mdHelpTitle')); loadHelp(); }
   if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
 }
-const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang } }); };
+// os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
+const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang, os: process.platform } }); };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
-const loadHelp = () => helpWin.loadFile(path.join(__dirname, 'renderer', 'help.html'), { query: { lang: lang } });
+const loadHelp = () => helpWin.loadFile(path.join(__dirname, 'renderer', 'help.html'), { query: { lang: lang, os: process.platform } });
 function showMdHelp() {
   if (helpWin && !helpWin.isDestroyed()) { if (helpWin.isMinimized()) helpWin.restore(); helpWin.focus(); return; }
   helpWin = new BrowserWindow({
@@ -740,6 +758,7 @@ async function showAbout() {
 
 /* ---------- ウィンドウ ---------- */
 function createWindow() {
+  closing = false;   // Mac で、閉じたあとに開き直したとき
   // 前回閉じたときの位置と大きさに戻す(画面の外になる位置は使わない)
   const bounds = restoreBounds(readConfig().window, screen.getAllDisplays().map(d => d.workArea), { width: 1120, height: 780, minWidth: 560, minHeight: 420 });
   win = new BrowserWindow({
@@ -797,6 +816,9 @@ if (!app.requestSingleInstanceLock()) {
     if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
     importFiles(filesFromArgv(argv, { isPackaged: app.isPackaged, appPath: app.getAppPath(), cwd: cwd }).map(f => path.resolve(cwd || '.', f)));
   });
+  // Mac: Finder でダブルクリック、「このアプリケーションで開く」、Dock のアイコンへのドラッグで来たファイル。
+  // 起動の途中でも来るので、ここで登録する(画面の準備ができてから取り込む)
+  app.on('open-file', (e, file) => { e.preventDefault(); importFiles([path.resolve(file)]); });
   if (process.platform === 'win32') app.setAppUserModelId(isPortable ? APP_ID + '.portable' : APP_ID);   // タスクバーでアイコンと名前が正しく出るように
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
@@ -820,7 +842,11 @@ if (!app.requestSingleInstanceLock()) {
     // 「送る」やアイコンへのドラッグ&ドロップで起動されたときのファイル(画面の準備ができてから取り込む)
     importFiles(filesFromArgv(process.argv, { isPackaged: app.isPackaged, appPath: app.getAppPath(), cwd: process.cwd() }).map(f => path.resolve(f)));
   });
-  app.on('window-all-closed', () => app.quit());
+  // Windows と Linux は、ウィンドウを閉じたら終わる。Mac はアプリを残し(Dock とメニューバー)、⌘Q で終わる
+  app.on('before-quit', () => { quitting = true; });
+  app.on('window-all-closed', () => { if (!isMac || quitting) app.quit(); });
+  // Mac: Dock のアイコンを押したとき、ウィンドウが無ければ開く
+  app.on('activate', () => ensureWindow());
   app.on('will-quit', () => {
     try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
     if (store) datalock.releaseLock(store.dir, process.pid);
