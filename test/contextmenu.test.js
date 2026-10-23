@@ -30,7 +30,8 @@ test('読み取り専用の場所の「すべて選択」は、渡された関�
 test('右クリック: 編集画面(テキストエリア)だけに「書式」が出て、選ぶと種類が渡される', () => {
   const got = [];
   const onFormat = k => got.push(k);
-  const area = buildTemplate({ isEditable: true, formControlType: 'text-area', editFlags: {} }, { onFormat });
+  // ショートカットは Windows のもの(Mac の分は macos.test.js で確かめる)
+  const area = buildTemplate({ isEditable: true, formControlType: 'text-area', editFlags: {} }, { onFormat, platform: 'win32' });
   const fmt = area.find(x => x.label === '書式');
   assert.ok(fmt, '書式が無い');
   assert.deepStrictEqual(fmt.submenu.map(x => x.label), ['引用', '箇条書き', '番号付きの箇条書き', 'コードブロック']);

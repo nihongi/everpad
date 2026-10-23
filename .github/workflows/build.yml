@@ -3,6 +3,7 @@
 # できたファイル(dmg と AppImage)は、実行結果のページの Artifacts からダウンロードできる(30日間)。
 # GitHub Releases への公開はしない。
 # 作ったあとに一度起動して、数秒たっても落ちていないか確かめ、画面のスクリーンショットを Artifacts に残す。
+# 失敗の内容と確認の結果は、サインインしなくても見られる注釈(Annotations)にも書く。
 
 name: Build (macOS / Linux)
 
@@ -25,6 +26,9 @@ jobs:
           - os: ubuntu-latest
             name: linux
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
 
@@ -37,7 +41,19 @@ jobs:
         run: npm ci
 
       - name: Test
-        run: npm test
+        run: |
+          mkdir -p smoke
+          set +e
+          npm test > smoke/test.log 2>&1
+          status=$?
+          set -e
+          tail -n 15 smoke/test.log
+          if [ $status -ne 0 ]; then
+            # 失敗したテストと、その理由を注釈に書く
+            msg=$(grep -E "^not ok|^✖|AssertionError|expected|actual|Error:" smoke/test.log | head -n 40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Test failures (${{ matrix.name }})::$msg"
+            exit 1
+          fi
 
       # 実行した OS 用のファイルを作る(package.json の build.mac / build.linux)。公開はしない
       - name: Build
@@ -47,24 +63,39 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p smoke
+          # 注釈に、ファイルの最後の行を書く
+          annotate() { local msg; msg=$(tail -n 30 "$3" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}'); echo "::$1 title=$2::$msg"; }
           APP="$(ls -d dist/mac-arm64/*.app | head -1)"
           echo "App: $APP"
-          codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | tee smoke/codesign.txt || echo "::warning::codesign --verify failed (see smoke/codesign.txt)"
+          if codesign --verify --deep --strict --verbose=2 "$APP" > smoke/codesign.txt 2>&1; then annotate notice "codesign --verify: OK" smoke/codesign.txt
+          else annotate warning "codesign --verify: failed" smoke/codesign.txt; fi
+          codesign -dv "$APP" >> smoke/codesign.txt 2>&1 || true
           "$APP/Contents/MacOS/EverPad" > smoke/macos.log 2>&1 &
           PID=$!
           sleep 25
           screencapture -x smoke/screenshot-macos.png || echo "::warning::screenshot failed"
           if kill -0 "$PID" 2>/dev/null; then
-            echo "EverPad is still running after 25 seconds"
-            kill "$PID"; sleep 3
+            echo "::notice title=Smoke test (macOS)::EverPad was still running after 25 seconds"
+            kill "$PID" || true
           else
-            echo "::error::EverPad exited during the smoke test"; cat smoke/macos.log; exit 1
+            annotate error "EverPad exited during the smoke test (macOS)" smoke/macos.log
+            exit 1
           fi
 
       - name: Smoke test (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir -p smoke
+          annotate() { local msg; msg=$(tail -n 30 "$3" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}'); echo "::$1 title=$2::$msg"; }
+          # 起動したもの(AppImage の展開役と Electron のプロセスすべて)を止めて、本当に終わるまで待つ。
+          # 前のものが残っていると、EverPad の「起動は1つだけ」の仕組みで、次に起動したものがすぐ終わってしまう
+          stop_all() {
+            kill -TERM -- "-$1" 2>/dev/null || true
+            for i in $(seq 1 20); do pgrep -g "$1" > /dev/null || break; sleep 1; done
+            kill -KILL -- "-$1" 2>/dev/null || true
+            pkill -KILL -f appimage_extracted 2>/dev/null || true
+            sleep 1
+          }
           sudo apt-get update -q && sudo apt-get install -y -q xvfb imagemagick
           Xvfb :99 -screen 0 1280x800x24 &
           export DISPLAY=:99
@@ -74,26 +105,28 @@ jobs:
           IMG="$(ls dist/*.AppImage | head -1)"
           chmod +x "$IMG"
           echo "AppImage: $IMG"
-          # 1. --no-sandbox なし(Ubuntu 24.04 では起動しないことがある。結果を知らせるだけ)
-          "$IMG" > smoke/linux-sandbox.log 2>&1 &
+          # 1. --no-sandbox なし(Ubuntu 24.04 以降では起動しないことがある。結果を知らせるだけ)
+          setsid "$IMG" > smoke/linux-sandbox.log 2>&1 &
           PID=$!
           sleep 15
-          if kill -0 "$PID" 2>/dev/null; then echo "Without --no-sandbox: running"; kill "$PID"; sleep 3
-          else echo "::warning::Without --no-sandbox, EverPad exited (see smoke/linux-sandbox.log)"; fi
+          if kill -0 "$PID" 2>/dev/null; then echo "::notice title=Smoke test (Linux)::Without --no-sandbox, EverPad was running after 15 seconds"
+          else annotate warning "Without --no-sandbox, EverPad exited" smoke/linux-sandbox.log; fi
+          stop_all "$PID"
           # 2. --no-sandbox あり(こちらは起動しなければ失敗)
-          "$IMG" --no-sandbox > smoke/linux.log 2>&1 &
+          setsid "$IMG" --no-sandbox > smoke/linux.log 2>&1 &
           PID=$!
           sleep 25
           import -window root smoke/screenshot-linux.png || echo "::warning::screenshot failed"
           if kill -0 "$PID" 2>/dev/null; then
-            echo "EverPad is still running after 25 seconds"
-            kill "$PID"; sleep 3
+            echo "::notice title=Smoke test (Linux)::With --no-sandbox, EverPad was running after 25 seconds"
+            stop_all "$PID"
           else
-            echo "::error::EverPad exited during the smoke test"; cat smoke/linux.log; exit 1
+            annotate error "EverPad exited during the smoke test (Linux, --no-sandbox)" smoke/linux.log
+            exit 1
           fi
           # AppImage は portable 版と同じく、隣の「EverPad Data」に保存するはず
-          if [ -d "dist/EverPad Data/notes" ]; then echo "EverPad Data was created next to the AppImage"
-          else echo "::error::EverPad Data was not created next to the AppImage"; ls -la dist; exit 1; fi
+          if [ -d "dist/EverPad Data/notes" ]; then echo "::notice title=Smoke test (Linux)::EverPad Data was created next to the AppImage"
+          else ls -la dist > smoke/dist.txt; annotate error "EverPad Data was not created next to the AppImage" smoke/dist.txt; exit 1; fi
 
       - name: Upload builds
         uses: actions/upload-artifact@v7
