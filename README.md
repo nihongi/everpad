@@ -85,7 +85,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
 - Linux: `EverPad-0.18.0.AppImage` (x64)
 
-**Building with GitHub Actions**: the repository can build both without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.18.0`, is pushed). When it finishes, download `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-macos` / `smoke-linux`; this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about the app not being signed, and on Linux, allow the AppImage to run again after extracting it.
+**Building with GitHub Actions**: the repository can build both without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.18.0`, is pushed). When it finishes, download `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-macos` / `smoke-linux`; this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 **macOS**
 
@@ -94,7 +94,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 - Closing the window does not quit EverPad: it stays in the Dock, and clicking the Dock icon opens the window again. Quit with ⌘Q. Unsaved edits are saved when the window closes. While EverPad is running, its data folder stays locked (see "Where notes are stored").
 - `.everpad` files can be opened by double-clicking them in Finder, with Open With, or by dragging them onto the Dock icon. Import text files by dragging them into the window, or with File → Import….
 - Settings are saved in `~/Library/Application Support/EverPad`, and notes in `~/Documents/EverPad`. The first time, macOS asks whether EverPad may access the Documents folder.
-- The app is not signed or notarized by Apple. A copy you built yourself normally opens, but a downloaded copy may be refused with a message such as "EverPad is damaged and can't be opened". Run `xattr -cr /Applications/EverPad.app` in Terminal to allow it, only if you trust where the copy came from.
+- The app has an ad-hoc signature (a simple signature that does not use an Apple certificate), but is not signed with an Apple Developer ID or notarized by Apple. A copy you built yourself normally opens. A downloaded copy is blocked the first time with a message such as "Apple could not verify 'EverPad' is free of malware". Only if you trust where the copy came from: choose Done, open System Settings → Privacy & Security, and click Open Anyway next to the message about EverPad (on macOS 14 and earlier, you can instead Control-click EverPad in Finder and choose Open). If that does not work, run `xattr -cr /Applications/EverPad.app` in Terminal.
 - To uninstall, move EverPad to the Trash. Settings in `~/Library/Application Support/EverPad` and your notes are not deleted.
 - The "Send to" menu entry and the installer options are Windows only.
 
@@ -409,7 +409,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
 - Linux: `EverPad-0.18.0.AppImage`(x64)
 
-**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで両方を作れます。GitHub の Actions タブで「Build (macOS / Linux)」を選び、「Run workflow」を押します(`v0.18.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-macos`(`.dmg`)と `everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-macos` / `smoke-linux` に残します。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、署名していないため開けないことがあるという注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで両方を作れます。GitHub の Actions タブで「Build (macOS / Linux)」を選び、「Run workflow」を押します(`v0.18.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-macos`(`.dmg`)と `everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-macos` / `smoke-linux` に残します。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 **macOS**
 
@@ -418,7 +418,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 - ウィンドウを閉じても EverPad は終わらず、Dock に残ります。Dock のアイコンを押すと、ウィンドウがまた開きます。終えるときは ⌘Q です。書きかけの編集は、ウィンドウを閉じたときに保存します。EverPad が動いている間は、保存先の印が残ります(「メモの保存先と形式」を見てください)。
 - `.everpad` ファイルは、Finder でダブルクリック、「このアプリケーションで開く」、Dock のアイコンへのドラッグで開けます。テキストファイルは、ウィンドウへのドラッグか、「ファイル」→「インポート…」で取り込みます。
 - 設定は `~/Library/Application Support/EverPad` に、メモは `~/書類/EverPad`(`~/Documents/EverPad`)に保存します。初めて起動したとき、書類フォルダへのアクセスを許可するかを Mac が尋ねます。
-- Apple の署名と公証はしていません。自分で作ったものは普通は開けますが、ダウンロードしたものは「"EverPad"は壊れているため開けません」のような表示で開けないことがあります。入手先が信頼できる場合に限り、ターミナルで `xattr -cr /Applications/EverPad.app` を実行すると開けるようになります。
+- ad-hoc 署名(Apple の証明書を使わない簡易の署名)は付けてありますが、Apple の Developer ID による署名と公証はしていません。自分で作ったものは普通は開けます。ダウンロードしたものは、初めて開くときに「"EverPad"にマルウェアが含まれていないことを Apple は検証できませんでした」のような表示で止められます。入手先が信頼できる場合に限り、「完了」を押してから「システム設定」→「プライバシーとセキュリティ」を開き、EverPad についての表示の横の「このまま開く」を押してください(macOS 14 以前では、Finder で EverPad を control キーを押しながらクリックして「開く」を選ぶ方法でも開けます)。それでも開けない場合は、ターミナルで `xattr -cr /Applications/EverPad.app` を実行します。
 - アンインストールは、EverPad をゴミ箱に入れるだけです。`~/Library/Application Support/EverPad` の設定とメモは削除されません。
 - 「送る」メニューへの登録と、インストーラーの追加の設定は Windows だけです。
 

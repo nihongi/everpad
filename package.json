@@ -80,6 +80,8 @@
           ]
         }
       ],
+      "identity": "-",
+      "hardenedRuntime": false,
       "extendInfo": {
         "NSDocumentsFolderUsageDescription": "EverPad saves your notes in the Documents folder."
       },
