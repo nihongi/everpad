@@ -1,12 +1,13 @@
-# macOS 版と Linux 版を GitHub Actions で作る。
-# 動かし方: GitHub の Actions タブ →「Build (macOS / Linux)」→「Run workflow」。v で始まるタグ(v0.18.0 など)を push したときも動く。
-# できたファイル(dmg と AppImage)は、実行結果のページの Artifacts からダウンロードできる(30日間)。
+# Windows 版・macOS 版・Linux 版を GitHub Actions で作る。
+# 動かし方: GitHub の Actions タブ →「Build (Windows / macOS / Linux)」→「Run workflow」。v で始まるタグ(v0.18.0 など)を push したときも動く。
+# できたファイル(インストーラーと portable 版、dmg、AppImage)は、実行結果のページの Artifacts からダウンロードできる(30日間)。
 # GitHub Releases への公開はしない。
 # Mac 版には ad-hoc 署名(Apple の証明書を使わない簡易の署名)を付ける。
 # 作ったあとに一度起動して、数秒たっても落ちていないか確かめ、画面のスクリーンショットを Artifacts に残す。
+# Windows は、インストーラーで画面を出さずにインストール・アンインストールして、設定とメモが残ることも確かめる(tools/ci-smoke-windows.ps1)。
 # 失敗の内容と確認の結果は、サインインしなくても見られる注釈(Annotations)にも書く。
 
-name: Build (macOS / Linux)
+name: Build (Windows / macOS / Linux)
 
 on:
   workflow_dispatch:
@@ -22,6 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - os: windows-latest
+            name: windows
           - os: macos-latest    # Apple シリコンの Mac。Intel 用(x64)の dmg もここで作る
             name: macos
           - os: ubuntu-latest
@@ -56,9 +59,14 @@ jobs:
             exit 1
           fi
 
-      # 実行した OS 用のファイルを作る(package.json の build.mac / build.linux)。公開はしない
+      # 実行した OS 用のファイルを作る(package.json の build.win / build.mac / build.linux)。公開はしない
       - name: Build
         run: npm run dist -- --publish never
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tools/ci-smoke-windows.ps1 -Dist dist -Out smoke
 
       - name: Smoke test (macOS)
         if: runner.os == 'macOS'
@@ -136,6 +144,7 @@ jobs:
         with:
           name: everpad-${{ matrix.name }}
           path: |
+            dist/*.exe
             dist/*.dmg
             dist/*.AppImage
           if-no-files-found: error
