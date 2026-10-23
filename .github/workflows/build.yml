@@ -1,0 +1,115 @@
+# macOS 版と Linux 版を GitHub Actions で作る。
+# 動かし方: GitHub の Actions タブ →「Build (macOS / Linux)」→「Run workflow」。v で始まるタグ(v0.18.0 など)を push したときも動く。
+# できたファイル(dmg と AppImage)は、実行結果のページの Artifacts からダウンロードできる(30日間)。
+# GitHub Releases への公開はしない。
+# 作ったあとに一度起動して、数秒たっても落ちていないか確かめ、画面のスクリーンショットを Artifacts に残す。
+
+name: Build (macOS / Linux)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest    # Apple シリコンの Mac。Intel 用(x64)の dmg もここで作る
+            name: macos
+          - os: ubuntu-latest
+            name: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      # 実行した OS 用のファイルを作る(package.json の build.mac / build.linux)。公開はしない
+      - name: Build
+        run: npm run dist -- --publish never
+
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p smoke
+          APP="$(ls -d dist/mac-arm64/*.app | head -1)"
+          echo "App: $APP"
+          codesign --verify --deep --strict --verbose=2 "$APP" 2>&1 | tee smoke/codesign.txt || echo "::warning::codesign --verify failed (see smoke/codesign.txt)"
+          "$APP/Contents/MacOS/EverPad" > smoke/macos.log 2>&1 &
+          PID=$!
+          sleep 25
+          screencapture -x smoke/screenshot-macos.png || echo "::warning::screenshot failed"
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "EverPad is still running after 25 seconds"
+            kill "$PID"; sleep 3
+          else
+            echo "::error::EverPad exited during the smoke test"; cat smoke/macos.log; exit 1
+          fi
+
+      - name: Smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p smoke
+          sudo apt-get update -q && sudo apt-get install -y -q xvfb imagemagick
+          Xvfb :99 -screen 0 1280x800x24 &
+          export DISPLAY=:99
+          sleep 2
+          # 動かす人の環境に FUSE 2 が無くても動くよう、展開して動かす
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          IMG="$(ls dist/*.AppImage | head -1)"
+          chmod +x "$IMG"
+          echo "AppImage: $IMG"
+          # 1. --no-sandbox なし(Ubuntu 24.04 では起動しないことがある。結果を知らせるだけ)
+          "$IMG" > smoke/linux-sandbox.log 2>&1 &
+          PID=$!
+          sleep 15
+          if kill -0 "$PID" 2>/dev/null; then echo "Without --no-sandbox: running"; kill "$PID"; sleep 3
+          else echo "::warning::Without --no-sandbox, EverPad exited (see smoke/linux-sandbox.log)"; fi
+          # 2. --no-sandbox あり(こちらは起動しなければ失敗)
+          "$IMG" --no-sandbox > smoke/linux.log 2>&1 &
+          PID=$!
+          sleep 25
+          import -window root smoke/screenshot-linux.png || echo "::warning::screenshot failed"
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "EverPad is still running after 25 seconds"
+            kill "$PID"; sleep 3
+          else
+            echo "::error::EverPad exited during the smoke test"; cat smoke/linux.log; exit 1
+          fi
+          # AppImage は portable 版と同じく、隣の「EverPad Data」に保存するはず
+          if [ -d "dist/EverPad Data/notes" ]; then echo "EverPad Data was created next to the AppImage"
+          else echo "::error::EverPad Data was not created next to the AppImage"; ls -la dist; exit 1; fi
+
+      - name: Upload builds
+        uses: actions/upload-artifact@v7
+        with:
+          name: everpad-${{ matrix.name }}
+          path: |
+            dist/*.dmg
+            dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload smoke test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-${{ matrix.name }}
+          path: smoke/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -85,6 +85,8 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
 - Linux: `EverPad-0.18.0.AppImage` (x64)
 
+**Building with GitHub Actions**: the repository can build both without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.18.0`, is pushed). When it finishes, download `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-macos` / `smoke-linux`; this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about the app not being signed, and on Linux, allow the AppImage to run again after extracting it.
+
 **macOS**
 
 - The menus follow the macOS layout: an EverPad menu (About EverPad, Services, Hide EverPad, Quit EverPad and so on) on the left, and a Window menu.
@@ -297,7 +299,8 @@ renderer/        The UI (index.html / styles.css / app.js), the history, Markdow
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js), and the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js)
 renderer/vendor/katex/  KaTeX for math (copied from node_modules automatically before npm start and npm run dist; not stored in Git)
-build/installer.nsh  The installer's "Send to" check box
+build/installer.nsh  The installer's "Send to" check box and the uninstaller's "delete settings" check box
+.github/workflows/build.yml  Building the macOS and Linux versions with GitHub Actions
 test/            Automated tests
 ```
 
@@ -405,6 +408,8 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
 - Linux: `EverPad-0.18.0.AppImage`(x64)
+
+**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで両方を作れます。GitHub の Actions タブで「Build (macOS / Linux)」を選び、「Run workflow」を押します(`v0.18.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-macos`(`.dmg`)と `everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-macos` / `smoke-linux` に残します。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、署名していないため開けないことがあるという注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 **macOS**
 
@@ -618,7 +623,8 @@ renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)と、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)
 renderer/vendor/katex/  数式の表示に使う KaTeX(npm start と npm run dist の前に node_modules から自動でコピーする。Git には入れない)
-build/installer.nsh  インストーラーの「送る」メニューのチェックボックス
+build/installer.nsh  インストーラーの「送る」メニューと、アンインストーラーの「設定も削除する」のチェックボックス
+.github/workflows/build.yml  GitHub Actions で macOS 版と Linux 版を作る
 test/            自動テスト
 ```
 
