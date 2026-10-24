@@ -250,6 +250,12 @@ function noteLinkAt(text, pos) {
 const linkText = title => String(title || '').replace(/[[\]\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 
 /* 最近見たメモの一覧: 開いたメモをいちばん上に移し、max 件までにする。{ id, title, t } の配列を返す */
+/* 履歴の1回の編集で、変更し終えた位置(その版の本文の中の位置)。
+   追加なら追加し終えた位置(その編集のすぐあとのカーソルの位置)、削除だけなら削除した位置 */
+function changeEnd(op) {
+  return op ? op.p + (op.i ? op.i.length : 0) : 0;
+}
+
 /* 文中のショートカットキーを Mac の書き方にする(Ctrl+Shift+U → ⇧⌘U、Ctrl+K → ⌘K、Ctrl+クリック → ⌘+クリック) */
 function macKeys(s) {
   return String(s)
@@ -582,5 +588,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

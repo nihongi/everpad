@@ -28,3 +28,14 @@ test('選択: 文字数は改行を数えず、行数は最後の改行だけの
   assert.deepStrictEqual(L.selectionInfo('\n'), { chars: 0, lines: 2 });
   assert.deepStrictEqual(L.selectionInfo('😀日本\n語'), { chars: 4, lines: 2 });
 });
+
+test('履歴の変更位置: 追加は追加し終えた位置、削除は削除した位置(カーソル位置と同じ数え方)', () => {
+  const at = (before, after) => { const op = L.makeOp(before, after, 1); return L.cursorInfo(after, L.changeEnd(op)); };
+  assert.deepStrictEqual(at('ab\ncd', 'ab\ncXd'), { line: 2, col: 3 });         // 1文字追加 → その直後
+  assert.deepStrictEqual(at('ab\ncXd', 'ab\ncd'), { line: 2, col: 2 });         // 1文字削除 → 削除した位置
+  assert.deepStrictEqual(at('ab\ncd', 'ab\ncYYd'.replace('YY', 'Z')), { line: 2, col: 3 });
+  assert.deepStrictEqual(at('abc', 'aXYZc'), { line: 1, col: 5 });              // 置き換え(b → XYZ)→ 追加し終えた位置
+  assert.deepStrictEqual(at('a', 'a\n\nb'), { line: 3, col: 2 });               // 改行を含む追加
+  assert.deepStrictEqual(at('x', 'x😀'), { line: 1, col: 3 });                  // 絵文字は1文字と数える
+  assert.strictEqual(L.changeEnd(null), 0);
+});

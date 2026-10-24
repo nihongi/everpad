@@ -213,6 +213,11 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 #histView[data-past="1"] .chip { background: var(--past-soft); color: var(--past); }
 .hv-head .rev { font-weight: 700; font-variant-numeric: tabular-nums; }
 .hv-head .when, .hv-head .delta { color: var(--fg-2); font-variant-numeric: tabular-nums; }
+/* 「追加 1文字」など: 押すと変更箇所へ表示を動かす */
+.hv-head button.delta { font: inherit; background: none; border: 0; padding: 0 2px; border-radius: 4px; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.hv-head button.delta:hover:not(:disabled) { color: var(--accent); }
+.hv-head button.delta:disabled { cursor: default; text-decoration: none; }
+.hv-head button.delta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .hv-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; }
 #histView[data-past="1"] .hv-body { background: color-mix(in srgb, var(--past-soft) 40%, var(--surface)); }
 .diff { margin: 0; font: 15px/1.4 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -225,6 +230,11 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .dl { display: grid; grid-template-columns: var(--ln-w) minmax(0, 1fr); }
 .dl .n { white-space: nowrap; text-align: right; padding-right: 10px; margin-right: 12px; border-right: 1px solid var(--line); color: var(--fg-2); user-select: none; font-variant-numeric: tabular-nums; }
 .dl .t { min-width: 0; }
+/* 変更した行の行番号 */
+.dl.chg .n { color: var(--accent); font-weight: 700; border-right: 3px solid var(--accent); padding-right: 8px; }
+/* 「追加 1文字」などを押したとき、変更箇所を一瞬強調する */
+.diff ins.flash, .diff del.flash { animation: chg-flash 1.6s ease-out; }
+@keyframes chg-flash { 0%, 45% { outline: 3px solid var(--accent); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
 
 .tl { --thumb: var(--accent); border-top: 1px solid var(--line); background: var(--surface-2); padding: 12px 16px 10px; display: flex; flex-direction: column; gap: 4px; }
 .tl[data-past="1"] { --thumb: var(--past); }

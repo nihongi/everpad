@@ -207,6 +207,8 @@
       if (ws && ws.rangeCount && !ws.isCollapsed && host.contains(ws.anchorNode) && host.contains(ws.focusNode)) sel = ws.toString();
     }
     if (S.mode === 'edit') parts.push({ cls: 'st-pos', text: T('cursorPos', cursorInfo(ed.value, ed.selectionDirection === 'backward' ? ed.selectionStart : ed.selectionEnd)), title: T('cursorTitle') });
+    // 履歴の表示中は、その版の編集で変更した位置(編集画面のカーソル位置と同じ数え方)
+    if (S.mode === 'history' && S.histPos != null && S.histText != null) parts.push({ cls: 'st-pos', text: T('changePos', cursorInfo(S.histText, S.histPos)), title: T('changePosTitle') });
     if (sel) { const si = selectionInfo(sel); parts.push({ cls: 'st-sel', text: T(si.lines > 1 ? 'selCharsLines' : 'selChars', si), title: T('selTitle') }); }
     return parts;
   }
@@ -342,6 +344,8 @@
     stop();
     S.active = id;
     $('editor').value = cur().text;
+    // 履歴の表示のまま別のメモに移ったときは、そのメモの最新の版から見せる(版の番号はメモごとに意味が違う)
+    if (S.mode === 'history') S.rev = cur().ops.length;
     renderList();
     updateTitle();
     updateStatus();
@@ -375,15 +379,17 @@
     S.rev = k;
     const past = k !== N;
     const text = textAt(n, k);
+    const op = k > 0 ? n.ops[k - 1] : null;
     S.histText = text;   // 状態表示の「全体」に使う
+    S.histPos = op ? changeEnd(op) : null;   // 状態表示の「変更位置」に使う
     updateStatus();
     $('histView').dataset.past = past ? '1' : '0';
     $('tl').dataset.past = past ? '1' : '0';
     $('chip').textContent = past ? T('pastVersion') : T('latestVersion');
     $('revNo').textContent = T('revNo', { k: k, n: N });
-    const op = k > 0 ? n.ops[k - 1] : null;
     $('when').textContent = op ? fmtFull(op.t) : (N ? T('initialEmpty') : '');
     $('delta').textContent = op ? [op.i ? T('charsAdded', { n: count(op.i) }) : '', op.d ? T('charsRemoved', { n: count(op.d) }) : ''].filter(Boolean).join(T('sep')) : '';
+    $('delta').disabled = !op;
 
     const body = $('hvBody');
     if (!text && !(op && op.d)) {
@@ -398,7 +404,7 @@
       if (S.lines) {
         const digits = Math.max(2, String(lines.length).length);
         body.innerHTML = '<div class="diff lined" style="--ln-w: calc(' + digits + 'ch + 36px)">' +
-          lines.map((h, i) => '<div class="dl"><span class="n">' + (i + 1) + '</span><span class="t">' + (h || '&#8203;') + '</span></div>').join('') + '</div>';
+          lines.map((h, i) => '<div class="dl' + (/<(ins|del)\b/.test(h) ? ' chg' : '') + '"><span class="n">' + (i + 1) + '</span><span class="t">' + (h || '&#8203;') + '</span></div>').join('') + '</div>';
       } else {
         body.innerHTML = '<pre class="diff">' + lines.join('\n') + '</pre>';
       }
@@ -436,6 +442,17 @@
     renderHist();
   }
   const go = k => { stop(); S.rev = k; renderHist(); };
+  /* 「追加 1文字」などを押したとき: 変更箇所へ表示を動かし、一瞬強調する。
+     プレビューの表示では整形後のどこが変更箇所か分からないので、「編集」の表示の履歴に切り替えて示す */
+  $('delta').addEventListener('click', () => {
+    if (S.mode !== 'history' || !(S.rev > 0)) return;
+    stop();
+    if (S.hbase !== 'edit') { S.hbase = 'edit'; setMode('history'); }
+    const els = [...$('hvBody').querySelectorAll('ins, del')];
+    if (!els.length) return;
+    els[0].scrollIntoView({ block: 'center' });
+    for (const el of els) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  });
   $('bFirst').addEventListener('click', () => go(0));
   $('bPrev').addEventListener('click', () => go(S.rev - 1));
   $('bNext').addEventListener('click', () => go(S.rev + 1));

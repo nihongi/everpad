@@ -55,16 +55,16 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.18.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" under "macOS and Linux (untested)").
+This creates an installer (`EverPad Setup 0.19.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" under "macOS and Linux (untested)").
 
 **Uninstalling**: the uninstaller never deletes your data folder (your notes stay). It offers a check box (off by default) to also delete EverPad's settings (`%APPDATA%\EverPad`: the data folder location, language, window position, recently viewed notes and so on). Settings are kept per Windows user, so only the settings of the user running the uninstaller are deleted, also when EverPad was installed for all users; other users' settings are not touched. Updates and silent uninstalls (`/S`) never delete settings.
 
 ### Portable version
 
-The portable executable (`EverPad 0.18.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.19.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.18.0.exe
+EverPad 0.19.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -83,9 +83,9 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.18.0.AppImage` (x64)
+- Linux: `EverPad-0.19.0.AppImage` (x64)
 
-**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.18.0`, is pushed). When it finishes, download `everpad-windows` (the installer and the portable executable), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.19.0`, is pushed). When it finishes, download `everpad-windows` (the installer and the portable executable), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 **macOS**
 
@@ -101,7 +101,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.18.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.19.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -137,6 +137,8 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **Views and history**
 
 - There are two views, Edit and Preview, and each has a history mode. Pressing History shows the time slider while keeping the current view: in Edit, the characters changed in each version are highlighted; in Preview, each version is shown formatted. Switching between Edit and Preview during the history keeps the same version. Press History again to leave the history.
+- Opening another note from the note list while the history is shown shows that note's latest version.
+- The status bar at the bottom shows where the edit of the version shown was made ("Changed at: Ln 12, Col 5"): just after the added text, or where text was deleted. Click the change summary at the top (such as "1 character added") to scroll to the change and briefly emphasize it; in the Preview history, this switches to the Edit history to show it. When line numbers are shown, the numbers of the changed lines are highlighted.
 - Playback speed can be set to five levels, from very slow to very fast.
 - Restore this version adds the content of that version as a new edit. The existing history is never deleted.
 - The note text widens to fit the window. Line numbers count a wrapped line as one line and are also shown in the history. These settings are remembered.
@@ -186,7 +188,15 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **EverPad archives**
 
-- File → Export → EverPad Archive… saves the current note as one `.everpad` file containing its text, its whole history and its attachments (the whole note, even while the history is shown). It is a ZIP file: rename it to `.zip` to look inside (`manifest.json`, `note.jsonl`, `note.md` and `files/`).
+- File → Export → EverPad Archive… saves the current note as one `.everpad` file containing its text, its whole history and its attachments (the whole note, even while the history is shown). It is a ZIP file, and you can rename it to `.zip` to look inside. It contains the following:
+
+| File | Contents |
+|---|---|
+| `manifest.json` | Information about the archive: the format name and format version, the EverPad version and time of the export, and the note's ID, title and creation time. When importing, EverPad uses it to check that the file is an EverPad archive in a format version it supports. |
+| `note.jsonl` | The edit history, the same as the note's `.jsonl` file in the data folder (see "Where notes are stored") |
+| `note.md` | The latest text |
+| `files/` | Attached files (only when the note has attachments) |
+
 - Importing an archive restores the note with its history and attachments. If a note with the same ID already exists, you choose: **Overwrite** replaces the existing note's text, history and attachments (this cannot be undone in EverPad; the original files are moved to the Recycle Bin), **Import with a New ID** imports it as a separate note, or **Cancel**.
 - An imported note is shown at the top of the note list: EverPad records when it was imported (in the history file's header line, which older versions ignore) and sorts the list by the later of the last edit and the import. Properties shows the import time.
 - The installer associates `.everpad` files with EverPad, so double-clicking an archive imports it. Sending archives with "Send to" or dropping them onto the EverPad icon also works.
@@ -380,16 +390,16 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.18.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(「macOS と Linux(未確認)」の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.19.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(「macOS と Linux(未確認)」の「GitHub Actions で作る」を見てください)。
 
 **アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(既定はオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
 
 ### portable 版
 
-portable 版(`EverPad 0.18.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.19.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.18.0.exe
+EverPad 0.19.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -408,9 +418,9 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.18.0.AppImage`(x64)
+- Linux: `EverPad-0.19.0.AppImage`(x64)
 
-**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.18.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラーと portable 版)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.19.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラーと portable 版)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 **macOS**
 
@@ -426,7 +436,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.18.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.19.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -462,6 +472,8 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 **表示と履歴**
 
 - 表示は「編集」と「プレビュー」の2つで、どちらにも履歴の表示があります。「履歴」ボタンを押すと、今の表示のままタイムスライダーが出ます。編集の履歴では、その版で変わった文字が色で示され、プレビューの履歴では、その版が整形して表示されます。履歴の表示中に「編集」「プレビュー」を押すと、同じ版のまま切り替わります。もう一度「履歴」を押すと通常の表示に戻ります。
+- 履歴の表示中に左の一覧から別のメモを開くと、そのメモの最新の版を表示します。
+- 下の状態表示に、表示している版の編集で変更した位置(「変更位置: 12行目・5文字目」)が出ます。追加なら追加し終えた位置、削除なら削除した位置です。上の「追加 1文字」などを押すと、変更箇所まで表示を動かして一瞬強調します。プレビューの履歴では、編集の履歴に切り替えて示します。行番号を出しているときは、変更した行の番号も色で示します。
 - 再生の速さは、とてもゆっくり・ゆっくり・ふつう・速い・とても速いの5段階から選べます。
 - 「この版に戻す」を押すと、その版の内容が新しい編集として追加されます。これまでの履歴は消えません。
 - メモの本文はウィンドウの幅に合わせて広がります。行番号は、折り返した行も1行として数え、履歴の表示にも付きます。これらの設定は次回も使われます。
@@ -511,7 +523,15 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **EverPad アーカイブ**
 
-- 「ファイル」→「エクスポート」→「EverPad アーカイブ…」で、今のメモの本文・全履歴・添付を1つの `.everpad` ファイルに保存します(履歴の表示中でも、メモ全体を保存します)。中身は ZIP 形式で、拡張子を `.zip` に変えると中を見られます(`manifest.json`・`note.jsonl`・`note.md`・`files/`)。
+- 「ファイル」→「エクスポート」→「EverPad アーカイブ…」で、今のメモの本文・全履歴・添付を1つの `.everpad` ファイルに保存します(履歴の表示中でも、メモ全体を保存します)。中身は ZIP 形式で、拡張子を `.zip` に変えると中を見られます。中身は次のとおりです。
+
+| ファイル | 内容 |
+|---|---|
+| `manifest.json` | アーカイブの情報。形式名と形式の版、書き出した EverPad のバージョンと日時、メモの ID・題名・作成日時。インポートのときに、EverPad のアーカイブかどうかと、対応している形式の版かどうかを確かめるのに使います |
+| `note.jsonl` | 編集の履歴。保存先にある、そのメモの `.jsonl` と同じものです(「メモの保存先と形式」を見てください) |
+| `note.md` | 最新の本文 |
+| `files/` | 添付ファイル(添付があるときだけ) |
+
 - アーカイブをインポートすると、履歴と添付ごとメモが戻ります。同じ ID のメモが既にあるときは、次から選びます。**上書き**は、いまあるメモの本文・履歴・添付をアーカイブの内容に置き換えます(EverPad からは元に戻せません。元のファイルはごみ箱に移ります)。**新しい ID で取り込む**は、別のメモとして取り込みます。**中止**は何もしません。
 - インポートしたメモは、一覧のいちばん上に出ます。インポートした日時を履歴ファイルの見出し行に記録し(古いバージョンの EverPad はこの項目を無視します)、一覧は「最後に編集した日時」と「インポートした日時」の新しいほうで並べます。インポートした日時はプロパティに出ます。
 - インストーラーが `.everpad` ファイルを EverPad に関連付けるので、アーカイブをダブルクリックするとインポートします。「送る」や、EverPad のアイコンへのドラッグ&ドロップでもインポートできます。
