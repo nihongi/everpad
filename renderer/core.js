@@ -395,6 +395,23 @@ function attachRefs(text) {
   return out;
 }
 
+/* 本文から、ある添付へのリンク(![名前](attach:ID) と [名前](attach:ID))をすべて消す。
+   リンクを消して空になった行(空白や箇条書きの記号だけが残る行)は、行ごと消す。{ text, count } を返す */
+function removeAttachRefs(text, fileId) {
+  const re = new RegExp('!?\\[[^\\]\\n]*\\]\\(attach:' + escRe(fileId) + '\\)', 'g');
+  let count = 0;
+  const out = [];
+  for (const line of text.split('\n')) {
+    const n = (line.match(re) || []).length;
+    if (!n) { out.push(line); continue; }
+    count += n;
+    const rest = line.replace(re, '');
+    if (/^[ \t]*(?:[-*+]|\d{1,9}[.)]|>)?(?:[ \t]+\[[ xX]\])?[ \t]*$/.test(rest)) continue;
+    out.push(rest);
+  }
+  return { text: count ? out.join('\n') : text, count: count };
+}
+
 function mdList(lines, i, out) {
   const re = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
   const stack = [];
@@ -690,5 +707,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

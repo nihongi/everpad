@@ -248,7 +248,7 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .playbtn:active { transform: scale(.96); }
 .spd { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--fg-2); }
 .spd select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
-#restore { margin-left: auto; }
+#pruneBtn { margin-left: auto; }
 .track { position: relative; padding: 6px 0; }
 .gaps { position: absolute; left: 0; right: 0; top: 50%; height: 16px; transform: translateY(-50%); pointer-events: none; }
 .gaps i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--fg-2); opacity: .6; border-radius: 1px; }
@@ -283,6 +283,7 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
   #menuBtn { display: inline-grid; }
   .seg:not(.small) { order: 3; width: 100%; }
   .seg:not(.small) button { flex: 1; }
+  #pruneBtn { margin-left: 0; }
   #restore { margin-left: 0; flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .side { transition: none; } }

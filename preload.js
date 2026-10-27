@@ -17,7 +17,10 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachSave: (noteId, name, bytes) => ipcRenderer.invoke('attach:save', noteId, name, bytes),
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
-  attachMenu: (noteId, fileId, name, image, x, y) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y),
+  attachMenu: (noteId, fileId, name, image, x, y, canTrash) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y, canTrash),
+  attachTrash: (noteId, fileId, name, refs) => ipcRenderer.invoke('attach:trash', noteId, fileId, name, refs),
+  // 古い履歴の削除(確認・アーカイブへの書き出し・書き換え・使われなくなった添付をごみ箱へ、まで main.js が行う)
+  pruneHistory: (id, k, n, title) => ipcRenderer.invoke('history:prune', id, k, n, title),
   mathMenu: tex => ipcRenderer.invoke('math:menu', tex),
   noteMenu: title => ipcRenderer.invoke('note:menu', title),
   // 最近見たメモ(メニューを作り直してもらう)

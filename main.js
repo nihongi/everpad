@@ -277,7 +277,7 @@ ipcMain.handle('math:menu', (e, tex) => {
   });
 });
 
-ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
+ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y, canTrash) => {
   if (!fromOurWindow(e)) return null;
   const p = store.attachmentPath(noteId, fileId);
   if (!p) return { status: 'missing' };
@@ -297,6 +297,7 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
       return { status: 'shown' };
     },
     show: () => { shell.showItemInFolder(p); return { status: 'none' }; },
+    trash: () => ({ status: 'trash' }),
     save: async () => {
       const ext = path.extname(p);
       let nm = String(name || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 120) || T('file');
@@ -313,20 +314,79 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y) => {
       chosen = true;
       try { resolve((await actions[key]()) || { status: 'none' }); } catch (err) { resolve({ status: fail }); }
     };
-    const tpl = buildAttachTemplate(!!image, { copy: wrap('copy', 'copyFailed'), open: wrap('open', 'none'), show: wrap('show', 'none'), save: wrap('save', 'saveFailed') }, lang);
+    // 「ごみ箱に入れる…」は、選んだことだけを返す(本文のリンクを消すのは画面側なので、確認と削除は attach:trash で行う)
+    const tpl = buildAttachTemplate(!!image, { copy: wrap('copy', 'copyFailed'), open: wrap('open', 'none'), show: wrap('show', 'none'), save: wrap('save', 'saveFailed'), trash: canTrash ? wrap('trash', 'none') : null }, lang);
     // 何も選ばずに閉じたとき(クリックの処理より後に呼ばれることがあるので少し待つ)
     Menu.buildFromTemplate(tpl).popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve({ status: 'none' }); }, 300) });
   });
 });
 
+/* 添付をごみ箱に入れる(編集画面で選んだとき)。確認してから、ファイルをごみ箱へ。refs = 本文の中のこの添付へのリンクの数
+   (リンクを消すのは画面側で、「元に戻す」で戻せる)。ファイルは中身から名前が決まるので、ごみ箱から戻せばそのまま表示される */
+ipcMain.handle('attach:trash', async (e, noteId, fileId, name, refs) => {
+  if (!fromOurWindow(e)) return { status: 'failed' };
+  const p = store.attachmentPath(noteId, fileId);
+  if (!p) return { status: 'missing' };
+  const n = Math.max(0, Math.floor(Number(refs) || 0));
+  const r = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: [T('attTrashButton'), T('cancel')],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    title: APP_NAME,
+    message: T('attTrashQ', { name: String(name || fileId).slice(0, 120) }),
+    detail: T('attTrashDetail', { n: n })
+  });
+  if (r.response !== 0) return { status: 'cancelled' };
+  try { return { status: 'trashed', where: await moveToTrash(p) }; } catch (err) { return { status: 'failed' }; }
+});
+
+/* ---------- 古い履歴の削除 ----------
+   k = 残す最も古い版(編集の個数で数えた位置)、n = 画面が持っている編集の個数(ファイルと食い違えば中止)。
+   確認のダイアログ(初めは「キャンセル」。元に戻せないことを書く)→ 求められればアーカイブに書き出す → 書き換える
+   → 残る版で使っていない添付をごみ箱へ。アーカイブを書き出せなかった・やめたときは、何も削除しない */
+const fmtBytes = b => (b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
+ipcMain.handle('history:prune', async (e, id, k, n, title) => {
+  if (!fromOurWindow(e) || !validId(id)) return { status: 'failed' };
+  let plan;
+  try { plan = store.prunePlan(id, k, n); } catch (err) { return { status: 'failed' }; }
+  const from = plan.base + 1, to = plan.base + plan.removed;
+  const r = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: [T('pruneButton'), T('cancel')],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+    title: APP_NAME,
+    message: T('pruneQ', { from: from, to: to, n: plan.removed }),
+    detail: T('pruneDetail', { keep: to + 1, total: plan.base + n }) + (plan.orphans.length ? T('pruneFiles', { n: plan.orphans.length, size: fmtBytes(plan.bytes) }) : ''),
+    checkboxLabel: T('pruneArchive'),
+    checkboxChecked: true
+  });
+  if (r.response !== 0) return { status: 'cancelled' };
+  let archive = null;
+  if (r.checkboxChecked) {
+    const x = await exportArchiveFile(id, title, T('pruneArcSuffix'));
+    if (x.status === 'cancelled') return { status: 'cancelled' };
+    if (x.status !== 'saved') return { status: 'archiveFailed' };
+    archive = x.path;
+  }
+  let res;
+  try { res = store.prune(id, k, n, Date.now()); } catch (err) { return { status: 'failed', archive: archive }; }
+  let trashed = 0, where = 'recycle';
+  for (const o of res.orphans) { try { if ((await moveToTrash(o.path)) === 'folder') where = 'folder'; trashed++; } catch (err) { /* 残しておく */ } }
+  return { status: 'pruned', from: from, to: to, trashed: trashed, where: where, archive: archive };
+});
+
 /* ---------- 画面の状態に合わせて、実行できないメニューを押せなくする ----------
    edit: 編集画面か(書式・リンクの挿入・添付・検索と置換は編集画面だけ)、lines: 行番号が出る表示か(プレビューでは出ない)、
-   back: 「前に見たメモに戻る」で戻れるメモがあるか。押せない項目はキー操作も効かない */
-let ui = { edit: true, lines: true, back: false };
+   back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)。押せない項目はキー操作も効かない */
+let ui = { edit: true, lines: true, back: false, hist: false };
 ipcMain.on('ui:state', (e, st) => {
   if (!fromOurWindow(e) || !st) return;
-  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back };
-  if (next.edit === ui.edit && next.lines === ui.lines && next.back === ui.back) return;
+  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back, hist: !!st.hist };
+  if (next.edit === ui.edit && next.lines === ui.lines && next.back === ui.back && next.hist === ui.hist) return;
   ui = next;
   buildMenu();
 });
@@ -504,8 +564,12 @@ ipcMain.handle('export:text', async (e, title, text) => {
 });
 
 // EverPad アーカイブとしてエクスポート(本文・全履歴・添付を1つのファイルに)
-ipcMain.handle('export:archive', async (e, id, title) => {
+ipcMain.handle('export:archive', (e, id, title) => {
   if (!fromOurWindow(e) || !validId(id)) return { status: 'failed' };
+  return exportArchiveFile(id, title);
+});
+/* 保存先を尋ねて、アーカイブを書く。{ status: 'saved' | 'cancelled' | 'failed', path } (古い履歴を削除する前にも使う) */
+async function exportArchiveFile(id, title, suffix) {
   let data;
   try {
     const jsonl = fs.readFileSync(store.file(id, '.jsonl'));
@@ -514,7 +578,7 @@ ipcMain.handle('export:archive', async (e, id, title) => {
     if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir)) { if (validFileId(f)) files.push({ fileId: f, data: fs.readFileSync(path.join(dir, f)) }); }
     data = buildArchive({ id: id, title: String(title || ''), created: head.c, jsonl: jsonl, md: store.readLatest(id) || '', files: files }, app.getVersion());
   } catch (err) { return { status: 'failed' }; }
-  const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.everpad';
+  const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + (suffix || '') + '.everpad';
   const r = await dialog.showSaveDialog(win, {
     title: T('arcExportTitle'),
     defaultPath: path.join(exportStartDir(), name),
@@ -523,7 +587,7 @@ ipcMain.handle('export:archive', async (e, id, title) => {
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
   try { fs.writeFileSync(r.filePath, data); rememberDir('export', r.filePath); return { status: 'saved', path: r.filePath }; }
   catch (err) { return { status: 'failed' }; }
-});
+}
 
 /* ---------- 「送る」メニュー ---------- */
 const sendToLink = () => sendToPath(app.getPath('appData'), isPortable ? APP_NAME + ' (Portable)' : APP_NAME);
@@ -686,6 +750,7 @@ function buildMenu() {
         { label: T('mModeEdit'), accelerator: 'CmdOrCtrl+1', click: () => send('mode:edit') },
         { label: T('mModePreview'), accelerator: 'CmdOrCtrl+2', click: () => send('mode:preview') },
         { label: T('mModeHistory'), accelerator: 'CmdOrCtrl+3', click: () => send('mode:history') },
+        { label: T('mPrune'), enabled: ui.hist, click: () => send('prune') },
         { label: T('mSide'), accelerator: 'CmdOrCtrl+B', click: () => send('side') },
         { label: T('mLines'), accelerator: 'CmdOrCtrl+L', enabled: ui.lines, click: () => send('lines') },
         { type: 'separator' },

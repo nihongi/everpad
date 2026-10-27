@@ -5,9 +5,13 @@
  * 1つのメモ = 保存先フォルダの中の2つのファイル
  *   <id>.jsonl  編集履歴の本体。1行目がヘッダー、2行目以降は1回の編集 [位置, 消した文字列, 入れた文字列, 時刻(ms)]。
  *               追記だけで更新するので、書き込み中にアプリが落ちても過去の履歴は壊れない。
+ *               古い履歴を削除したメモは、ヘッダーに base(削除した版の数)と pruned(削除した日時)を持ち、
+ *               最初の編集が「残した最も古い版の本文を位置0に入れる」になる。版の番号は base + 編集の個数で、削除しても変わらない。
+ *               古い EverPad は base を知らないので読み飛ばし、版数が少なく見えるだけで、そのまま読み書きできる。
  *   <id>.md     最新の本文。他のアプリから読むための控えで、読み込みには使わない。
  *   <id>.files/ 貼り付けた画像・添付ファイル。<ハッシュ16桁><拡張子> という名前で、同じ内容は1つだけ保存する。
- *               本文から消しても履歴に残っているので、アプリは添付ファイルを削除しない(メモごと削除するときだけフォルダごとごみ箱へ)。
+ *               本文から消しても履歴に残っているので、ふだんは削除しない。ごみ箱に入れるのは、メモごと削除するとき、
+ *               編集画面で添付を「ごみ箱に入れる」を選んだとき、古い履歴を削除して、残る版のどこにも出てこなくなったときだけ。
  */
 const fs = require('fs');
 const crypto = require('crypto');
@@ -17,7 +21,7 @@ function storeError(code, message) { const e = new Error(message); e.code = code
 const path = require('path');
 
 const INDEX_NAME = '.everpad-index.json';
-const INDEX_VERSION = 2;   // 2: 題名が無いメモの title を '' にした
+const INDEX_VERSION = 3;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした
 const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_ATTACH = 50 * 1024 * 1024;
 const FILEID_RE = /^[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
@@ -30,6 +34,33 @@ const validOp = o =>
   typeof o[3] === 'number' && Number.isFinite(o[3]);
 
 function applyWire(text, o) { return text.slice(0, o[0]) + o[2] + text.slice(o[0] + o[1].length); }
+const validBase = b => Number.isInteger(b) && b >= 0;
+const baseOf = head => (head && validBase(head.base) ? head.base : 0);
+
+/* 古い履歴を削除した後の編集の並び。k = 残す最も古い版(編集の個数で数えた位置)。
+   最初の k 個の編集を「版 k の本文を位置0に入れる」1つにまとめる(時刻は版 k のまま) */
+function pruneOps(ops, k) {
+  let text = '';
+  for (let i = 0; i < k; i++) text = applyWire(text, ops[i]);
+  return [[0, '', text, ops[k - 1][3]]].concat(ops.slice(k));
+}
+
+/* どれかの版の本文に出てくる添付(attach: の後のハッシュ16桁)の集まり。
+   新しく現れる参照は必ず編集した位置にかかるので、編集の前後 23文字(attach: とハッシュの長さ)だけを調べる */
+const ATT_RE = /attach:([0-9a-f]{16})/g;
+function attachHashes(ops) {
+  const set = new Set();
+  let text = '';
+  for (const o of ops) {
+    text = applyWire(text, o);
+    const lo = Math.max(0, o[0] - 23), hi = Math.min(text.length, o[0] + o[2].length + 23);
+    const seg = text.slice(lo, hi);
+    ATT_RE.lastIndex = 0;
+    let m;
+    while ((m = ATT_RE.exec(seg))) set.add(m[1]);
+  }
+  return set;
+}
 
 /* ログ全文を読み、先頭から有効な行だけを取り出す */
 function parseLog(raw) {
@@ -152,7 +183,51 @@ class Store {
         fs.renameSync(tmp, f);
       } catch (e) { /* 読み込みは続ける */ }
     }
-    return { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, ops: r.ops };
+    return { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, base: baseOf(r.head), pruned: Number.isFinite(r.head.pruned) ? r.head.pruned : 0, ops: r.ops };
+  }
+
+  /* ---- 古い履歴の削除 ----
+     k = 残す最も古い版(編集の個数で数えた位置、2 以上)、expectN = 画面が持っている編集の個数(食い違えば中止)。
+     prunePlan は書き換えずに、削除する版の数と、ごみ箱に入れる添付を返す。prune は書き換えて、同じものを返す
+     (添付をごみ箱に入れるのは呼ぶ側)。一時ファイルに書いてから置き換えるので、途中で失敗しても元のファイルは壊れない */
+  _prunable(id, k, expectN) {
+    const f = this.file(id, '.jsonl');
+    let raw;
+    try { raw = fs.readFileSync(f, 'utf8'); } catch (e) { throw storeError('noFile', 'メモのファイルが見つかりません'); }
+    const r = parseLog(raw);
+    if (!r.head || r.bad) throw storeError('badOps', '履歴が正しくありません');
+    if (r.ops.length !== expectN) throw storeError('changed', '履歴が変わっています');
+    if (!Number.isInteger(k) || k < 2 || k > r.ops.length) throw storeError('badRev', '版の指定が正しくありません');
+    const ops = pruneOps(r.ops, k);
+    return { f: f, head: r.head, ops: ops, base: baseOf(r.head), removed: k - 1 };
+  }
+  _orphans(id, ops) {
+    const used = attachHashes(ops), out = [];
+    const dir = this.filesDir(id);
+    let names = [];
+    try { names = fs.readdirSync(dir); } catch (e) { return out; }
+    for (const name of names) {
+      if (!validFileId(name) || used.has(name.slice(0, 16))) continue;
+      const p = path.join(dir, name);
+      try { const st = fs.statSync(p); if (st.isFile()) out.push({ fileId: name, path: p, size: st.size }); } catch (e) { /* 飛ばす */ }
+    }
+    return out;
+  }
+  prunePlan(id, k, expectN) {
+    const x = this._prunable(id, k, expectN);
+    const orphans = this._orphans(id, x.ops);
+    return { base: x.base, removed: x.removed, orphans: orphans, bytes: orphans.reduce((a, o) => a + o.size, 0) };
+  }
+  prune(id, k, expectN, prunedAt) {
+    const x = this._prunable(id, k, expectN);
+    const base = x.base + x.removed;
+    const head = Object.assign({}, x.head, { base: base, pruned: prunedAt });
+    const tmp = x.f + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(head) + '\n' + x.ops.map(o => JSON.stringify(o)).join('\n') + '\n');
+    fs.renameSync(tmp, x.f);
+    const e = this._entry(id), st = e && this._stat(id);
+    if (e && st) { e.base = base; e.size = st.size; e.mtime = st.mtime; this._dirty(); }
+    return { base: base, removed: x.removed, ops: x.ops, orphans: this._orphans(id, x.ops) };
   }
 
   /* アーカイブから取り込んだメモを書く(同じ ID のメモがあれば、呼ぶ側が先にごみ箱へ移しておく)。
@@ -243,11 +318,11 @@ class Store {
         for (const o of note.ops) text = applyWire(text, o);
         st = this._stat(id) || st;               // 壊れた行を直した場合は、直した後のファイルで記録する
         // 並びの時刻は、最後に編集した時刻と取り込んだ時刻の新しいほう(取り込んだメモを一覧の上に出す)
-        e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, n: note.ops.length, title: core.titleOf(text), size: st.size, mtime: st.mtime };
+        e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, base: note.base, n: note.base + note.ops.length, title: core.titleOf(text), size: st.size, mtime: st.mtime };
         this._dirty();
       }
       seen.add(id);
-      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, n: e.n, title: e.title });
+      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, base: e.base || 0, n: e.n, title: e.title });
     }
     for (const id of Object.keys(idx)) if (!seen.has(id)) { delete idx[id]; this._dirty(); }
     out.sort((a, b) => a.c - b.c);
@@ -273,4 +348,4 @@ class Store {
   forget(id) { const idx = this._index(); if (idx[id]) { delete idx[id]; this._dirty(); } }
 }
 
-module.exports = { Store, validId, validFileId, MAX_ATTACH, validOp, parseLog, applyWire };
+module.exports = { Store, validId, validFileId, MAX_ATTACH, validOp, parseLog, applyWire, pruneOps, attachHashes };

@@ -47,9 +47,14 @@
      履歴を含む中身は、開いたメモだけを読み込む。読み込んだメモは最近使った数件だけ覚え、古いものは手放す。 */
   const MAX_LOADED = 6;
   let useSeq = 0;
-  const nOps = n => (n.loaded ? n.ops.length : n.n);
+  /* 古い履歴を削除したメモは base(削除した版の数)を持つ。版の番号 = base + 編集の個数(削除しても版数は変わらない)。
+     n.n は版数、nOps は手元にある編集の個数 */
+  const nOps = n => (n.loaded ? n.ops.length : n.n - (n.base || 0));
+  const baseOf = n => (n && n.base) || 0;
+  // 履歴の表示で戻れる最も古い位置(古い履歴を削除したメモでは、最初の編集 = 残した最も古い版。空の版0には戻れない)
+  const histLo = n => (baseOf(n) > 0 ? 1 : 0);
   function syncMeta(n) {
-    n.n = n.ops.length;
+    n.n = baseOf(n) + n.ops.length;
     n.t = Math.max(n.ops.length ? n.ops[n.ops.length - 1].t : n.c, n.imported || 0);   // インポートしたメモは一覧の上に出す
     n.title = titleOf(n.text);
   }
@@ -72,6 +77,7 @@
         if (!r) return null;
         n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
         n.imported = r.imported || 0;
+        n.base = r.base || 0; n.pruned = r.pruned || 0;
         n._cp = null;
         n.text = textAt(n, n.ops.length);
         n.loaded = true; n.used = ++useSeq;
@@ -190,8 +196,8 @@
     const text = hist ? S.histText : n.text;
     const st = textStats(text);   // 文字数は改行を含まない。行数は空のメモでも1行
     const total = hist
-      ? { cls: 'st-total', text: T('statusAt', { k: S.rev, chars: st.chars, lines: st.lines }), title: T('statusAtTitle') }
-      : { cls: 'st-total', text: T('status', { chars: st.chars, lines: st.lines, versions: n.ops.length }), title: T('statusTitle') };
+      ? { cls: 'st-total', text: T('statusAt', { k: baseOf(n) + S.rev, chars: st.chars, lines: st.lines }), title: T('statusAtTitle') }
+      : { cls: 'st-total', text: T('status', { chars: st.chars, lines: st.lines, versions: baseOf(n) + n.ops.length }), title: T('statusTitle') };
     // カーソル・選択・全体を、見出し付きの別々のまとまりにして区切り線で分ける
     const parts = caretParts().concat(total);
     const box = $('stLeft');
@@ -323,7 +329,7 @@
     // 行番号が出るのは、編集画面と、編集から入った履歴の表示(変更箇所の表示)だけ
     const lines = S.mode === 'edit' || (S.mode === 'history' && S.hbase === 'edit');
     $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
-    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back });
+    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history' });
   }
   // 「編集」「プレビュー」: 履歴表示の最中なら、履歴のまま(同じ版で)表示を切り替える
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
@@ -360,37 +366,42 @@
 
   /* ---------- 履歴ビュー ---------- */
   function buildTimeline() {
-    const n = cur(), N = n.ops.length;
+    const n = cur(), N = n.ops.length, lo = histLo(n), span = Math.max(1, N - lo);
     const r = $('range');
+    r.min = lo;
     r.max = N;
     const g = $('gaps');
     g.innerHTML = '';
-    for (let k = 1; k < N; k++) {
+    for (let k = Math.max(1, lo); k < N; k++) {
       if (n.ops[k].t - n.ops[k - 1].t > 30 * 60e3) {
         const i = document.createElement('i');
-        i.style.left = 'calc(10px + (100% - 20px) * ' + (k / N) + ')';
+        i.style.left = 'calc(10px + (100% - 20px) * ' + ((k - lo) / span) + ')';
         g.appendChild(i);
       }
     }
-    $('tStart').textContent = N ? fmtFull(n.ops[0].t) : '';
+    // 古い履歴を削除したメモは、左端に「第1〜b版は削除済み」と出す
+    $('tStart').textContent = N ? (baseOf(n) ? T('tlPruned', { b: baseOf(n) }) + T('sep') : '') + fmtFull(n.ops[0].t) : '';
     $('tEnd').textContent = N ? fmtFull(n.ops[N - 1].t) : '';
   }
 
   function renderHist() {
-    const n = cur(), N = n.ops.length, k = Math.max(0, Math.min(N, S.rev));
+    const n = cur(), N = n.ops.length, lo = histLo(n), k = Math.max(lo, Math.min(N, S.rev)), base = baseOf(n);
     S.rev = k;
     const past = k !== N;
     const text = textAt(n, k);
-    const op = k > 0 ? n.ops[k - 1] : null;
+    // 古い履歴を削除したメモの最初の編集は、残した版の本文を入れただけなので、変更箇所としては示さない
+    const baseOp = base > 0 && k === 1;
+    const op = k > 0 && !baseOp ? n.ops[k - 1] : null;
+    const opT = k > 0 ? n.ops[k - 1].t : null;
     S.histText = text;   // 状態表示の「全体」に使う
     S.histPos = op ? changeEnd(op) : null;   // 状態表示の「変更位置」に使う
     updateStatus();
     $('histView').dataset.past = past ? '1' : '0';
     $('tl').dataset.past = past ? '1' : '0';
     $('chip').textContent = past ? T('pastVersion') : T('latestVersion');
-    $('revNo').textContent = T('revNo', { k: k, n: N });
-    $('when').textContent = op ? fmtFull(op.t) : (N ? T('initialEmpty') : '');
-    $('delta').textContent = op ? [op.i ? T('charsAdded', { n: count(op.i) }) : '', op.d ? T('charsRemoved', { n: count(op.d) }) : ''].filter(Boolean).join(T('sep')) : '';
+    $('revNo').textContent = T('revNo', { k: base + k, n: base + N });
+    $('when').textContent = opT != null ? fmtFull(opT) : (N ? T('initialEmpty') : '');
+    $('delta').textContent = op ? [op.i ? T('charsAdded', { n: count(op.i) }) : '', op.d ? T('charsRemoved', { n: count(op.d) }) : ''].filter(Boolean).join(T('sep')) : (baseOp ? T('prunedBefore') : '');
     $('delta').disabled = !op;
 
     const body = $('hvBody');
@@ -415,9 +426,10 @@
     }
     const r = $('range');
     r.value = k;
-    r.style.setProperty('--p', (N ? (k / N) * 100 : 0) + '%');
+    r.style.setProperty('--p', (N > lo ? ((k - lo) / (N - lo)) * 100 : 0) + '%');
     $('restore').disabled = !past;
-    $('bFirst').disabled = $('bPrev').disabled = k === 0;
+    $('pruneBtn').disabled = k < 2 || S.playing;
+    $('bFirst').disabled = $('bPrev').disabled = k <= lo;
     $('bLast').disabled = $('bNext').disabled = k === N;
     $('playIcon').innerHTML = S.playing ? '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>' : '<path d="M7 4.5v15l12-7.5z"/>';
     $('bPlay').title = S.playing ? T('pause') : T('play');
@@ -430,7 +442,7 @@
   function play() {
     const N = cur().ops.length;
     if (!N) return;
-    if (S.rev >= N) S.rev = 0;
+    if (S.rev >= N) S.rev = histLo(cur());
     S.playing = true;
     let pos = S.rev;   // ゆっくりの再生では1コマ未満ずつ進むので、小数で数えておく
     timer = setInterval(() => {
@@ -455,11 +467,39 @@
     els[0].scrollIntoView({ block: 'center' });
     for (const el of els) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
   });
-  $('bFirst').addEventListener('click', () => go(0));
+  $('bFirst').addEventListener('click', () => go(histLo(cur())));
   $('bPrev').addEventListener('click', () => go(S.rev - 1));
   $('bNext').addEventListener('click', () => go(S.rev + 1));
   $('bLast').addEventListener('click', () => go(cur().ops.length));
   $('bPlay').addEventListener('click', () => (S.playing ? stop() : play()));
+  /* 古い履歴の削除: 見ている版より古い版を、ファイルから消す(確認・アーカイブへの書き出し・添付の整理は main.js)。
+     版の番号と版数は変わらない。書き込み待ちの編集を先に書き出し、ファイルと手元の履歴が同じ長さのときだけ行う */
+  async function pruneHistory() {
+    const n = cur();
+    if (!n) return;
+    if (S.mode !== 'history') { toast(T('pruneHowTo')); return; }
+    stop();
+    const k = S.rev;
+    if (k < 2) { toast(T('pruneNothing')); return; }
+    await flush();
+    if (pendingOps.has(n.id) || saveError) { toast(T('pruneFailed')); return; }
+    if (textDirty.has(n.id)) { textDirty.delete(n.id); try { await api.saveText(n.id, n.text); } catch (e) { /* .md は控え */ } }
+    let r = null;
+    try { r = await api.pruneHistory(n.id, k, n.ops.length, shownTitle(titleOf(n.text))); } catch (e) { r = { status: 'failed' }; }
+    const st = r && r.status;
+    if (st === 'cancelled') return;
+    if (st === 'archiveFailed') { toast(T('pruneArcFailed')); return; }
+    if (st !== 'pruned') { toast(T('pruneFailed')); return; }
+    await adoptNote(n.id);
+    if (cur() === n) { S.rev = 1; if (S.mode === 'history') { buildTimeline(); renderHist(); } }
+    renderList();
+    if (S.q && S.scope === 'history') runSearch();
+    let msg = T('pruneDone', { from: r.from, to: r.to });
+    if (r.trashed) msg += T('sep') + T(r.where === 'folder' ? 'pruneTrashedFolder' : 'pruneTrashed', { n: r.trashed });
+    if (r.archive) msg += T('sep') + T('pruneArchived', { path: r.archive });
+    toast(msg);
+  }
+  $('pruneBtn').addEventListener('click', pruneHistory);
   $('range').addEventListener('input', e => go(+e.target.value));
   $('speed').addEventListener('change', e => { S.speed = +e.target.value; });
   $('restore').addEventListener('click', () => {
@@ -470,7 +510,7 @@
     renderList();
     updateTitle();
     setMode('edit', true);
-    toast(T('restored', { k: k }));
+    toast(T('restored', { k: baseOf(n) + k }));
   });
   document.addEventListener('keydown', e => {
     if (S.mode !== 'history' || !$('modal').hidden) return;
@@ -594,7 +634,7 @@
       b.dataset.id = r.id;
       let meta = '';
       if (hist) {
-        const range = r.a === r.b ? T('rangeOne', { a: r.a }) : T('rangeMany', { a: r.a, b: r.b });
+        const range = r.a === r.b ? T('rangeOne', { a: baseOf(n) + r.a }) : T('rangeMany', { a: baseOf(n) + r.a, b: baseOf(n) + r.b });
         const when = fmtMin(r.addedAt) + (LANG === 'en' ? ' – ' : ' 〜 ') + (r.removedAt ? fmtMin(r.removedAt) : T('now'));
         const bd = r.b === nOps(n) ? '<span class="bd">' + esc(T('inLatest')) + '</span>' : '<span class="bd gone">' + esc(T('gone')) + '</span>';
         meta = '<span class="hm"><span>' + range + '</span><span>' + when + '</span>' + bd + '</span>';
@@ -980,18 +1020,42 @@
     e.preventDefault();
     const chip = t.closest('.att-chip'), img = t.tagName === 'IMG' ? t : t.querySelector('img');
     const name = (chip && chip.dataset.name) || (img && img.alt) || t.title || t.textContent.trim();
-    attachMenu(t.dataset.att, name, isImageName(t.dataset.att), e.clientX, e.clientY);
+    // 「ごみ箱に入れる…」は、編集画面の添付の一覧とプレビューだけ(履歴の表示は過去の版なので出さない)
+    attachMenu(t.dataset.att, name, isImageName(t.dataset.att), e.clientX, e.clientY, !t.closest('#hvBody'));
   });
-  async function attachMenu(fileId, name, image, x, y) {
+  async function attachMenu(fileId, name, image, x, y, canTrash) {
     let r = null;
-    try { r = await api.attachMenu(S.active, fileId, name, image, x, y); } catch (err) { r = null; }
+    try { r = await api.attachMenu(S.active, fileId, name, image, x, y, !!canTrash); } catch (err) { r = null; }
     const st = r && r.status;
-    if (st === 'missing') toast(T('fileMissing'));
+    if (st === 'trash') trashAttachment(fileId, name);
+    else if (st === 'missing') toast(T('fileMissing'));
     else if (st === 'copied') toast(T('imageCopied'));
     else if (st === 'copyFailed') toast(T('imageCopyFailed'));
     else if (st === 'saved') toast(T('attSaved', { path: r.path }));
     else if (st === 'saveFailed') toast(T('attSaveFailed'));
     else if (st === 'shown') toast(T('shownInFolder'));
+  }
+  /* 添付をごみ箱に入れ、本文からその添付へのリンクを消す。リンクを消すのは編集画面での1回の編集なので、「元に戻す」で戻せる
+     (プレビューから選んだときは、編集画面に切り替えてから消す)。ファイルはごみ箱から戻せる */
+  async function trashAttachment(fileId, name) {
+    const n = cur();
+    if (!n) return;
+    const refs = removeAttachRefs(n.text, fileId).count;
+    let r = null;
+    try { r = await api.attachTrash(n.id, fileId, name, refs); } catch (e) { r = { status: 'failed' }; }
+    const st = r && r.status;
+    if (st === 'cancelled') return;
+    if (st === 'missing') { toast(T('fileMissing')); return; }
+    if (st !== 'trashed') { toast(T('attTrashFailed')); return; }
+    if (cur() === n) {
+      const res = removeAttachRefs(n.text, fileId);
+      if (res.count) {
+        if (S.mode !== 'edit') setMode('edit', true);
+        const op = makeOp(n.text, res.text, 0);
+        frInsert(op.p, op.p + op.d.length, op.i);   // input の処理で、履歴に1回の編集として入る
+      }
+    }
+    toast(T(r.where === 'folder' ? 'attTrashedFolder' : 'attTrashed', { name: name }));
   }
   /* 編集画面の下に、いまの本文で使っている添付を並べる */
   let stripSig = '';
@@ -1115,6 +1179,7 @@
     else if (name === 'side') toggleSide();
     else if (name === 'search') { showSide(); $('q').focus(); $('q').select(); }
     else if (name === 'mode:history') toggleHistory();
+    else if (name === 'prune') pruneHistory();
     else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
     else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name.indexOf('open:') === 0) openNoteById(name.slice(5), 'noteDeleted');
@@ -1144,7 +1209,7 @@
     const area = $('printArea');
     area.innerHTML = '<div class="md">' + md(text) + '</div>';
     hydrate(area, n.id);
-    const edited = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: k, n: N }) : '');
+    const edited = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
     const stampText = T(kind === 'pdf' ? 'printCreated' : 'printPrinted', { when: fmtFull(Date.now()) });
     const box = 'font-family: ' + getComputedStyle(document.body).fontFamily.replace(/[;{}]/g, '') + '; font-size: 8.5pt; color: #4A5468;';
     $('printPage').textContent = '@page { margin: 18mm 16mm; background: #fff;'
@@ -1225,7 +1290,9 @@
     row(T('propCreated'), fmtFull(n.c));
     row(T('propEdited'), fmtFull(n.ops.length ? n.ops[n.ops.length - 1].t : n.c));
     if (n.imported) row(T('propImported'), fmtFull(n.imported));
-    row(T('propVersions'), String(n.ops.length));
+    row(T('propVersions'), (baseOf(n) + n.ops.length).toLocaleString('en-US'));
+    // 古い履歴を削除したメモは、見られる履歴の範囲と、削除した日時を出す(版数と、見られる版の数が違うことを示す)
+    if (baseOf(n)) row(T('propHistory'), T('propHistoryVal', { from: baseOf(n) + 1, to: baseOf(n) + n.ops.length, b: baseOf(n), when: n.pruned ? fmtFull(n.pruned) : '' }));
     row(T('propChars'), stats.chars.toLocaleString('en-US'));
     row(T('propWords'), stats.words.toLocaleString('en-US'));
     row(T('propLines'), stats.lines.toLocaleString('en-US'));
@@ -1396,13 +1463,13 @@
     let n = S.notes.find(x => x.id === id);
     if (!n) { n = { id: id }; S.notes.push(n); }
     pendingOps.delete(id); textDirty.delete(id);
-    n.c = r.c; n.imported = r.imported || 0;
+    n.c = r.c; n.imported = r.imported || 0; n.base = r.base || 0; n.pruned = r.pruned || 0;
     n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
     n._cp = null;
     n.text = textAt(n, n.ops.length);
     n.loaded = true; n.used = ++useSeq;
     syncMeta(n);
-    if (n.id === S.active) { $('editor').value = n.text; }
+    if (n.id === S.active && $('editor').value !== n.text) { $('editor').value = n.text; }   // 同じ本文なら書き換えない(元に戻すの記録を消さない)
     return n;
   }
   // EverPad アーカイブとしてエクスポート: 書き込み待ちの編集と本文を先に書き出してから、main.js にまとめてもらう
@@ -1491,7 +1558,7 @@
     S.dir = data.dir;
     loadRecent();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
-    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, n: r.n, title: r.title, loaded: false }));
+    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());
     let last = null;
     try { last = localStorage.getItem('everpad:active'); } catch (e) { /* 無くても動く */ }

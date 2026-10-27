@@ -49,21 +49,23 @@ function formatItems(T, onFormat, platform) {
   ];
 }
 
-/* 添付の画像・ファイルを右クリックしたときのメニュー。actions は { copy, open, show, save } のクリック時の処理 */
+/* 添付の画像・ファイルを右クリックしたときのメニュー。actions は { copy, open, show, save, trash } のクリック時の処理。
+   trash があるとき(編集画面とプレビュー。履歴の表示では出さない)だけ、最後に「ごみ箱に入れる…」を出す */
 function buildAttachTemplate(image, actions, lang) {
   const T = key => I18N.t(lang || 'ja', key);
-  if (image) {
-    return [
-      { label: T('mCopyImage'), click: actions.copy },
-      { label: T('mOpenImage'), click: actions.open },
-      { label: T('mShowImage'), click: actions.show },
-      { type: 'separator' },
-      { label: T('mSaveImageAs'), click: actions.save }
-    ];
-  }
-  return [
-    { label: T('mOpenFile'), click: actions.open },
-    { label: T('mShowFile'), click: actions.show }
-  ];
+  const items = image
+    ? [
+        { label: T('mCopyImage'), click: actions.copy },
+        { label: T('mOpenImage'), click: actions.open },
+        { label: T('mShowImage'), click: actions.show },
+        { type: 'separator' },
+        { label: T('mSaveImageAs'), click: actions.save }
+      ]
+    : [
+        { label: T('mOpenFile'), click: actions.open },
+        { label: T('mShowFile'), click: actions.show }
+      ];
+  if (actions.trash) items.push({ type: 'separator' }, { label: T('mTrashAttach'), click: actions.trash });
+  return items;
 }
 module.exports = { buildTemplate, buildAttachTemplate, formatItems };
