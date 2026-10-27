@@ -14,6 +14,7 @@ const I18N = require('./renderer/i18n');
 const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv } = require('./portable');
 const datalock = require('./datalock');
 const { macTemplate } = require('./macmenu');
+const updater = require('./updatecheck');
 const isMac = process.platform === 'darwin';
 
 /* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
@@ -526,6 +527,7 @@ async function runImport(files) {
 ipcMain.on('app:ready', e => {
   if (!fromOurWindow(e)) return;
   rendererReady = true;
+  scheduleStartupCheck();
   for (const name of pendingSends.splice(0)) win.webContents.send('menu', name);
   if (pendingImports.length) importFiles(pendingImports.splice(0));
 });
@@ -773,6 +775,9 @@ function buildMenu() {
       submenu: [
         { label: T('mMdHelp'), click: showMdHelp },
         { type: 'separator' },
+        { label: T('mCheckUpdate'), click: () => checkForUpdates(true) },
+        { label: T('mCheckOnStart'), type: 'checkbox', checked: updater.updatePrefs(readConfig()).checkOnStart, click: item => setUpdatePref({ checkOnStart: item.checked }) },
+        { type: 'separator' },
         { id: 'about', label: T('mAbout'), click: showAbout }
       ]
     }
@@ -842,6 +847,74 @@ async function showAbout() {
     noLink: true
   });
   if (r.response === 0) shell.openExternal(HOMEPAGE);
+}
+
+/* ---------- 更新の確認(updatecheck.js) ----------
+   起動時(「ヘルプ」→「起動時に更新を確認する」がオンのとき)と、「ヘルプ」→「更新を確認…」で、GitHub の最新の release を調べる。
+   net.fetch は Chromium の通信を使うので、Windows のシステムのプロキシ設定(PAC や自動検出を含む)がそのまま使われる。
+   起動時は、新しい版があるときだけ知らせる(つながらないときは何も出さない)。手動のときは、結果をいつも出す */
+let startupCheckScheduled = false;
+let updateChecking = false;
+// 開発中(npm start)だけ、確かめるための別の URL を使える。配布版では使わない
+const updateUrl = () => (!app.isPackaged && process.env.EVERPAD_UPDATE_URL) || updater.LATEST_API;
+function setUpdatePref(change) {
+  try { const c = readConfig(); c.update = Object.assign(updater.updatePrefs(c), change); writeConfig(c); } catch (e) { /* 覚えられなくても動く */ }
+  buildMenu();
+}
+function scheduleStartupCheck() {
+  if (startupCheckScheduled) return;
+  startupCheckScheduled = true;
+  if (!updater.updatePrefs(readConfig()).checkOnStart) return;
+  setTimeout(() => checkForUpdates(false), 5000);   // 起動の邪魔をしないよう、少し待つ
+}
+async function checkForUpdates(manual) {
+  if (updateChecking) return;
+  updateChecking = true;
+  let r;
+  try {
+    r = await updater.checkLatest({ fetch: (url, init) => net.fetch(url, init), current: app.getVersion(), url: updateUrl(), userAgent: APP_NAME + '/' + app.getVersion() });
+  } catch (e) {
+    r = { status: 'error', code: 'bad', message: String((e && e.message) || e) };
+  } finally {
+    updateChecking = false;
+  }
+  const parent = win && !win.isDestroyed() ? win : null;
+  const box = opts => (parent ? dialog.showMessageBox(parent, opts) : dialog.showMessageBox(opts));
+  const base = { title: T('updTitle'), icon: ICON, noLink: true };
+  if (r.status === 'newer') {
+    const prefs = updater.updatePrefs(readConfig());
+    if (!manual && !updater.shouldNotifyAtStart(r, prefs)) return;
+    const isWin = process.platform === 'win32';
+    const res = await box(Object.assign({}, base, {
+      type: 'info',
+      message: T('updNewer', { latest: r.latest }),
+      detail: T('updCurrent', { current: r.current }) + '\n' + T(isWin ? 'updDetailWin' : 'updDetailOther'),
+      buttons: [T(isWin ? 'updOpen' : 'aboutOpenSite'), T('updLater')],
+      defaultId: 0,
+      cancelId: 1,
+      // 起動時だけ「この版は今後知らせない」を出す(手動で確かめたときは、いつも結果を出す)
+      ...(manual ? {} : { checkboxLabel: T('updSkip', { latest: r.latest }), checkboxChecked: false })
+    }));
+    if (!manual && res.checkboxChecked) setUpdatePref({ skip: r.latest });
+    if (res.response === 0) shell.openExternal(updater.downloadUrl(process.platform));
+    return;
+  }
+  if (!manual) return;
+  if (r.status === 'latest') {
+    await box(Object.assign({}, base, { type: 'info', message: T('updLatest'), detail: T('updLatestDetail', { current: r.current }), buttons: ['OK'] }));
+    return;
+  }
+  const why = r.code === 'rate' ? T('updErrRate') : r.code === 'http' ? T('updErrHttp', { status: r.httpStatus }) : r.code === 'bad' ? T('updErrBad') : r.code === 'timeout' ? T('updErrTimeout') : T('updErrNet');
+  const res = await box(Object.assign({}, base, {
+    type: 'warning',
+    message: T('updError'),
+    // 接続できなかったときだけ、Chromium のエラー名(net::ERR_PROXY_CONNECTION_FAILED など)を添える
+    detail: why + (r.code === 'net' && r.message ? '\n\n' + r.message : ''),
+    buttons: [T('aboutOpenSite'), 'OK'],
+    defaultId: 1,
+    cancelId: 1
+  }));
+  if (res.response === 0) shell.openExternal(updater.downloadUrl(process.platform));
 }
 
 /* ---------- ウィンドウ ---------- */
