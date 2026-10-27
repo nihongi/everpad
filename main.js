@@ -614,7 +614,21 @@ async function changeFolder() {
   app.quit();
 }
 
+/* ---------- 改行と字下げの設定(「編集」メニュー) ----------
+   自動インデント・箇条書きを自動で続ける(どちらも既定はオン)、Tab での字下げの幅(2 か 4、既定は 4)。config.json に覚える */
+function editPrefs() {
+  const c = readConfig().editor || {};
+  return { autoIndent: c.autoIndent !== false, autoList: c.autoList !== false, indentWidth: c.indentWidth === 2 ? 2 : 4 };
+}
+function setEditPref(key, value) {
+  const p = Object.assign(editPrefs(), { [key]: value });
+  try { writeConfig(Object.assign(readConfig(), { editor: p })); } catch (e) { /* 覚えられなくても、今回は使う */ }
+  buildMenu();
+  if (win && !win.isDestroyed()) win.webContents.send('menu', 'prefs:' + JSON.stringify(p));
+}
+
 function buildMenu() {
+  const ep = editPrefs();
   const template = [
     {
       label: T('mFile'),
@@ -652,6 +666,13 @@ function buildMenu() {
         { id: 'replace', label: T('mReplace'), accelerator: 'CmdOrCtrl+H', enabled: ui.edit, click: () => send('replace') },
         { label: T('mFormat'), enabled: ui.edit, submenu: formatItems(T, kind => send('fmt:' + kind)).map(x => Object.assign(x, { enabled: ui.edit })) },
         { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', enabled: ui.edit, click: () => send('link') },
+        { type: 'separator' },
+        { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },
+        { label: T('mAutoList'), type: 'checkbox', checked: ep.autoList, click: item => setEditPref('autoList', item.checked) },
+        { label: T('mIndentWidth'), submenu: [
+          { label: T('mIndent2'), type: 'radio', checked: ep.indentWidth === 2, click: () => setEditPref('indentWidth', 2) },
+          { label: T('mIndent4'), type: 'radio', checked: ep.indentWidth === 4, click: () => setEditPref('indentWidth', 4) }
+        ] },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
@@ -709,7 +730,9 @@ async function setLang(l) {
   if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
 }
 // os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
-const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: { lang: lang, os: process.platform } }); };
+const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform }, editQuery()) }); };
+// 画面に渡す改行と字下げの設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅)
+const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth) }; };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;

@@ -233,6 +233,108 @@ function formatLines(text, selStart, selEnd, kind) {
   return { from: from, to: to, insert: insert, selStart: from, selEnd: from + insert.length };
 }
 
+/* ---------- 改行と字下げ(自動インデント・箇条書きの続き・Tab) ----------
+   どれも { from, to, insert, selStart, selEnd }(from〜to を insert に置き換え、選択を selStart〜selEnd にする)を返す。
+   何もしないとき(ブラウザの普通の改行でよいとき)は null */
+
+/* pos のある行が、コードブロック(``` か ~~~ の囲み)の中か。囲みの決まりはプレビューと同じ */
+function inFenceAt(text, pos) {
+  const lines = text.slice(0, text.lastIndexOf('\n', pos - 1) + 1).split('\n');
+  let open = null;
+  for (const ln of lines) {
+    if (open) { if (fenceCloses(ln, open)) open = null; }
+    else if (FENCE_OPEN.test(ln)) open = ln.match(FENCE_OPEN_RE)[1];
+  }
+  return !!open;
+}
+
+/* 箇条書き・番号付き・チェックボックス・引用の記号。
+   1:字下げ 2:記号(- * +) 3:記号の後の空白 4:チェックボックス 5:番号 6:. か ) 7:番号の後の空白 8:> の後の空白 */
+const LIST_RE = /^([ \t]*)(?:([-*+])([ \t]+)(\[[ xX]\][ \t]+)?|(\d{1,9})([.)])([ \t]+)|>([ \t]?))/;
+
+/* Enter を押したとき。o: { indent: 自動インデント, list: 箇条書きを続ける, soft: Shift+Enter }
+   - 箇条書きなどの行では、次の行に同じ記号を付ける(番号は1つ増やし、チェックは外す)。記号だけの行では記号を消して空の行にする。
+     Shift+Enter では記号を付けず、項目の文字の位置まで字下げする。カーソルが記号より前なら、記号は付けない
+   - それ以外は、行の先頭の半角スペースとタブを引き継ぐ(カーソルより前の分だけ)。全角スペースは引き継がない
+   - 空白だけの行で改行すると、その行の空白を消して、次の行に同じ字下げを付ける(vim と同じ) */
+function newlineEdit(text, s, e, o) {
+  o = o || {};
+  const ls = text.lastIndexOf('\n', s - 1) + 1;
+  let le = text.indexOf('\n', s); if (le < 0) le = text.length;
+  const line = text.slice(ls, le);
+  const at = (ins, from, to) => {
+    from = from == null ? s : from; to = to == null ? e : to;
+    return { from: from, to: to, insert: ins, selStart: from + ins.length, selEnd: from + ins.length };
+  };
+  const m = o.list && !inFenceAt(text, s) ? line.match(LIST_RE) : null;
+  if (m && s - ls >= m[0].length) {
+    const ind = m[1];
+    if (o.soft) return m[2] || m[5] ? at('\n' + ind + ' '.repeat(m[0].length - ind.length)) : (o.indent ? at('\n' + ind) : null);
+    if (s === e && /^[ \t]*$/.test(line.slice(m[0].length))) return at('', ls, le);   // 記号だけの行: 箇条書きを終える
+    const mark = m[2] ? m[2] + m[3] + (m[4] ? '[ ]' + m[4].slice(3) : '')
+      : m[5] ? (Number(m[5]) + 1) + m[6] + m[7]
+      : '>' + (m[8] || ' ');
+    return at('\n' + ind + mark);
+  }
+  if (!o.indent) return null;
+  if (s === e && line && /^[ \t]*$/.test(line)) return at('\n' + line, ls, le);       // 空白だけの行
+  const keep = text.slice(ls, s).match(/^[ \t]*/)[0];
+  return keep ? at('\n' + keep) : null;
+}
+
+/* 選んだ行をまとめて字下げする(outdent なら戻す)。行の決まりは書式と同じ(終わりが次の行の先頭ちょうどなら含めない)。
+   字下げは空の行(空白だけの行)には付けない。戻すときは、行の先頭からスペース width 個まで、またはタブ1つを消す */
+function indentEdit(text, s, e, width, outdent) {
+  let end = e;
+  if (e > s && text[e - 1] === '\n') end = e - 1;
+  const from = text.lastIndexOf('\n', s - 1) + 1;
+  let to = text.indexOf('\n', end); if (to < 0) to = text.length;
+  const unit = ' '.repeat(width);
+  const strip = new RegExp('^(?:\\t| {1,' + width + '})');
+  const segs = [], out = [];
+  let cur = from;
+  for (const l of text.slice(from, to).split('\n')) {
+    let add = 0, cut = 0, nl = l;
+    if (outdent) { const mm = l.match(strip); if (mm) { cut = mm[0].length; nl = l.slice(cut); } }
+    else if (!/^[ \t]*$/.test(l)) { add = width; nl = unit + l; }
+    out.push(nl);
+    segs.push({ start: cur, len: l.length, add: add, cut: cut });
+    cur += l.length + 1;
+  }
+  if (!segs.some(g => g.add || g.cut)) return null;
+  // 元の位置 p が、置き換えたあとでどこになるか。選択の始まりが行の先頭なら、字下げの前に置く(字下げも選んだままにする)
+  const map = (p, keepAtStart) => {
+    let d = 0;
+    for (const g of segs) {
+      if (p > g.start + g.len) { d += g.add - g.cut; continue; }
+      if (p < g.start) break;
+      const col = p - g.start;
+      if (g.add) return p + d + (col === 0 && keepAtStart ? 0 : g.add);
+      return p + d - Math.min(g.cut, col);
+    }
+    return p + d;
+  };
+  const sel = s !== e;
+  return { from: from, to: to, insert: out.join('\n'), selStart: map(s, sel), selEnd: map(e, false) };
+}
+
+/* Tab / Shift+Tab を押したとき(width は字下げの幅: 2 か 4)。
+   - Shift+Tab: 今の行(選んでいれば選んだ行)の字下げを1段戻す
+   - 文字を選んでいる: 選んだ行をまとめて字下げする(選んだ文字は消さない)
+   - 箇条書き・番号付きの行(コードブロックの外): 行の先頭を字下げして、1段深い入れ子にする
+   - それ以外: カーソルの位置に、次の字下げの位置までスペースを入れる */
+function tabEdit(text, s, e, width, shift) {
+  if (shift || s !== e) return indentEdit(text, s, e, width, !!shift);
+  const ls = text.lastIndexOf('\n', s - 1) + 1;
+  let le = text.indexOf('\n', s); if (le < 0) le = text.length;
+  const m = text.slice(ls, le).match(LIST_RE);
+  if (m && (m[2] || m[5]) && !inFenceAt(text, s)) return indentEdit(text, s, e, width, false);
+  let col = 0;
+  for (const ch of text.slice(ls, s)) col = ch === '\t' ? col + width - (col % width) : col + 1;
+  const ins = ' '.repeat(width - (col % width));
+  return { from: s, to: s, insert: ins, selStart: s + ins.length, selEnd: s + ins.length };
+}
+
 /* ---------- 他のメモへのリンク: [表示名](note:メモID) ----------
    メモID は変わらないので、参照先の題名や中身が変わってもリンクは切れない(メモの中の位置は指さない) */
 const NOTE_LINK_RE = /\[([^\]]+)\]\(note:([A-Za-z0-9_-]{6,64})\)/g;
@@ -588,5 +690,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

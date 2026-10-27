@@ -41,7 +41,11 @@ function formatItems(T, onFormat, platform) {
     { label: T('mFmtQuote'), accelerator: mac ? "Cmd+'" : 'CmdOrCtrl+Shift+Q', click: () => onFormat('quote') },
     { label: T('mFmtBullet'), accelerator: 'CmdOrCtrl+Shift+8', click: () => onFormat('bullet') },
     { label: T('mFmtNumbered'), accelerator: 'CmdOrCtrl+Shift+7', click: () => onFormat('numbered') },
-    { label: T('mFmtCode'), accelerator: 'CmdOrCtrl+Shift+K', click: () => onFormat('code') }
+    { label: T('mFmtCode'), accelerator: 'CmdOrCtrl+Shift+K', click: () => onFormat('code') },
+    { type: 'separator' },
+    // Tab / Shift+Tab は本文の中で画面側が受け取るので、メニューでは表示だけにする(ほかの入力欄の Tab を奪わない)
+    { label: T('mFmtIndent'), accelerator: 'Tab', registerAccelerator: false, click: () => onFormat('indent') },
+    { label: T('mFmtOutdent'), accelerator: 'Shift+Tab', registerAccelerator: false, click: () => onFormat('outdent') }
   ];
 }
 

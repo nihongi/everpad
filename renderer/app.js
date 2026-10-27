@@ -11,6 +11,8 @@
   const LANG = I18N.LANGS.includes(qLang) ? qLang : 'ja';
   // Mac では、文中のショートカットキーを Mac の書き方(⌘)にする
   const IS_MAC = query.get('os') === 'darwin';
+  // 改行と字下げの設定(「編集」メニューで切り替え、main.js が渡す): 自動インデント・箇条書きを続ける・字下げの幅
+  const EDIT = { autoIndent: query.get('ai') !== '0', autoList: query.get('al') !== '0', indentWidth: query.get('iw') === '2' ? 2 : 4 };
   const T = (key, params) => (IS_MAC ? macKeys(I18N.t(LANG, key, params)) : I18N.t(LANG, key, params));
   document.documentElement.lang = LANG;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
@@ -801,13 +803,36 @@
   function applyFormat(kind) {
     if (S.mode !== 'edit' || !$('modal').hidden) return;
     const ed = $('editor');
-    const r = formatLines(ed.value, ed.selectionStart, ed.selectionEnd, kind);
+    const r = kind === 'indent' || kind === 'outdent'
+      ? indentEdit(ed.value, ed.selectionStart, ed.selectionEnd, EDIT.indentWidth, kind === 'outdent')
+      : formatLines(ed.value, ed.selectionStart, ed.selectionEnd, kind);
     if (!r) return;
     if (ed.value.slice(r.from, r.to) !== r.insert) frInsert(r.from, r.to, r.insert);
     ed.focus();
     ed.setSelectionRange(r.selStart, r.selEnd);
     queueStatus();
   }
+  /* 本文で Enter / Tab を押したとき: 自動インデント・箇条書きの続き・字下げ(core.js の newlineEdit / tabEdit)。
+     1回の編集として履歴に残り、Ctrl+Z で戻せる。日本語入力の変換中は何もしない。
+     本文の中では、Tab をボタンなどへの移動に使わない(検索と置換のバーなど、ほかの入力欄では今までどおり) */
+  $('editor').addEventListener('keydown', e => {
+    if ((e.key !== 'Enter' && e.key !== 'Tab') || e.isComposing || e.keyCode === 229 || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (S.mode !== 'edit' || !$('modal').hidden) return;
+    const ed = $('editor');
+    let r;
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      r = tabEdit(ed.value, ed.selectionStart, ed.selectionEnd, EDIT.indentWidth, e.shiftKey);
+    } else {
+      r = newlineEdit(ed.value, ed.selectionStart, ed.selectionEnd, { indent: EDIT.autoIndent, list: EDIT.autoList, soft: e.shiftKey });
+      if (!r) return;   // 普通の改行(ブラウザに任せる)
+      e.preventDefault();
+    }
+    if (!r) return;
+    if (ed.value.slice(r.from, r.to) !== r.insert) frInsert(r.from, r.to, r.insert);
+    ed.setSelectionRange(r.selStart, r.selEnd);
+    queueStatus();
+  });
   function frGo(dir) {
     const re = frRegex();
     if (!re || re.error) { frRefresh(); return null; }
@@ -1091,6 +1116,7 @@
     else if (name === 'search') { showSide(); $('q').focus(); $('q').select(); }
     else if (name === 'mode:history') toggleHistory();
     else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
+    else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name.indexOf('open:') === 0) openNoteById(name.slice(5), 'noteDeleted');
     else if (name === 'back') goBack();
     else if (name === 'recent:clear') clearRecent();
