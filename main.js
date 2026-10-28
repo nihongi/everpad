@@ -636,8 +636,8 @@ ipcMain.handle('print:pdf', async (e, title) => {
 });
 
 /* Web ページ(HTML か MHTML)として書き出す。本文は画面側で整形した HTML(画像は cid:<ファイルID>@everpad で参照)。
-   画像はこのメモの添付から読み、数式があれば KaTeX の CSS と字形も入れる。
-   HTML は画像と字形を data: で埋め込んだ1つのファイル、MHTML は別の部分として入れた1つのファイル */
+   画像はこのメモの添付から読み、数式があれば KaTeX の CSS とフォントも入れる。
+   HTML は画像とフォントを data: で埋め込んだ1つのファイル、MHTML は別の部分として入れた1つのファイル */
 const PAGE_KINDS = {
   html: { ext: 'html', title: 'htmlSaveTitle', filter: { name: 'HTML', extensions: ['html', 'htm'] } },
   mhtml: { ext: 'mhtml', title: 'mhtmlSaveTitle', filter: { name: 'MHTML', extensions: ['mhtml', 'mht'] } }

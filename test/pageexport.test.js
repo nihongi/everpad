@@ -1,5 +1,5 @@
 'use strict';
-/* HTML・MHTML の書き出し: 紙面の CSS、数式の字形、画像の参照、ファイルの組み立て、メニューなどへのつなぎ込み */
+/* HTML・MHTML の書き出し: 紙面の CSS、数式のフォント、画像の参照、ファイルの組み立て、メニューなどへのつなぎ込み */
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
@@ -33,7 +33,7 @@ test('MHTML: 紙面の CSS は明るい配色と本文の規則だけ(画面の�
   assert.strictEqual(M.exportCss(read('renderer/styles.css').replace(/\n/g, '\r\n')).replace(/\r/g, ''), css.replace(/\r/g, ''));
 });
 
-test('MHTML: KaTeX の字形は cid: で参照し、使う字形のファイルはすべてある', () => {
+test('MHTML: KaTeX のフォントは cid: で参照し、使うフォントのファイルはすべてある', () => {
   // renderer/vendor/katex は git に入れず、起動・ビルドの前に tools/vendor-katex.js が node_modules/katex/dist から写す(woff2 だけ)。
   // テストは写す元を読む(CI ではビルドより先にテストする)
   const dist = path.join(path.dirname(require.resolve('katex/package.json')), 'dist');
@@ -44,7 +44,7 @@ test('MHTML: KaTeX の字形は cid: で参照し、使う字形のファイル�
     assert.ok(fs.existsSync(path.join(dist, 'fonts', f)), f);
     assert.ok(k.css.includes('url(cid:' + f + '@everpad)'), f);
   }
-  // 書き出しで読む CSS と字形(woff2)は、どちらも写される
+  // 書き出しで読む CSS とフォント(woff2)は、どちらも写される
   const tool = read('tools/vendor-katex.js');
   assert.match(tool, /\['katex\.min\.js', 'katex\.min\.css'\]/);
   assert.match(tool, /f\.endsWith\('\.woff2'\)/);
@@ -81,7 +81,7 @@ function parse(buf) {
   return { head, boundary, parts, tail: rest[rest.length - 1] };
 }
 
-test('MHTML: ファイルの組み立て(最初が紙面、続いて画像と字形。見出しは ASCII だけ)', () => {
+test('MHTML: ファイルの組み立て(最初が紙面、続いて画像とフォント。見出しは ASCII だけ)', () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3, 255]);
   const html = '<!DOCTYPE html><html><body>日本語の本文 ' + 'x'.repeat(300) + '</body></html>';
   const buf = M.buildMhtml({ title: '日本語の題名\r\n2行目', html, date: new Date(Date.UTC(2026, 9, 28, 1, 2, 3)), parts: [
@@ -111,7 +111,7 @@ test('MHTML: ファイルの組み立て(最初が紙面、続いて画像と字
   assert.match(M.buildMhtml({ title: 'Plain', html: '' }).toString('ascii'), /\r\nSubject: Plain\r\n/);
 });
 
-test('HTML: 画像と字形を data: で埋め込んだ1つのファイル(cid: は残らない)', () => {
+test('HTML: 画像とフォントを data: で埋め込んだ1つのファイル(cid: は残らない)', () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
   const page = M.pageHtml({ title: '題名', bodyHtml: '<p><img class="att-img" alt="" src="cid:0123456789abcdef.png@everpad"></p>', css: '.md{}',
     katexCss: '@font-face{font-family:KaTeX_Main;src:url(cid:KaTeX_Main-Regular.woff2@everpad) format("woff2")}' });

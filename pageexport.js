@@ -1,8 +1,8 @@
 'use strict';
-/* Web ページとして書き出す(1つのファイルに、整形した本文・画像・数式の字形をまとめる)。2つの形式がある:
-   - HTML: 画像と字形を data: URI で HTML の中に埋め込む。どのブラウザでも開ける
-   - MHTML: RFC 2557(multipart/related)。画像と字形を同じファイルの別の部分として入れる。Edge・Chrome・Word で開ける
-   本文は画面側(renderer)で整形した HTML を受け取る。紙面では画像と字形を cid: で参照し、HTML では data: に置き換える。
+/* Web ページとして書き出す(1つのファイルに、整形した本文・画像・数式のフォントをまとめる)。2つの形式がある:
+   - HTML: 画像とフォントを data: URI で HTML の中に埋め込む。どのブラウザでも開ける
+   - MHTML: RFC 2557(multipart/related)。画像とフォントを同じファイルの別の部分として入れる。Edge・Chrome・Word で開ける
+   本文は画面側(renderer)で整形した HTML を受け取る。紙面では画像とフォントを cid: で参照し、HTML では data: に置き換える。
    スクリプトは入れず、CSP でも読み込み先を cid:・data: に限る。 */
 
 const IMAGE_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', avif: 'image/avif' };
@@ -31,7 +31,7 @@ function exportCss(stylesCss) {
     + '@media print { body { max-width: none; padding: 0; } .md pre { white-space: pre-wrap; } .md img { break-inside: avoid; } }\n';
 }
 
-/* KaTeX の CSS: 字形のファイル(woff2)を cid: で参照するよう書き換える。使う字形の名前の一覧も返す */
+/* KaTeX の CSS: フォントのファイル(woff2)を cid: で参照するよう書き換える。使うフォントの名前の一覧も返す */
 function katexCss(css) {
   const fonts = [];
   const out = String(css).replace(/src:url\(fonts\/([A-Za-z0-9_-]+\.woff2)\) format\("woff2"\)[^;}]*/g, (m, f) => {
@@ -73,7 +73,7 @@ const encodedWord = s => (/^[\x20-\x7e]*$/.test(s) ? s : '=?utf-8?B?' + Buffer.f
 
 /* MHTML を組み立てる。
    o: { title, html(紙面の HTML), parts: [{ cid, type, data(Buffer) }], date(Date), boundary? }
-   最初の部分が紙面で、残りが画像と字形 */
+   最初の部分が紙面で、残りが画像とフォント */
 function buildMhtml(o) {
   const boundary = o.boundary || '----=_EverPad_' + require('crypto').randomBytes(12).toString('hex');
   const title = String(o.title || '').replace(/[\r\n]+/g, ' ').slice(0, 200);
