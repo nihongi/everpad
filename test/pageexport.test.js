@@ -31,13 +31,20 @@ test('MHTML: 紙面の CSS は明るい配色と本文の規則だけ(画面の�
 });
 
 test('MHTML: KaTeX の字形は cid: で参照し、使う字形のファイルはすべてある', () => {
-  const k = M.katexCss(read('renderer/vendor/katex/katex.min.css'));
+  // renderer/vendor/katex は git に入れず、起動・ビルドの前に tools/vendor-katex.js が node_modules/katex/dist から写す(woff2 だけ)。
+  // テストは写す元を読む(CI ではビルドより先にテストする)
+  const dist = path.join(path.dirname(require.resolve('katex/package.json')), 'dist');
+  const k = M.katexCss(fs.readFileSync(path.join(dist, 'katex.min.css'), 'utf8'));
   assert.ok(k.fonts.length >= 10);
   assert.ok(!/url\(fonts\//.test(k.css), '元の場所を参照したまま');
   for (const f of k.fonts) {
-    assert.ok(fs.existsSync(path.join(root, 'renderer/vendor/katex/fonts', f)), f);
+    assert.ok(fs.existsSync(path.join(dist, 'fonts', f)), f);
     assert.ok(k.css.includes('url(cid:' + f + '@everpad)'), f);
   }
+  // 書き出しで読む CSS と字形(woff2)は、どちらも写される
+  const tool = read('tools/vendor-katex.js');
+  assert.match(tool, /\['katex\.min\.js', 'katex\.min\.css'\]/);
+  assert.match(tool, /f\.endsWith\('\.woff2'\)/);
 });
 
 test('MHTML: 本文が参照している画像を、重ならずに拾う(alt に > があっても)', () => {
