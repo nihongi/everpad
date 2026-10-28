@@ -15,6 +15,7 @@ const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv }
 const datalock = require('./datalock');
 const { macTemplate } = require('./macmenu');
 const updater = require('./updatecheck');
+const pageexport = require('./pageexport');
 const isMac = process.platform === 'darwin';
 
 /* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
@@ -255,6 +256,8 @@ ipcMain.handle('note:menu', (e, title) => {
       { label: T('mExportMenu'), submenu: [
         { label: T('mExportText'), click: pick('exportText') },
         { label: T('mExportPdf'), click: pick('exportPdf') },
+        { label: T('mExportHtml'), click: pick('exportHtml') },
+        { label: T('mExportMhtml'), click: pick('exportMhtml') },
         { label: T('mExportArchive'), click: pick('exportArchive') }
       ] },
       { type: 'separator' },
@@ -632,6 +635,49 @@ ipcMain.handle('print:pdf', async (e, title) => {
   } catch (err) { return { status: 'failed' }; }
 });
 
+/* Web ページ(HTML か MHTML)として書き出す。本文は画面側で整形した HTML(画像は cid:<ファイルID>@everpad で参照)。
+   画像はこのメモの添付から読み、数式があれば KaTeX の CSS と字形も入れる。
+   HTML は画像と字形を data: で埋め込んだ1つのファイル、MHTML は別の部分として入れた1つのファイル */
+const PAGE_KINDS = {
+  html: { ext: 'html', title: 'htmlSaveTitle', filter: { name: 'HTML', extensions: ['html', 'htm'] } },
+  mhtml: { ext: 'mhtml', title: 'mhtmlSaveTitle', filter: { name: 'MHTML', extensions: ['mhtml', 'mht'] } }
+};
+ipcMain.handle('export:page', async (e, id, p, kind) => {
+  const k = Object.prototype.hasOwnProperty.call(PAGE_KINDS, kind) ? PAGE_KINDS[kind] : null;
+  if (!fromOurWindow(e) || !k || !validId(id) || !p || typeof p.bodyHtml !== 'string' || p.bodyHtml.length > 50 * 1024 * 1024) return { status: 'failed' };
+  const title = String(p.title || '');
+  const name = (title.replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.' + k.ext;
+  const r = await dialog.showSaveDialog(win, {
+    title: T(k.title),
+    defaultPath: path.join(exportStartDir(), name),
+    filters: [k.filter]
+  });
+  if (r.canceled || !r.filePath) return { status: 'cancelled' };
+  try {
+    const parts = [];
+    for (const f of pageexport.referencedImages(p.bodyHtml)) {
+      const fp = store.attachmentPath(id, f);
+      if (fp) parts.push({ cid: pageexport.cidOf(f), type: pageexport.imageType(f), data: fs.readFileSync(fp) });
+    }
+    let kx = null;
+    if (/class="katex/.test(p.bodyHtml)) {
+      const dir = path.join(__dirname, 'renderer', 'vendor', 'katex');
+      kx = pageexport.katexCss(fs.readFileSync(path.join(dir, 'katex.min.css'), 'utf8'));
+      for (const f of kx.fonts) parts.push({ cid: pageexport.cidOf(f), type: 'font/woff2', data: fs.readFileSync(path.join(dir, 'fonts', f)) });
+    }
+    const html = pageexport.pageHtml({
+      lang: lang, title: title, head: String(p.head || ''), foot: String(p.foot || ''), bodyHtml: p.bodyHtml,
+      generator: APP_NAME + ' ' + app.getVersion(),
+      css: pageexport.exportCss(fs.readFileSync(path.join(__dirname, 'renderer', 'styles.css'), 'utf8')),
+      katexCss: kx && kx.css
+    });
+    const data = kind === 'html' ? pageexport.buildHtml({ html: html, parts: parts }) : pageexport.buildMhtml({ title: title, html: html, parts: parts });
+    fs.writeFileSync(r.filePath, data);
+    rememberDir('export', r.filePath);
+    return { status: 'saved', path: r.filePath };
+  } catch (err) { return { status: 'failed' }; }
+});
+
 /* 画面にまだ書き出していない編集を書き出させて、終わりを待つ(最長2秒) */
 function flushRenderer() {
   return new Promise(resolve => {
@@ -709,6 +755,8 @@ function buildMenu() {
         { label: T('mExportMenu'), submenu: [
           { label: T('mExportText'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send('export') },
           { label: T('mExportPdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
+          { label: T('mExportHtml'), click: () => send('html') },
+          { label: T('mExportMhtml'), click: () => send('mhtml') },
           { label: T('mExportArchive'), click: () => send('archive') }
         ] },
         { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },

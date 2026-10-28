@@ -1193,6 +1193,7 @@
     else if (name === 'archive') exportArchive();
     else if (name === 'print') printNote('print');
     else if (name === 'pdf') printNote('pdf');
+    else if (name === 'html' || name === 'mhtml') exportPage(name);
     else if (name.indexOf('mode:') === 0) { if (S.mode === 'history') { stop(); S.hbase = name.slice(5); setMode('history'); } else setMode(name.slice(5), true); }
   });
   /* ---------- 印刷・PDF ----------
@@ -1239,6 +1240,51 @@
       area.innerHTML = '';
       $('printPage').textContent = '';
       printing = false;
+    }
+  }
+  /* ---------- HTML・MHTML ----------
+     PDF と同じく、整形した本文(履歴表示中は見ている版)を書き出す。上に題名と最終編集の日時、下に作成の日時。
+     kind: 'html'(画像を埋め込んだ HTML)か 'mhtml'。
+     画像は読み込めたものだけ cid:<ファイルID>@everpad にして、main.js がファイルの中に入れる。
+     EverPad の外では開けないリンク(他のメモ・添付ファイル・相対パスなど)は、ただの文字にする */
+  let pageBusy = false;
+  async function exportPage(kind, target) {
+    const n = target || cur();
+    if (!n || pageBusy) return;
+    pageBusy = true;
+    try {
+      const N = n.ops.length, k = !target && S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
+      const text = k === N ? n.text : textAt(n, k);
+      const op = k > 0 ? n.ops[k - 1] : null;
+      const box = document.createElement('div');
+      box.innerHTML = md(text);
+      const plain = (el, prefix) => { const s = document.createElement('span'); s.className = el.classList.contains('att-file') ? 'att-file' : ''; s.textContent = (prefix || '') + el.textContent; el.replaceWith(s); };
+      box.querySelectorAll('a.note-link, .link-other').forEach(el => plain(el));
+      box.querySelectorAll('a.att-file').forEach(el => plain(el, '📎 '));
+      // 画像: 読み込めるかを確かめる(最長3秒)。読めなかったものは「画像が見つかりません」にする
+      const imgs = [...box.querySelectorAll('img[data-att]')];
+      await Promise.race([
+        Promise.all(imgs.map(img => new Promise(r => {
+          img.removeAttribute('loading');
+          img.addEventListener('load', () => r(), { once: true });
+          img.addEventListener('error', () => { img.replaceWith(missingEl(img.alt)); r(); }, { once: true });
+          img.src = api.fileUrl(n.id, img.dataset.att);
+        }))),
+        new Promise(r => setTimeout(r, 3000))
+      ]);
+      box.querySelectorAll('img[data-att]').forEach(img => {
+        if (!img.complete || !img.naturalWidth) { img.replaceWith(missingEl(img.alt)); return; }
+        img.src = 'cid:' + img.dataset.att + '@everpad';
+        img.removeAttribute('data-att');
+      });
+      const head = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
+      const r = await api.exportPage(n.id, { title: shownTitle(titleOf(text)), head: head, foot: T('printCreated', { when: fmtFull(Date.now()) }), bodyHtml: box.innerHTML }, kind);
+      if (r && r.status === 'saved') toast(T(kind + 'Saved', { path: r.path }));
+      else if (r && r.status === 'failed') toast(T(kind + 'Failed'));
+    } catch (e) {
+      toast(T(kind + 'Failed'));
+    } finally {
+      pageBusy = false;
     }
   }
   /* ---------- 画面の上に出す小さな窓 ---------- */
@@ -1341,6 +1387,8 @@
     if (action === 'props') showProps(n);
     else if (action === 'exportText') exportNote(n);
     else if (action === 'exportPdf') printNote('pdf', n);
+    else if (action === 'exportHtml') exportPage('html', n);
+    else if (action === 'exportMhtml') exportPage('mhtml', n);
     else if (action === 'exportArchive') exportArchive(n);
   }
 
