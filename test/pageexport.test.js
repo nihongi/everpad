@@ -7,7 +7,8 @@ const path = require('path');
 const M = require('../pageexport');
 
 const root = path.join(__dirname, '..');
-const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+// Windows の CI では git が改行を CRLF にして取り出すので、ソースを調べるときは LF にそろえる
+const read = f => fs.readFileSync(path.join(root, f), 'utf8').replace(/\r\n/g, '\n');
 
 test('MHTML: 画像の種類は添付のファイル ID の拡張子で決まる(画像以外は入れない)', () => {
   assert.strictEqual(M.imageType('0123456789abcdef.png'), 'image/png');
@@ -28,6 +29,8 @@ test('MHTML: 紙面の CSS は明るい配色と本文の規則だけ(画面の�
   // 使っている変数は、どれも定義されている
   const defined = new Set([...css.matchAll(/(--[\w-]+):/g)].map(m => m[1]));
   for (const m of css.matchAll(/var\((--[\w-]+)\)/g)) assert.ok(defined.has(m[1]), m[1] + ' が定義されていない');
+  // Windows でビルドしたアプリでは styles.css の改行が CRLF のことがある。それでも同じ CSS になる
+  assert.strictEqual(M.exportCss(read('renderer/styles.css').replace(/\n/g, '\r\n')).replace(/\r/g, ''), css.replace(/\r/g, ''));
 });
 
 test('MHTML: KaTeX の字形は cid: で参照し、使う字形のファイルはすべてある', () => {
