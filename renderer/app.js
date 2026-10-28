@@ -580,6 +580,8 @@
     updateTitle();
     updateStatus();
     rememberActive();
+    touchRecent(cur());   // 検索結果から開いたメモも「最近見たメモ」に入れる(setMode が送る「戻る」の可否より先に)
+    if (S.frOpen) frRefresh();
     evictOld();
     if (opt.rev != null) {
       S.hbase = 'edit';   // 検索で見つかった箇所は、変更箇所を示す文字の表示で見せる
