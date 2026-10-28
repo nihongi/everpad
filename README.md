@@ -235,6 +235,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **HTML and MHTML**
 
 - File → Export → HTML… or MHTML… saves the current note as one web page file with the same formatting as the preview. Attached images and the fonts for formulas are inside the file, so it can be copied or sent on its own. While the history is shown, the version being viewed is saved.
+- Fonts: only the fonts for formulas are put in the file, and only when the note has formulas (they add about 400 KB). All other text uses the fonts installed on the computer that opens the file, the same as in EverPad itself: Yu Gothic UI on Windows and Hiragino Sans on macOS for the body (Yu Mincho or Hiragino Mincho for the top-level heading, and BIZ UDGothic for code on Windows). If none of them is installed, the computer's standard font is used, so the page can look slightly different from computer to computer, but the text is always shown. Japanese fonts are not put in the file because they are large (several MB or more each), and the fonts that come with Windows and macOS are generally licensed for use on that computer, not for embedding in files you give to others.
 - HTML (`.html`) opens in any web browser (Edge, Chrome, Firefox, Safari and others) and can be edited with a text editor. The images are stored inside the HTML as text (data: URIs).
 - MHTML (`.mhtml`) opens in Microsoft Edge and Google Chrome (on Windows, double-clicking it usually opens Edge), and Microsoft Word can open it too. Firefox and Safari cannot open MHTML files.
 - The top shows the note title and the time of the last edit (and the version number for a past version), and the bottom shows when the file was created. It always uses light colors.
@@ -599,6 +600,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 **HTML と MHTML**
 
 - 「ファイル」→「エクスポート」→「HTML…」か「MHTML…」で、今のメモを、プレビューと同じ整形した見た目の1つの Web ページのファイルに保存します。添付の画像と数式のフォントもファイルの中に入るので、そのファイルだけをコピーしたり送ったりできます。履歴の表示中は、見ている版を保存します。
+- フォント: ファイルに入れるのは数式のフォントだけで、数式のあるメモのときだけ入れます(ファイルが約 400 KB 大きくなります)。それ以外の文字は、EverPad の画面と同じく、ファイルを開いたパソコンに入っているフォントで表示します。本文は Windows では Yu Gothic UI、macOS ではヒラギノ角ゴシックです(大見出しは游明朝かヒラギノ明朝、コードは Windows では BIZ UDゴシック)。どれも入っていなければそのパソコンの標準のフォントになるので、パソコンによって見た目が少し変わることがありますが、文字は必ず表示されます。日本語のフォントは1つで数 MB 以上と大きく、Windows や macOS に付いているフォントは、そのパソコンで使うためのもので、ほかの人に渡すファイルに入れることは通常認められていないため、入れていません。
 - HTML(`.html`)は、どの Web ブラウザー(Edge・Chrome・Firefox・Safari など)でも開け、テキストエディターで編集もできます。画像は文字にして HTML の中に入れます(data: URI)。
 - MHTML(`.mhtml`)は、Microsoft Edge と Google Chrome で開けます(Windows では、ダブルクリックすると普通は Edge で開きます)。Microsoft Word でも開けます。Firefox と Safari では開けません。
 - 上に題名と最後に編集した日時(過去の版では版の番号も)、下に作成した日時が入ります。配色はいつも明るい配色です。
