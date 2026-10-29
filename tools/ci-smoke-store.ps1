@@ -1,6 +1,7 @@
 ﻿# Microsoft Store 版(MSIX)の確認(GitHub Actions の build.yml から呼ぶ。手元の PC では動かさない)。
 #  1. Store に出すパッケージは署名しないので、確認用に、写しへ一時的な証明書で署名し、その証明書をこの PC で信頼させる
 #  2. インストールして起動し、落ちないことと、パッケージのアプリとして動いている(設定が Windows の振り分け先にできる)ことを確かめる
+#     (前の確認で残ったインストール版の設定は、初めて入れる PC と同じにするため、確認の間だけ別の名前にする)
 #  3. ウィンドウを閉じて、保存先のロックが外れることを確かめ、アンインストールしてもメモが残ることを確かめる
 #  4. -Wack を付けたとき: Windows App Certification Kit(Store の提出前の検査)を動かし、結果を注釈と smoke/wack-report.xml に残す
 #     (WACK の不合格は警告にとどめ、ビルドは失敗にしない)
@@ -57,6 +58,11 @@ if ($LASTEXITCODE -ne 0) { Fail "signtool failed (exit code $LASTEXITCODE)" }
 
 # ---------- 2. インストールと起動 ----------
 $notesDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'EverPad'
+# 前の確認(インストール版)の設定が %APPDATA%\EverPad に残っていると、Store 版はそれをそのまま使う(Windows は、すでにあるファイルへの
+# 書き込みを振り分けない)。初めて入れる PC と同じ状態で確かめるため、確認の間だけ別の名前にしておき、最後に戻す
+$settingsDir = Join-Path $env:APPDATA 'EverPad'
+$settingsAside = "$settingsDir.before-store-test"
+if (Test-Path $settingsDir) { Rename-Item $settingsDir $settingsAside }
 try { Add-AppxPackage -Path $test } catch { Fail "Add-AppxPackage failed: $_" }
 $inst = Get-AppxPackage -Name $appx.identityName
 if (-not $inst) { Fail 'the package was not found after Add-AppxPackage' }
@@ -71,6 +77,7 @@ Note 'notice' 'Smoke test (Microsoft Store)' 'EverPad (Microsoft Store) was runn
 # パッケージのアプリとして動いていれば、%APPDATA% への新しい書き込みは、パッケージ専用の場所に振り分けられる
 $redirected = Join-Path $env:LOCALAPPDATA "Packages\$($inst.PackageFamilyName)\LocalCache\Roaming\EverPad"
 if (-not (Test-Path $redirected)) { Fail "the settings were not redirected to $redirected (is the app running with its package identity?)" }
+if (Test-Path $settingsDir) { Fail "the Microsoft Store version wrote its settings to $settingsDir instead of the package folder" }
 Note 'notice' 'Smoke test (Microsoft Store)' "Settings were redirected to the package folder:`n$((Get-ChildItem $redirected | ForEach-Object Name) -join ', ')"
 
 # ---------- 3. 終了とアンインストール ----------
@@ -83,6 +90,7 @@ Remove-AppxPackage -Package $inst.PackageFullName
 if (Get-AppxPackage -Name $appx.identityName) { Fail 'the package was still installed after Remove-AppxPackage' }
 if (-not (Test-Path $notesDir)) { Fail "uninstalling deleted the data folder $notesDir (it should be kept)" }
 Note 'notice' 'Smoke test (Microsoft Store)' 'Closed normally; after uninstalling, the data folder was kept'
+if (Test-Path $settingsAside) { Rename-Item $settingsAside $settingsDir }
 
 # ---------- 4. Windows App Certification Kit ----------
 if ($Wack) {
