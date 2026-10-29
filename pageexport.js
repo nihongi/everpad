@@ -13,12 +13,14 @@ function imageType(fileId) {
 }
 const cidOf = name => name + '@everpad';
 
-/* 書き出す紙面の CSS: styles.css の明るい配色(最初の :root)と、本文(.md …)の規則を使い、ページの見た目を足す */
+/* 書き出す紙面の CSS: styles.css の明るい配色(最初の :root)、言語ごとのフォント(:root:lang(…))、本文(.md …)の規則を使い、ページの見た目を足す */
 function exportCss(stylesCss) {
   const src = String(stylesCss);
   const root = (/^:root \{[\s\S]*?^\}/m.exec(src) || [''])[0];
   const md = src.split(/\r?\n/).filter(l => /^\.md[ .:>[,{]/.test(l)).join('\n');
+  const langs = src.split(/\r?\n/).filter(l => /^:root:lang\(/.test(l)).join('\n');
   return root + '\n'
+    + (langs ? langs + '\n' : '')
     + 'html { background: #fff; }\n'
     + 'body { margin: 0 auto; max-width: 52rem; padding: 24px 24px 40px; background: #fff; color: var(--fg); font-family: var(--ui); line-height: 1.6; }\n'
     + '.ep-head, .ep-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; font-size: 12px; color: var(--fg-2); }\n'

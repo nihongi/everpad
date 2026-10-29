@@ -20,6 +20,9 @@
   color-scheme: light;
   --serif: 'Yu Mincho', 'BIZ UDMincho', 'Hiragino Mincho ProN', serif;
 }
+/* 英語の画面では、\ を \ の形で出す等幅フォントを先に使う(日本語のフォントでは \ が ¥ の形になる)。
+   日本語の文字は、後ろの日本語のフォントで出る。Cascadia Mono は Windows 11、Consolas は Windows 10 にもある */
+:root:lang(en) { --mono: 'Cascadia Mono', Consolas, 'BIZ UDGothic', 'MS Gothic', ui-monospace, monospace; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0D1224;

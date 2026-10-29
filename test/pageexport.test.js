@@ -33,6 +33,17 @@ test('MHTML: 紙面の CSS は明るい配色と本文の規則だけ(画面の�
   assert.strictEqual(M.exportCss(read('renderer/styles.css').replace(/\n/g, '\r\n')).replace(/\r/g, ''), css.replace(/\r/g, ''));
 });
 
+test('等幅フォント: 日本語は BIZ UDゴシックが先、英語は \\ を ¥ の形にしないフォントが先(画面と書き出しの両方)', () => {
+  const styles = read('renderer/styles.css');
+  const mono = src => { const m = /--mono: ([^;]+);/.exec(src); return m && m[1].split(',').map(s => s.trim().replace(/'/g, '')); };
+  assert.strictEqual(mono(/^:root \{[\s\S]*?^\}/m.exec(styles)[0])[0], 'BIZ UDGothic');
+  const en = /^:root:lang\(en\) \{[^}]*\}/m.exec(styles);
+  assert.ok(en, ':root:lang(en) の規則がある');
+  assert.deepStrictEqual(mono(en[0]).slice(0, 2), ['Cascadia Mono', 'Consolas']);
+  assert.ok(mono(en[0]).includes('BIZ UDGothic'), '日本語の文字は日本語のフォントで出る');
+  assert.ok(M.exportCss(styles).includes(en[0]), 'HTML・MHTML の書き出しにも入る');
+});
+
 test('MHTML: KaTeX のフォントは cid: で参照し、使うフォントのファイルはすべてある', () => {
   // renderer/vendor/katex は git に入れず、起動・ビルドの前に tools/vendor-katex.js が node_modules/katex/dist から写す(woff2 だけ)。
   // テストは写す元を読む(CI ではビルドより先にテストする)
