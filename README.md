@@ -89,7 +89,9 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
 - Linux: `EverPad-0.24.0.AppImage` (x64)
 
-**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.24.0`, is pushed). When it finishes, download `everpad-windows` (the installer and the portable executable), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.24.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+
+**Microsoft Store package**: on Windows, `npm run dist:store` creates `EverPad-0.24.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking. In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and File has no Add to the "Send to" Menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
 
 **macOS**
 
@@ -345,7 +347,8 @@ sendto.js        The "Send to" shortcut and reading files passed at startup (tes
 renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
-                 and the Windows startup check used by GitHub Actions (ci-smoke-windows.ps1)
+                 the script that makes the Microsoft Store icons (make-store-assets.js),
+                 and the Windows startup checks used by GitHub Actions (ci-smoke-windows.ps1, ci-smoke-store.ps1)
 renderer/vendor/katex/  KaTeX for math (copied from node_modules automatically before npm start and npm run dist; not stored in Git)
 build/installer.nsh  The installer's "Send to" check box and the uninstaller's "delete settings" check box
 .github/workflows/build.yml  Building the Windows, macOS and Linux versions with GitHub Actions
@@ -462,7 +465,9 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
 - Linux: `EverPad-0.24.0.AppImage`(x64)
 
-**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.24.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラーと portable 版)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.24.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+
+**Microsoft Store 版**: Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.24.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、「ファイル」に「「送る」メニューに登録」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
 
 **macOS**
 
@@ -718,7 +723,8 @@ sendto.js        「送る」メニューのショートカットと、起動時
 renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、
-                 GitHub Actions で使う Windows 版の起動の確認(ci-smoke-windows.ps1)
+                 Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、
+                 GitHub Actions で使う Windows 版の起動の確認(ci-smoke-windows.ps1、ci-smoke-store.ps1)
 renderer/vendor/katex/  数式の表示に使う KaTeX(npm start と npm run dist の前に node_modules から自動でコピーする。Git には入れない)
 build/installer.nsh  インストーラーの「送る」メニューと、アンインストーラーの「設定も削除する」のチェックボックス
 .github/workflows/build.yml  GitHub Actions で Windows 版・macOS 版・Linux 版を作る

@@ -48,6 +48,10 @@ function canWriteDir(dir) {
 const layout = portableLayout({ portableDir: portableDir, appData: app.getPath('appData'), documents: app.getPath('documents'), canWrite: canWriteDir });
 if (layout.userData) app.setPath('userData', layout.userData);
 const isPortable = layout.mode !== 'installed';
+/* Microsoft Store 版(MSIX)。更新は Store が配るので、アプリの更新確認は使わない。
+   アプリのファイルは Windows が管理する場所にあり、そこを指すショートカットは使えないので、「送る」メニューへの登録も出さない。
+   設定とメモの場所はインストール版と同じ(%APPDATA% への新しい書き込みは、Windows がアプリ専用の場所に振り分ける) */
+const isStore = process.windowsStore === true;
 const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 let win = null;
 let store = null;
@@ -533,7 +537,7 @@ async function runImport(files) {
 ipcMain.on('app:ready', e => {
   if (!fromOurWindow(e)) return;
   rendererReady = true;
-  scheduleStartupCheck();
+  if (!isStore) scheduleStartupCheck();
   for (const name of pendingSends.splice(0)) win.webContents.send('menu', name);
   if (pendingImports.length) importFiles(pendingImports.splice(0));
 });
@@ -827,7 +831,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: T('mOpenDir'), click: () => shell.openPath(store.dir) },
         { label: T('mChangeDir'), click: changeFolder },
-        ...(process.platform === 'win32' ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
+        ...(process.platform === 'win32' && !isStore ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
         { type: 'separator' },
         { id: 'quit', role: 'quit', label: T('mQuit') }
       ]
@@ -885,9 +889,11 @@ function buildMenu() {
       submenu: [
         { label: T('mMdHelp'), click: showMdHelp },
         { type: 'separator' },
-        { label: T('mCheckUpdate'), click: () => checkForUpdates(true) },
-        { label: T('mCheckOnStart'), type: 'checkbox', checked: updater.updatePrefs(readConfig()).checkOnStart, click: item => setUpdatePref({ checkOnStart: item.checked }) },
-        { type: 'separator' },
+        ...(isStore ? [] : [
+          { label: T('mCheckUpdate'), click: () => checkForUpdates(true) },
+          { label: T('mCheckOnStart'), type: 'checkbox', checked: updater.updatePrefs(readConfig()).checkOnStart, click: item => setUpdatePref({ checkOnStart: item.checked }) },
+          { type: 'separator' }
+        ]),
         { id: 'about', label: T('mAbout'), click: showAbout }
       ]
     }
@@ -1090,7 +1096,8 @@ if (!app.requestSingleInstanceLock()) {
   // Mac: Finder でダブルクリック、「このアプリケーションで開く」、Dock のアイコンへのドラッグで来たファイル。
   // 起動の途中でも来るので、ここで登録する(画面の準備ができてから取り込む)
   app.on('open-file', (e, file) => { e.preventDefault(); importFiles([path.resolve(file)]); });
-  if (process.platform === 'win32') app.setAppUserModelId(isPortable ? APP_ID + '.portable' : APP_ID);   // タスクバーでアイコンと名前が正しく出るように
+  // タスクバーでアイコンと名前が正しく出るように。Store 版は Windows がパッケージの ID を付けるので変えない(変えると、ピン留めやアイコンがパッケージと結び付かない)
+  if (process.platform === 'win32' && !isStore) app.setAppUserModelId(isPortable ? APP_ID + '.portable' : APP_ID);
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
     protocol.handle('everpad-file', req => {

@@ -19,7 +19,9 @@
     "start": "electron .",
     "test": "node --test",
     "predist": "node tools/vendor-katex.js",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "predist:store": "node tools/vendor-katex.js && node tools/make-store-assets.js",
+    "dist:store": "electron-builder --win appx"
   },
   "build": {
     "appId": "local.everpad.app",
@@ -70,6 +72,21 @@
         "ja_JP"
       ],
       "include": "build/installer.nsh"
+    },
+    "appx": {
+      "identityName": "NobuyoshiNIHONGI.EverPad",
+      "publisher": "CN=FF39C3C1-D637-493A-B421-F7BB5B267F9F",
+      "publisherDisplayName": "Nobuyoshi NIHONGI",
+      "applicationId": "EverPad",
+      "displayName": "EverPad",
+      "backgroundColor": "transparent",
+      "languages": [
+        "ja-JP",
+        "en-US"
+      ],
+      "minVersion": "10.0.17763.0",
+      "maxVersionTested": "10.0.26100.0",
+      "artifactName": "${productName}-${version}-store.${ext}"
     },
     "mac": {
       "icon": "build/icon.png",

@@ -5,6 +5,8 @@
 # Mac 版には ad-hoc 署名(Apple の証明書を使わない簡易の署名)を付ける。
 # 作ったあとに一度起動して、数秒たっても落ちていないか確かめ、画面のスクリーンショットを Artifacts に残す。
 # Windows は、インストーラーで画面を出さずにインストール・アンインストールして、設定とメモが残ることも確かめる(tools/ci-smoke-windows.ps1)。
+# Windows では Microsoft Store に出すパッケージ(dist/*.appx。署名なし。Store が署名する)も作り、確認用の証明書で署名した写しを
+# インストールして起動し、Windows App Certification Kit で検査する(tools/ci-smoke-store.ps1)。
 # 失敗の内容と確認の結果は、サインインしなくても見られる注釈(Annotations)にも書く。
 
 name: Build (Windows / macOS / Linux)
@@ -67,6 +69,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./tools/ci-smoke-windows.ps1 -Dist dist -Out smoke
+
+      # Microsoft Store に出すパッケージ(package.json の build.appx。アイコンは tools/make-store-assets.js が作る)
+      - name: Build (Microsoft Store)
+        if: runner.os == 'Windows'
+        run: npm run dist:store -- --publish never
+
+      # Appx の PowerShell コマンドは、Windows PowerShell(5.1)で確実に動くので、こちらを使う
+      - name: Smoke test (Microsoft Store)
+        if: runner.os == 'Windows'
+        shell: powershell
+        timeout-minutes: 45
+        run: ./tools/ci-smoke-store.ps1 -Dist dist -Out smoke -Wack
 
       - name: Smoke test (macOS)
         if: runner.os == 'macOS'
@@ -145,6 +159,7 @@ jobs:
           name: everpad-${{ matrix.name }}
           path: |
             dist/*.exe
+            dist/*.appx
             dist/*.dmg
             dist/*.AppImage
           if-no-files-found: error
