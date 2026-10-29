@@ -1193,7 +1193,7 @@
     else if (name === 'archive') exportArchive();
     else if (name === 'print') printNote('print');
     else if (name === 'pdf') printNote('pdf');
-    else if (name === 'html' || name === 'mhtml') exportPage(name);
+    else if (name === 'html' || name === 'mhtml' || name === 'adoc' || name === 'docx') exportPage(name);
     else if (name.indexOf('mode:') === 0) { if (S.mode === 'history') { stop(); S.hbase = name.slice(5); setMode('history'); } else setMode(name.slice(5), true); }
   });
   /* ---------- 印刷・PDF ----------
@@ -1242,10 +1242,12 @@
       printing = false;
     }
   }
-  /* ---------- HTML・MHTML ----------
-     PDF と同じく、整形した本文(履歴表示中は見ている版)を書き出す。上に題名と最終編集の日時、下に作成の日時。
-     kind: 'html'(画像を埋め込んだ HTML)か 'mhtml'。
-     画像は読み込めたものだけ cid:<ファイルID>@everpad にして、main.js がファイルの中に入れる。
+  /* ---------- HTML・MHTML・AsciiDoc・Word ----------
+     PDF と同じく、整形した本文(履歴表示中は見ている版)を書き出す。HTML・MHTML は、上に題名と最終編集の日時、下に作成の日時。
+     kind: 'html'(画像を埋め込んだ HTML)、'mhtml'、'adoc'(AsciiDoc)、'docx'(Word)。
+     HTML・MHTML: 画像は読み込めたものだけ cid:<ファイルID>@everpad にして、main.js がファイルの中に入れる。
+     AsciiDoc・Word: 画像はファイル ID と大きさ(data-w・data-h)を持たせる。数式は中身を空にして、Word には MathML(data-mml)も付ける
+     (main.js の docexport.js が、本文を見出し・段落などの構造にしてから書き出す)。
      EverPad の外では開けないリンク(他のメモ・添付ファイル・相対パスなど)は、ただの文字にする */
   let pageBusy = false;
   async function exportPage(kind, target) {
@@ -1272,11 +1274,22 @@
         }))),
         new Promise(r => setTimeout(r, 3000))
       ]);
+      const doc = kind === 'adoc' || kind === 'docx';
       box.querySelectorAll('img[data-att]').forEach(img => {
         if (!img.complete || !img.naturalWidth) { img.replaceWith(missingEl(img.alt)); return; }
+        if (doc) { img.dataset.w = img.naturalWidth; img.dataset.h = img.naturalHeight; img.removeAttribute('src'); return; }
         img.src = 'cid:' + img.dataset.att + '@everpad';
         img.removeAttribute('data-att');
       });
+      if (doc) {
+        box.querySelectorAll('.math[data-tex]').forEach(el => {
+          if (kind === 'docx' && !el.classList.contains('math-error') && typeof katex !== 'undefined') {
+            const display = el.classList.contains('math-display');
+            try { el.dataset.mml = katex.renderToString(el.dataset.tex, Object.assign({}, MATH_OPTS, { output: 'mathml', displayMode: display })); } catch (err) { el.classList.add('math-error'); }
+          }
+          el.textContent = '';
+        });
+      }
       const head = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
       const r = await api.exportPage(n.id, { title: shownTitle(titleOf(text)), head: head, foot: T('printCreated', { when: fmtFull(Date.now()) }), bodyHtml: box.innerHTML }, kind);
       if (r && r.status === 'saved') toast(T(kind + 'Saved', { path: r.path }));
@@ -1389,6 +1402,8 @@
     else if (action === 'exportPdf') printNote('pdf', n);
     else if (action === 'exportHtml') exportPage('html', n);
     else if (action === 'exportMhtml') exportPage('mhtml', n);
+    else if (action === 'exportAdoc') exportPage('adoc', n);
+    else if (action === 'exportDocx') exportPage('docx', n);
     else if (action === 'exportArchive') exportArchive(n);
   }
 

@@ -136,12 +136,12 @@ test('HTML・MHTML: メニュー・画面・main.js へのつなぎ込み', () =
     assert.match(main, new RegExp("T\\('" + label + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
     assert.match(main, new RegExp("T\\('" + label + "'\\), click: pick\\('export" + kind[0].toUpperCase() + kind.slice(1) + "'\\)"));
   }
-  assert.match(app, /name === 'html' \|\| name === 'mhtml'\) exportPage\(name\)/);
+  assert.match(app, /name === 'html' \|\| name === 'mhtml' \|\| name === 'adoc' \|\| name === 'docx'\) exportPage\(name\)/);
   assert.match(app, /action === 'exportHtml'\) exportPage\('html', n\)/);
   assert.match(app, /action === 'exportMhtml'\) exportPage\('mhtml', n\)/);
   assert.match(preload, /exportPage: \(id, p, kind\) => ipcRenderer\.invoke\('export:page', id, p, kind\)/);
-  // 形式は決まった2つだけ。画像は、そのメモの添付からだけ読む(ID を確かめる store.attachmentPath を通す)
-  assert.match(main, /const PAGE_KINDS = \{\n  html: \{ ext: 'html'[^\n]*\n  mhtml: \{ ext: 'mhtml'[^\n]*\n\};/);
+  // 形式は決まった4つだけ(AsciiDoc・Word は docexport.test.js で調べる)。画像は、そのメモの添付からだけ読む(ID を確かめる store.attachmentPath を通す)
+  assert.match(main, /const PAGE_KINDS = \{\n  html: \{ ext: 'html'[^\n]*\n  mhtml: \{ ext: 'mhtml'[^\n]*\n  adoc: \{ ext: 'adoc'[^\n]*\n  docx: \{ ext: 'docx'[^\n]*\n\};/);
   const h = main.slice(main.indexOf("ipcMain.handle('export:page'"));
   const body = h.slice(0, h.indexOf('\n});'));
   assert.match(body, /hasOwnProperty\.call\(PAGE_KINDS, kind\)/);

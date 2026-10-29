@@ -16,6 +16,7 @@ const datalock = require('./datalock');
 const { macTemplate } = require('./macmenu');
 const updater = require('./updatecheck');
 const pageexport = require('./pageexport');
+const docexport = require('./docexport');
 const isMac = process.platform === 'darwin';
 
 /* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
@@ -258,6 +259,8 @@ ipcMain.handle('note:menu', (e, title) => {
         { label: T('mExportPdf'), click: pick('exportPdf') },
         { label: T('mExportHtml'), click: pick('exportHtml') },
         { label: T('mExportMhtml'), click: pick('exportMhtml') },
+        { label: T('mExportAdoc'), click: pick('exportAdoc') },
+        { label: T('mExportDocx'), click: pick('exportDocx') },
         { label: T('mExportArchive'), click: pick('exportArchive') }
       ] },
       { type: 'separator' },
@@ -640,7 +643,9 @@ ipcMain.handle('print:pdf', async (e, title) => {
    HTML は画像とフォントを data: で埋め込んだ1つのファイル、MHTML は別の部分として入れた1つのファイル */
 const PAGE_KINDS = {
   html: { ext: 'html', title: 'htmlSaveTitle', filter: { name: 'HTML', extensions: ['html', 'htm'] } },
-  mhtml: { ext: 'mhtml', title: 'mhtmlSaveTitle', filter: { name: 'MHTML', extensions: ['mhtml', 'mht'] } }
+  mhtml: { ext: 'mhtml', title: 'mhtmlSaveTitle', filter: { name: 'MHTML', extensions: ['mhtml', 'mht'] } },
+  adoc: { ext: 'adoc', title: 'adocSaveTitle', filter: { name: 'AsciiDoc', extensions: ['adoc', 'asciidoc'] } },
+  docx: { ext: 'docx', title: 'docxSaveTitle', filter: { name: 'Word', extensions: ['docx'] } }
 };
 ipcMain.handle('export:page', async (e, id, p, kind) => {
   const k = Object.prototype.hasOwnProperty.call(PAGE_KINDS, kind) ? PAGE_KINDS[kind] : null;
@@ -653,6 +658,13 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
     filters: [k.filter]
   });
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
+  if (kind === 'adoc' || kind === 'docx') {
+    try {
+      await writeDocFile(id, title, p.bodyHtml, kind, r.filePath);
+      rememberDir('export', r.filePath);
+      return { status: 'saved', path: r.filePath };
+    } catch (err) { return { status: 'failed' }; }
+  }
   try {
     const parts = [];
     for (const f of pageexport.referencedImages(p.bodyHtml)) {
@@ -677,6 +689,54 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
     return { status: 'saved', path: r.filePath };
   } catch (err) { return { status: 'failed' }; }
 });
+
+/* AsciiDoc・Word として書き出す(本文の HTML の決まりは docexport.js を参照)。
+   AsciiDoc: 画像は「(ファイル名)_images」フォルダーに写して、.adoc から参照する。
+   Word: 画像はファイルの中に入れる。Word が読めない WebP・AVIF は PNG にして入れる */
+async function writeDocFile(id, title, bodyHtml, kind, filePath) {
+  const tree = docexport.bodyTree(bodyHtml);
+  const files = docexport.treeImages(tree).filter(f => store.attachmentPath(id, f));
+  if (kind === 'adoc') {
+    const dirName = path.basename(filePath, path.extname(filePath)).replace(/[{}[\]]/g, '_') + '_images';
+    const text = docexport.toAsciiDoc(tree, { title: title, imagesDir: files.length ? dirName : '' });
+    if (files.length) {
+      const dir = path.join(path.dirname(filePath), dirName);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of files) fs.copyFileSync(store.attachmentPath(id, f), path.join(dir, f));
+    }
+    fs.writeFileSync(filePath, text);
+    return;
+  }
+  const images = {}, convert = [];
+  for (const f of files) {
+    const ext = docexport.docxImageExt(f);
+    const data = fs.readFileSync(store.attachmentPath(id, f));
+    if (ext) images[f] = { data: data, ext: ext };
+    else convert.push({ f: f, data: data, type: pageexport.imageType(f) });
+  }
+  if (convert.length) {
+    const pngs = await imagesToPng(convert);
+    convert.forEach((c, k) => { if (pngs[k]) images[c.f] = { data: pngs[k], ext: 'png' }; });
+  }
+  fs.writeFileSync(filePath, docexport.toDocx(tree, { title: title, lang: lang, paper: paperSize(), generator: APP_NAME + ' ' + app.getVersion(), images: images }));
+}
+/* 画像(WebP・AVIF など)を PNG にする。表示しない窓で、data: の画像を canvas に描いて PNG にする。
+   読めなかったものは null */
+async function imagesToPng(list) {
+  const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  try {
+    await w.loadURL('about:blank');
+    const out = [];
+    for (const it of list) {
+      const src = 'data:' + (it.type || 'image/png') + ';base64,' + it.data.toString('base64');
+      const url = await w.webContents.executeJavaScript('new Promise(r => { const i = new Image(); i.onload = () => { try { const c = document.createElement("canvas"); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext("2d").drawImage(i, 0, 0); r(c.toDataURL("image/png")); } catch (e) { r(""); } }; i.onerror = () => r(""); i.src = ' + JSON.stringify(src) + '; })');
+      out.push(/^data:image\/png;base64,/.test(url) ? Buffer.from(url.slice(url.indexOf(',') + 1), 'base64') : null);
+    }
+    return out;
+  } catch (err) {
+    return list.map(() => null);
+  } finally { w.destroy(); }
+}
 
 /* 画面にまだ書き出していない編集を書き出させて、終わりを待つ(最長2秒) */
 function flushRenderer() {
@@ -757,6 +817,8 @@ function buildMenu() {
           { label: T('mExportPdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
           { label: T('mExportHtml'), click: () => send('html') },
           { label: T('mExportMhtml'), click: () => send('mhtml') },
+          { label: T('mExportAdoc'), click: () => send('adoc') },
+          { label: T('mExportDocx'), click: () => send('docx') },
           { label: T('mExportArchive'), click: () => send('archive') }
         ] },
         { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },

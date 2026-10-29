@@ -77,7 +77,8 @@ test('数式: Markdown の書き方の「数式」の例が、説明どおりに
   const HELP = require('../renderer/help-content');
   for (const sec of [HELP.ja.sections.find(s => s.h === '数式'), HELP.en.sections.find(s => s.h === 'Math')]) {
     const h = L.md(sec.src);
-    assert.strictEqual(count(h, /class="katex"/g), 3, sec.h);              // 文中 2 + 独立した行 1
+    assert.strictEqual(count(h, /class="katex"/g), 5, sec.h);              // 文中 4(小さい分数と \dfrac の大きい分数を含む)+ 独立した行 1
+    assert.match(h, /data-tex="\\dfrac\{1\}\{3\}"/, sec.h);
     assert.strictEqual(count(h, /class="katex-display"/g), 1, sec.h);
     assert.match(h, /\$5/, sec.h);                                         // \$ は $ の文字
     assert.doesNotMatch(h, /math-error/, sec.h);
