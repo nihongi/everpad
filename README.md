@@ -26,6 +26,11 @@ This program was created with the help of Claude Code.
 
 ### Download
 
+EverPad for Windows is available from two places:
+
+- **Microsoft Store**: [EverPad on the Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3). It is updated automatically by the Microsoft Store, and Windows does not show a SmartScreen warning. Because Microsoft reviews each update, a new version may reach the Store a few days after it appears on the Releases page.
+- **GitHub**: the installer and the portable version (see below).
+
 The Windows installer (`EverPad.Setup.x.y.z.exe`) and the portable version (`EverPad.x.y.z.exe`) are published only on this repository's [Releases page](https://github.com/nihongi/everpad/releases). Files with these names from anywhere else are not from this project. The release page shows the SHA-256 of each file, so you can check a download with `Get-FileHash <file>` in PowerShell. The files are not code-signed, so Windows SmartScreen may show a warning; choose "More info" → "Run anyway". To build EverPad yourself instead, see below.
 
 ### Requirements
@@ -401,6 +406,11 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
 
 ### ダウンロード
+
+Windows 版は、次の2か所で配布しています。
+
+- **Microsoft Store**: [Microsoft Store の EverPad](https://apps.microsoft.com/detail/9mw2hbgkgxh3)。Microsoft Store が自動で更新し、Windows の SmartScreen の警告も出ません。Microsoft が更新のたびに審査するので、新しい版が Store に届くのは、Releases のページに出てから数日あとになることがあります。
+- **GitHub**: インストーラーと portable 版(下を見てください)。
 
 Windows 用のインストーラー(`EverPad.Setup.x.y.z.exe`)と portable 版(`EverPad.x.y.z.exe`)は、このリポジトリの [Releases のページ](https://github.com/nihongi/everpad/releases)だけで公開しています。ほかの場所にある同じ名前のファイルは、このプロジェクトのものではありません。リリースのページに各ファイルの SHA-256 が出ているので、PowerShell の `Get-FileHash <ファイル>` で、ダウンロードしたファイルと同じか確かめられます。コード署名をしていないので、Windows の SmartScreen が警告を出すことがあります。そのときは「詳細情報」→「実行」を選んでください。自分でビルドするときは、下を見てください。
 

@@ -66,6 +66,7 @@ Write the notes to the scratchpad (`release-notes-X.Y.Z.md`) in this shape — E
 | EverPad.X.Y.Z.exe | Portable (no installation; data is saved in "EverPad Data" next to the exe) | `<full hash>` |
 
 The files are not code-signed, so Windows SmartScreen may show a warning: choose "More info" → "Run anyway".
+EverPad is also available on the [Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3), which updates it automatically (a new version may reach the Store a few days later).
 macOS and Linux builds are not published yet (they can be built from the source; see the README).
 
 ---
@@ -82,6 +83,7 @@ macOS and Linux builds are not published yet (they can be built from the source;
 | EverPad.X.Y.Z.exe | portable 版(インストール不要。exe と同じフォルダの「EverPad Data」に保存) | `<ハッシュ>` |
 
 コード署名をしていないため、Windows の SmartScreen が警告を出すことがあります。「詳細情報」→「実行」を選んでください。
+[Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3) でも配布しています。Microsoft Store が自動で更新します(新しい版が Store に届くのは、数日あとになることがあります)。
 macOS 版と Linux 版は、まだ配布していません(ソースから作れます。README を見てください)。
 ```
 
