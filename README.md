@@ -28,10 +28,10 @@ This program was created with the help of Claude Code.
 
 EverPad for Windows is available from two places:
 
-- **Microsoft Store**: [EverPad on the Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3). It is updated automatically by the Microsoft Store, and Windows does not show a SmartScreen warning. Because Microsoft reviews each update, a new version may reach the Store a few days after it appears on the Releases page.
-- **GitHub**: the installer and the portable version (see below).
+- **Microsoft Store**: install it from [EverPad on the Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3). The Microsoft Store updates it automatically. Windows does not show a SmartScreen warning. Because Microsoft reviews each update, a new version may reach the Store a few days after it appears on GitHub.
+- **GitHub**: download the installer (`EverPad.Setup.x.y.z.exe`) or the portable version (`EverPad.x.y.z.exe`, no installation needed) from this repository's [Releases page](https://github.com/nihongi/everpad/releases). EverPad tells you when a new version is available, and you download and install it yourself. The files are not code-signed, so Windows SmartScreen may show a warning; choose "More info" → "Run anyway". The files are published only on the Releases page, and files with these names from anywhere else are not from this project. The Releases page shows the SHA-256 of each file, so you can check a download with `Get-FileHash <file>` in PowerShell.
 
-The Windows installer (`EverPad.Setup.x.y.z.exe`) and the portable version (`EverPad.x.y.z.exe`) are published only on this repository's [Releases page](https://github.com/nihongi/everpad/releases). Files with these names from anywhere else are not from this project. The release page shows the SHA-256 of each file, so you can check a download with `Get-FileHash <file>` in PowerShell. The files are not code-signed, so Windows SmartScreen may show a warning; choose "More info" → "Run anyway". To build EverPad yourself instead, see below.
+To build EverPad yourself, see the instructions below.
 
 ### Requirements
 
@@ -409,10 +409,10 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 
 Windows 版は、次の2か所で配布しています。
 
-- **Microsoft Store**: [Microsoft Store の EverPad](https://apps.microsoft.com/detail/9mw2hbgkgxh3)。Microsoft Store が自動で更新し、Windows の SmartScreen の警告も出ません。Microsoft が更新のたびに審査するので、新しい版が Store に届くのは、Releases のページに出てから数日あとになることがあります。
-- **GitHub**: インストーラーと portable 版(下を見てください)。
+- **Microsoft Store**: [Microsoft Store の EverPad](https://apps.microsoft.com/detail/9mw2hbgkgxh3) からインストールします。Microsoft Store が自動で更新します。Windows の SmartScreen の警告は出ません。Microsoft が更新のたびに審査するので、新しい版が Store に届くのは、GitHub に出てから数日あとになることがあります。
+- **GitHub**: このリポジトリの [Releases のページ](https://github.com/nihongi/everpad/releases)から、インストーラー(`EverPad.Setup.x.y.z.exe`)か portable 版(`EverPad.x.y.z.exe`、インストール不要)をダウンロードします。新しい版が出ると EverPad が知らせるので、ダウンロードしてインストールします。コード署名をしていないので、Windows の SmartScreen が警告を出すことがあります。そのときは「詳細情報」→「実行」を選んでください。ファイルは Releases のページだけで公開していて、ほかの場所にある同じ名前のファイルは、このプロジェクトのものではありません。Releases のページに各ファイルの SHA-256 が出ているので、PowerShell の `Get-FileHash <ファイル>` で、ダウンロードしたファイルと同じか確かめられます。
 
-Windows 用のインストーラー(`EverPad.Setup.x.y.z.exe`)と portable 版(`EverPad.x.y.z.exe`)は、このリポジトリの [Releases のページ](https://github.com/nihongi/everpad/releases)だけで公開しています。ほかの場所にある同じ名前のファイルは、このプロジェクトのものではありません。リリースのページに各ファイルの SHA-256 が出ているので、PowerShell の `Get-FileHash <ファイル>` で、ダウンロードしたファイルと同じか確かめられます。コード署名をしていないので、Windows の SmartScreen が警告を出すことがあります。そのときは「詳細情報」→「実行」を選んでください。自分でビルドするときは、下を見てください。
+自分でビルドするときは、下の説明を見てください。
 
 ### 動かすために必要なもの
 
