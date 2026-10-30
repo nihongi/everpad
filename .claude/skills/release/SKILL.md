@@ -1,6 +1,6 @@
 ---
 name: release
-description: Publish a new EverPad version to GitHub Releases (the Windows installer and portable exe). Use when the user asks to release / publish a version, e.g. "0.22.0 をリリースして" or "/release 0.22.0". Drafts release notes, waits for the user's approval, then uploads and publishes.
+description: Publish a new EverPad version to GitHub Releases (the Windows installer and portable exe), then prepare the Microsoft Store update for the user to submit. Use when the user asks to release / publish a version, e.g. "0.22.0 をリリースして" or "/release 0.22.0". Drafts release notes, waits for the user's approval, then uploads and publishes.
 ---
 
 # Publishing an EverPad release
@@ -16,7 +16,8 @@ So everything is checked while the release is still a draft, and a mistake after
 
 - **Never publish without the user's explicit approval of the release notes in this conversation.** Approval of an earlier version does not carry over.
 - Upload only the two exe files above. Never upload anything else (no zips, no CI artifacts, no files from other folders).
-- Never edit, delete or re-upload a published release, and never move or delete tags (they are protected by a ruleset anyway).
+- Never change the files of a published release, never delete or re-upload one, and never move or delete tags (they are protected by a ruleset anyway). The notes of a published release may be edited only after the user approves the new text in this conversation.
+- The Microsoft Store update is submitted by the user in Partner Center. Never sign in to Partner Center or submit anything there; only prepare the package information and the text (step 5).
 - If any check fails, stop and tell the user what failed. Do not work around it.
 - Do not paste or ask for tokens in the chat. `gh` is signed in with a fine-grained token limited to `nihongi/everpad` (Contents: read and write).
 - `gh` may not be on PATH in an older shell: use `"/c/Program Files/GitHub CLI/gh.exe"` in Bash.
@@ -105,3 +106,26 @@ Show the full notes in the chat (title: `EverPad X.Y.Z`) and ask the user to app
 4. Confirm: `gh api repos/nihongi/everpad/releases/tags/vX.Y.Z --jq '{immutable, draft, html_url}'` → `immutable: true`, `draft: false`.
    Also check `https://api.github.com/repos/nihongi/everpad/releases/latest` now returns `vX.Y.Z` (this is what the app's update check reads).
 5. Report the release URL and the two hashes to the user.
+
+### 5. Prepare the Microsoft Store update (the user submits it)
+
+The Store package is not built on this PC and is not uploaded to the release. It comes from the GitHub Actions build of the tag.
+
+1. Check the Store package in that build (the run found in step 1). The Windows job's annotations must include
+   `Installed: NobuyoshiNIHONGI.EverPad_X.Y.Z.0_x64__yqg2q417k4v4a` and `WACK: PASS`
+   (the "Blocked executables" FAIL listed with it is normal for Electron apps and does not affect the result):
+   ```bash
+   job=$(gh run view <run id> --json jobs -q '.jobs[] | select(.name | test("windows")) | .databaseId')
+   gh api repos/nihongi/everpad/check-runs/$job/annotations -q '.[] | "\(.annotation_level): \(.title // "") \(.message[0:160])"'
+   ```
+   If either is missing, stop and tell the user.
+2. Draft the Store's "What's new in this version" text (`この版の新機能`, up to 1,500 characters each) in Japanese and English, from the approved release notes.
+   Leave out anything that does not apply to the Store version (the update check, the "Send to" menu, the installer, the portable version, SmartScreen).
+   Write it to the scratchpad (`store-whats-new-X.Y.Z.md`) and show it in the chat. The other listing text is in `store/listing.md`; update that file too if a feature in the listing changed.
+3. Tell the user how to submit (in Japanese):
+   - Download `everpad-windows` from Artifacts at the bottom of the run's page (`https://github.com/nihongi/everpad/actions/runs/<run id>`). It is a zip: extract it and use `EverPad-X.Y.Z-store.appx` inside. Artifacts are kept for 30 days.
+   - In Partner Center: Apps and games → EverPad → start an update submission.
+   - Packages: drag in the `.appx`, wait until it is validated and shows `vX.Y.Z.0`, remove the old package, and Save. If the page stays on "Loading...", reload it (the submission draft is kept) or open it in an InPrivate window.
+   - Store listings: paste the "What's new" text for ja-JP and en-US.
+   - If an error says Windows Mixed Reality hardware must be chosen, uncheck "PC" (and "HoloLens") under immersive view: EverPad is a 2D app.
+   - Submit. Certification usually takes a few hours to a day, sometimes a few days. After it passes, installed copies update automatically (Microsoft Store → Library → Get updates to update at once), and Help → About shows X.Y.Z.
