@@ -20,9 +20,9 @@
   color-scheme: light;
   --serif: 'Yu Mincho', 'BIZ UDMincho', 'Hiragino Mincho ProN', serif;
 }
-/* 英語の画面では、\ を \ の形で出す等幅フォントを先に使う(日本語のフォントでは \ が ¥ の形になる)。
-   日本語の文字は、後ろの日本語のフォントで出る。Cascadia Mono は Windows 11、Consolas は Windows 10 にもある */
-:root:lang(en) { --mono: 'Cascadia Mono', Consolas, 'BIZ UDGothic', 'MS Gothic', ui-monospace, monospace; }
+/* 英語の画面では、\ を \ の形で出すフォントを先に使う(日本語のフォントでは \ が ¥ の形になる)。普通の文字は Segoe UI、等幅は Cascadia Mono か Consolas。
+   日本語の文字は、後ろの日本語のフォントで出る。Cascadia Mono は Windows 11、Consolas は Windows 10 にもある。Mac には Segoe UI が無いので、今までどおりヒラギノになる */
+:root:lang(en) { --ui: 'Segoe UI', 'Yu Gothic UI', 'Meiryo UI', 'Hiragino Sans', sans-serif; --mono: 'Cascadia Mono', Consolas, 'BIZ UDGothic', 'MS Gothic', ui-monospace, monospace; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0D1224;

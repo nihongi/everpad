@@ -33,7 +33,7 @@ test('MHTML: 紙面の CSS は明るい配色と本文の規則だけ(画面の�
   assert.strictEqual(M.exportCss(read('renderer/styles.css').replace(/\n/g, '\r\n')).replace(/\r/g, ''), css.replace(/\r/g, ''));
 });
 
-test('等幅フォント: 日本語は BIZ UDゴシックが先、英語は \\ を ¥ の形にしないフォントが先(画面と書き出しの両方)', () => {
+test('フォント: 日本語は日本語のフォントが先、英語は \\ を ¥ の形にしないフォントが先(画面と書き出しの両方)', () => {
   const styles = read('renderer/styles.css');
   const mono = src => { const m = /--mono: ([^;]+);/.exec(src); return m && m[1].split(',').map(s => s.trim().replace(/'/g, '')); };
   assert.strictEqual(mono(/^:root \{[\s\S]*?^\}/m.exec(styles)[0])[0], 'BIZ UDGothic');
@@ -41,6 +41,11 @@ test('等幅フォント: 日本語は BIZ UDゴシックが先、英語は \\ �
   assert.ok(en, ':root:lang(en) の規則がある');
   assert.deepStrictEqual(mono(en[0]).slice(0, 2), ['Cascadia Mono', 'Consolas']);
   assert.ok(mono(en[0]).includes('BIZ UDGothic'), '日本語の文字は日本語のフォントで出る');
+  // 普通の文字のフォントも、英語では \ を ¥ の形にしない Segoe UI が先。日本語の画面は日本語のフォントが先のまま
+  const ui = src => { const m = /--ui: ([^;]+);/.exec(src); return m && m[1].split(',').map(s => s.trim().replace(/'/g, '')); };
+  assert.strictEqual(ui(/^:root \{[\s\S]*?^\}/m.exec(styles)[0])[0], 'Yu Gothic UI');
+  assert.strictEqual(ui(en[0])[0], 'Segoe UI');
+  assert.ok(ui(en[0]).includes('Yu Gothic UI') && ui(en[0]).includes('Hiragino Sans'), '日本語の文字は日本語のフォントで出る');
   assert.ok(M.exportCss(styles).includes(en[0]), 'HTML・MHTML の書き出しにも入る');
 });
 

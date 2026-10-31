@@ -18,6 +18,7 @@ So everything is checked while the release is still a draft, and a mistake after
 - Upload only the two exe files above. Never upload anything else (no zips, no CI artifacts, no files from other folders).
 - Never change the files of a published release, never delete or re-upload one, and never move or delete tags (they are protected by a ruleset anyway). The notes of a published release may be edited only after the user approves the new text in this conversation.
 - The Microsoft Store update is submitted by the user in Partner Center. Never sign in to Partner Center or submit anything there; only prepare the package information and the text (step 5).
+- The user may skip the Store update for a version (for example a small fix, because certification takes time) and submit it with a later version. The version on the Store is written at the top of `store/listing.md` (`Store に出ている版`). If the user has not said whether this version goes to the Store, ask while asking for approval of the notes.
 - If any check fails, stop and tell the user what failed. Do not work around it.
 - Do not paste or ask for tokens in the chat. `gh` is signed in with a fine-grained token limited to `nihongi/everpad` (Contents: read and write).
 - `gh` may not be on PATH in an older shell: use `"/c/Program Files/GitHub CLI/gh.exe"` in Bash.
@@ -88,6 +89,10 @@ macOS and Linux builds are not published yet (they can be built from the source;
 macOS 版と Linux 版は、まだ配布していません(ソースから作れます。README を見てください)。
 ```
 
+If this version skips the Store, replace the Store sentence with:
+- English: `EverPad is also available on the [Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3), which updates it automatically. The Microsoft Store version will get this change with its next update.`
+- Japanese: `[Microsoft Store](https://apps.microsoft.com/detail/9mw2hbgkgxh3) でも配布しています。Microsoft Store が自動で更新します。Microsoft Store 版には、次の更新でこの変更が入ります。`
+
 Writing style: plain words for end users, no internal names (functions, file formats) unless they matter to users; keep it short.
 Show the full notes in the chat (title: `EverPad X.Y.Z`) and ask the user to approve or request changes. Wait.
 
@@ -111,6 +116,8 @@ Show the full notes in the chat (title: `EverPad X.Y.Z`) and ask the user to app
 
 The Store package is not built on this PC and is not uploaded to the release. It comes from the GitHub Actions build of the tag.
 
+If this version skips the Store, do not do this step: tell the user the Store stays at the version in `store/listing.md`, and leave that file as it is.
+
 1. Check the Store package in that build (the run found in step 1). The Windows job's annotations must include
    `Installed: NobuyoshiNIHONGI.EverPad_X.Y.Z.0_x64__yqg2q417k4v4a` and `WACK: PASS`
    (the "Blocked executables" FAIL listed with it is normal for Electron apps and does not affect the result):
@@ -120,6 +127,7 @@ The Store package is not built on this PC and is not uploaded to the release. It
    ```
    If either is missing, stop and tell the user.
 2. Draft the Store's "What's new in this version" text (`この版の新機能`, up to 1,500 characters each) in Japanese and English, from the approved release notes.
+   If versions were skipped since the version on the Store (`Store に出ている版` in `store/listing.md`), include their changes too, from their published release notes (`gh release view vX.Y.Z --json body -q .body`).
    Leave out anything that does not apply to the Store version (the update check, the "Send to" menu, the installer, the portable version, SmartScreen).
    Write it to the scratchpad (`store-whats-new-X.Y.Z.md`) and show it in the chat. The other listing text is in `store/listing.md`; update that file too if a feature in the listing changed.
 3. Tell the user how to submit (in Japanese):
@@ -129,3 +137,4 @@ The Store package is not built on this PC and is not uploaded to the release. It
    - Store listings: paste the "What's new" text for ja-JP and en-US.
    - If an error says Windows Mixed Reality hardware must be chosen, uncheck "PC" (and "HoloLens") under immersive view: EverPad is a 2D app.
    - Submit. Certification usually takes a few hours to a day, sometimes a few days. After it passes, installed copies update automatically (Microsoft Store → Library → Get updates to update at once), and Help → About shows X.Y.Z.
+4. When the user reports that certification passed, set `Store に出ている版` in `store/listing.md` to X.Y.Z, and put the submitted "What's new" text in its `この版の新機能` / `What's new in this version` sections (commit only when asked).
