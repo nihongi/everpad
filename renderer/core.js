@@ -416,10 +416,13 @@ function removeAttachRefs(text, fileId) {
   return { text: count ? out.join('\n') : text, count: count };
 }
 
-function mdList(lines, i, out) {
+function mdList(lines, i, out, base) {
   const re = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
   const stack = [];
   let html = '';
+  // 項目の開始のタグ。行の範囲を付けるときは、まず最初の行だけ付け、終わり(次の項目の行かリストの終わり)は最後にまとめて足す
+  const starts = [];
+  const li = () => { if (!(base >= 0)) return '<li>'; starts.push(base + i); return '<li data-line="' + (base + i) + '">'; };
   while (i < lines.length) {
     let m = lines[i].match(re);
     if (!m) {
@@ -445,11 +448,11 @@ function mdList(lines, i, out) {
     const ind = m[1].replace(/\t/g, '  ').length;
     const tag = /\d/.test(m[2]) ? 'ol' : 'ul';
     while (stack.length && ind < stack[stack.length - 1].ind) html += '</li></' + stack.pop().tag + '>';
-    if (stack.length && ind === stack[stack.length - 1].ind) html += '</li><li>';
+    if (stack.length && ind === stack[stack.length - 1].ind) html += '</li>' + li();
     else {
       // 番号付きは、最初の項目に書いた番号から数える(4. から始めれば 4, 5, … と表示する)
       const start = tag === 'ol' ? parseInt(m[2], 10) : 1;
-      html += '<' + tag + (start !== 1 ? ' start="' + start + '"' : '') + '><li>';
+      html += '<' + tag + (start !== 1 ? ' start="' + start + '"' : '') + '>' + li();
       stack.push({ ind: ind, tag: tag });
     }
     const t = m[3].match(/^\[( |x|X)\]\s+(.*)$/);
@@ -457,6 +460,12 @@ function mdList(lines, i, out) {
     i++;
   }
   while (stack.length) html += '</li></' + stack.pop().tag + '>';
+  if (starts.length) {
+    // 本文の文字は esc してあるので、この形のタグは項目の開始のタグだけ
+    let k = 0;
+    const ends = starts.slice(1).concat(base + Math.min(i, lines.length));
+    html = html.replace(/<li data-line="(\d+)">/g, (m0, n) => '<li data-line="' + n + '" data-end="' + ends[k++] + '">');
+  }
   out.push(html);
   return i;
 }
@@ -478,14 +487,25 @@ function splitRow(line) {
 }
 const isDelim = line => line.indexOf('|') >= 0 && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(line);
 
-function md(text) {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+/* Markdown を HTML にする。opts.lines が真なら、かたまりごとに元の文の行の範囲を data-line(最初の行)・data-end(終わりの次の行)で付ける
+   (行は 0 から数える)。編集とプレビューを切り替えたときに、同じ場所を見せるために使う(syncAnchors)。
+   付けるのは、段落・見出し・コード・数式・図・区切り線・リストの項目・表の行だけで、これらの行の範囲は重ならない。
+   書き出しや印刷では付けない */
+function md(text, opts) {
+  return mdBlocks(String(text).replace(/\r\n?/g, '\n').split('\n'), opts && opts.lines ? 0 : -1);
+}
+const lineAttr = (base, s, e) => (base < 0 ? '' : ' data-line="' + (base + s) + '" data-end="' + (base + e) + '"');
+/* base: lines[0] が元の文の何行目か。負なら行の範囲を付けない */
+function mdBlocks(lines, base) {
   const out = [];
-  let para = [];
+  let para = [], paraAt = 0;
   let i = 0;
-  const flush = () => { if (para.length) { out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; } };
+  // かたまりの最初のタグに行の範囲を付けて出す
+  const put = (html, s) => { out.push(base < 0 ? html : html.replace(/^<([a-z][a-z0-9]*)/i, (m) => m + lineAttr(base, s, Math.min(i, lines.length)))); };
+  const flush = () => { if (para.length) { const s = paraAt; out.push('<p' + lineAttr(base, s, s + para.length) + '>' + para.map(inline).join('<br>') + '</p>'); para = []; } };
   while (i < lines.length) {
     const ln = lines[i];
+    const at = i;
     let m;
     // 数式のかたまり: ```math のコードブロック、$$ … $$、\[ … \]
     const mf = ln.match(/^\s*(`{3,}|~{3,})math\s*$/);
@@ -494,11 +514,11 @@ function md(text) {
       const buf = [];
       for (i++; i < lines.length && !fenceCloses(lines[i], mf[1]); i++) buf.push(lines[i]);
       i++;
-      out.push(renderMath(buf.join('\n'), true, true));
+      put(renderMath(buf.join('\n'), true, true), at);
       continue;
     }
     const mb = mathBlock(lines, i);
-    if (mb) { flush(); out.push(renderMath(mb.tex, true, true)); i = mb.next; continue; }
+    if (mb) { flush(); i = mb.next; put(renderMath(mb.tex, true, true), at); continue; }
     // Mermaid の図: ```mermaid のコードブロック。ここでは元の文を出し、画面側(diagram.js)があとで図に置き換える
     const mm = ln.match(/^\s*(`{3,}|~{3,})mermaid\s*$/);
     if (mm) {
@@ -506,27 +526,27 @@ function md(text) {
       const buf = [];
       for (i++; i < lines.length && !fenceCloses(lines[i], mm[1]); i++) buf.push(lines[i]);
       i++;
-      out.push(diagramHtml(buf.join('\n')));
+      put(diagramHtml(buf.join('\n')), at);
       continue;
     }
     if (FENCE_OPEN.test(ln)) {
       flush();
       const f = mdFence(lines, i);
       i = f.next;
-      out.push(f.html);
+      put(f.html, at);
       continue;
     }
     if (/^\s*$/.test(ln)) { flush(); i++; continue; }
-    if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) { flush(); out.push('<h' + m[1].length + '>' + inline(m[2]) + '</h' + m[1].length + '>'); i++; continue; }
-    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(ln)) { flush(); out.push('<hr>'); i++; continue; }
+    if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) { flush(); i++; put('<h' + m[1].length + '>' + inline(m[2]) + '</h' + m[1].length + '>', at); continue; }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(ln)) { flush(); i++; put('<hr>', at); continue; }
     if (/^>\s?/.test(ln)) {
       flush();
       const buf = [];
       while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, '')); i++; }
-      out.push('<blockquote>' + md(buf.join('\n')) + '</blockquote>');
+      out.push('<blockquote>' + mdBlocks(buf, base < 0 ? -1 : base + at) + '</blockquote>');
       continue;
     }
-    if (/^\s*([-*+]|\d+[.)])\s+/.test(ln)) { flush(); i = mdList(lines, i, out); continue; }
+    if (/^\s*([-*+]|\d+[.)])\s+/.test(ln)) { flush(); i = mdList(lines, i, out, base); continue; }
     if (ln.indexOf('|') >= 0 && i + 1 < lines.length && isDelim(lines[i + 1])) {
       const head = splitRow(ln), dl = splitRow(lines[i + 1]);
       if (head.length === dl.length) {
@@ -534,17 +554,19 @@ function md(text) {
         const al = dl.map(c => (/^:-+:$/.test(c) ? 'c' : /-:$/.test(c) ? 'r' : 'l'));
         const cls = k => ' class="al-' + al[k] + '"';
         const th = head.map((c, k) => '<th' + cls(k) + '>' + inline(c) + '</th>').join('');
+        const headAt = i;
         i += 2;
         const rows = [];
         while (i < lines.length && lines[i].trim() !== '' && lines[i].indexOf('|') >= 0) {
           const r = splitRow(lines[i]);
-          rows.push('<tr>' + head.map((_, k) => '<td' + cls(k) + '>' + inline(r[k] || '') + '</td>').join('') + '</tr>');
+          rows.push('<tr' + lineAttr(base, i, i + 1) + '>' + head.map((_, k) => '<td' + cls(k) + '>' + inline(r[k] || '') + '</td>').join('') + '</tr>');
           i++;
         }
-        out.push('<div class="tblwrap"><table><thead><tr>' + th + '</tr></thead>' + (rows.length ? '<tbody>' + rows.join('') + '</tbody>' : '') + '</table></div>');
+        out.push('<div class="tblwrap"><table><thead><tr' + lineAttr(base, headAt, headAt + 2) + '>' + th + '</tr></thead>' + (rows.length ? '<tbody>' + rows.join('') + '</tbody>' : '') + '</table></div>');
         continue;
       }
     }
+    if (!para.length) paraAt = i;
     para.push(ln.trim());
     i++;
   }
@@ -552,8 +574,44 @@ function md(text) {
   return out.join('\n');
 }
 
+/* ---------- 表示を切り替えたときの位置合わせ ----------
+   anchors は、表示の中のかたまりを上から順に並べたもの: { s, e, top, bottom }。
+   s〜e(e は終わりの次)が元の文の行、top〜bottom が表示の中の縦の位置(px)。行の範囲どうし、縦の位置どうしは重ならない。
+   かたまりの中は、高さの割合で行を割り振る。かたまりの間(空行など)は、前のかたまりの下と次のかたまりの上の間で割り振る。
+   行は小数(3.5 なら 4 行目の途中)。 */
+function lineToY(anchors, line) {
+  let prev = null, next = null;
+  for (const a of anchors) {
+    if (a.s <= line && line < a.e) return a.top + (a.bottom - a.top) * (line - a.s) / (a.e - a.s);
+    if (a.e <= line && (!prev || a.e >= prev.e)) prev = a;
+    if (a.s > line && (!next || a.s < next.s)) next = a;
+  }
+  if (prev && next) return prev.bottom + (next.top - prev.bottom) * (line - prev.e) / Math.max(1, next.s - prev.e);
+  return prev ? prev.bottom : next ? next.top : 0;
+}
+function yToLine(anchors, y) {
+  let hit = null, prev = null, next = null;
+  for (const a of anchors) {
+    if (a.top <= y && y < a.bottom && (!hit || a.top >= hit.top)) hit = a;
+    if (a.bottom <= y && (!prev || a.bottom >= prev.bottom)) prev = a;
+    if (a.top > y && (!next || a.top < next.top)) next = a;
+  }
+  if (hit) return hit.s + (hit.e - hit.s) * (y - hit.top) / (hit.bottom - hit.top);
+  if (prev && next) return prev.e + (next.s - prev.e) * (y - prev.bottom) / Math.max(1, next.top - prev.bottom);
+  return prev ? prev.e : next ? next.s : 0;
+}
+/* 行の範囲に入るかたまり(無ければ、そのあとの最初のかたまり、それも無ければ最後のかたまり)。目印を光らせる先 */
+function anchorAt(anchors, line) {
+  let after = null;
+  for (const a of anchors) {
+    if (a.s <= line && line < a.e) return a;
+    if (!after && a.s > line) after = a;
+  }
+  return after || anchors[anchors.length - 1] || null;
+}
+
 /* ---------- 検索 ---------- */
-const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escRe =s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function matchRanges(text, q) {
   if (!q) return [];
@@ -721,5 +779,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

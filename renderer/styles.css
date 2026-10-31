@@ -242,7 +242,15 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 /* 「追加 1文字」などを押したとき、変更箇所を一瞬強調する */
 .diff ins.flash, .diff del.flash { animation: chg-flash 1.6s ease-out; }
 @keyframes chg-flash { 0%, 45% { outline: 3px solid var(--accent); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
-
+/* 「編集」と「プレビュー」を切り替えたとき、合わせた場所を一瞬光らせる。
+   プレビューはかたまりの内側に色を重ね(元の背景の上、文字の下)、編集は textarea の後ろに重ねた帯(#syncFlash)を光らせる */
+.sync-flash { animation: sync-flash 1.3s ease-out; }
+@keyframes sync-flash {
+  0%, 35% { box-shadow: inset 0 0 0 100vmax color-mix(in srgb, var(--accent) 22%, transparent), 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+  100% { box-shadow: inset 0 0 0 100vmax transparent, 0 0 0 4px transparent; }
+}
+.sync-flash-line { position: absolute; z-index: 0; pointer-events: none; border-radius: 3px; animation: sync-flash-line 1.3s ease-out forwards; }
+@keyframes sync-flash-line { 0%, 35% { background: color-mix(in srgb, var(--accent) 22%, transparent); } 100% { background: transparent; } }
 .tl { --thumb: var(--accent); border-top: 1px solid var(--line); background: var(--surface-2); padding: 12px 16px 10px; display: flex; flex-direction: column; gap: 4px; }
 .tl[data-past="1"] { --thumb: var(--past); }
 .tl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }

@@ -235,6 +235,16 @@
   let gutterRaf = 0;
   function queueGutter() { if (!S.lines || gutterRaf) return; gutterRaf = requestAnimationFrame(updateGutter); }
   function syncGutterScroll() { $('gin').style.transform = 'translateY(' + (-$('editor').scrollTop) + 'px)'; }
+  // 見えない複製を、本文(textarea)と同じ幅・同じ書式にする
+  function fitMirror(ta, cs) {
+    mirror.style.font = cs.font;
+    mirror.style.lineHeight = cs.lineHeight;
+    mirror.style.letterSpacing = cs.letterSpacing;
+    mirror.style.tabSize = cs.tabSize;
+    mirror.style.overflowWrap = cs.overflowWrap;
+    mirror.style.wordBreak = cs.wordBreak;
+    mirror.style.width = (ta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) + 'px';
+  }
   function updateGutter() {
     gutterRaf = 0;
     const ta = $('editor');
@@ -245,13 +255,7 @@
     if (!ta.clientWidth) return;
     const cs = getComputedStyle(ta);
     const lh = parseFloat(cs.lineHeight);
-    mirror.style.font = cs.font;
-    mirror.style.lineHeight = cs.lineHeight;
-    mirror.style.letterSpacing = cs.letterSpacing;
-    mirror.style.tabSize = cs.tabSize;
-    mirror.style.overflowWrap = cs.overflowWrap;
-    mirror.style.wordBreak = cs.wordBreak;
-    mirror.style.width = (ta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) + 'px';
+    fitMirror(ta, cs);
     let out = '';
     if (lines.length > 20000 || !(lh > 0)) {
       for (let i = 1; i <= lines.length; i++) out += '<div>' + i + '</div>'; // 行が多すぎるときは折り返しを無視する
@@ -316,7 +320,7 @@
     if (typeof frShow === 'function') frShow();
     if (typeof updateStrip === 'function') updateStrip();
     $('attBtn').hidden = m !== 'edit';
-    if (m === 'preview') { $('preview').innerHTML = md(cur().text) || '<p class="empty">' + esc(T('emptyNote')) + '</p>'; hydrate($('preview'), cur().id); highlight($('preview'), S.q); }
+    if (m === 'preview') { $('preview').innerHTML = md(cur().text, { lines: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>'; lastHydrate = hydrate($('preview'), cur().id); highlight($('preview'), S.q); }
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
@@ -331,11 +335,200 @@
     $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
     api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history' });
   }
-  // 「編集」「プレビュー」: 履歴表示の最中なら、履歴のまま(同じ版で)表示を切り替える
-  document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
-    if (S.mode === 'history') { stop(); S.hbase = b.dataset.mode; setMode('history'); }
-    else setMode(b.dataset.mode, true);
-  }));
+  /* ---------- 「編集」と「プレビュー」を切り替えたときの位置合わせ ----------
+     切り替える前の表示で基準の場所(元の文の行と、画面の上からの高さ)を決め、切り替えたあとの表示で、その行を同じ高さに出して一瞬光らせる。
+     基準の場所: 編集では、カーソルが見えていればカーソルの行、見えていなければ上端の行。
+     プレビュー(と履歴の表示)では、クリックした場所が見えていればそこ、なければ上端の行。プレビューから編集に戻るときは、クリックした行にカーソルを移す。
+     基準が上端の行で、いちばん上・いちばん下にいるときは、切り替えたあともその端にする。
+     プレビューの行は、md(…, { lines: true }) が付けた data-line・data-end で知る。編集の行は、行番号と同じ見えない複製で測る。 */
+  let lastHydrate = null;   // いちばん新しいプレビューの図を描き終わるまでの Promise
+  let lastClick = null;     // プレビュー・履歴の表示でクリックした場所: { el, frac }(el は行の範囲を持つかたまり、frac はその中の高さの割合)
+  function noteClick(e) {
+    const el = e.target.closest && e.target.closest('[data-line]');
+    if (!el || !e.currentTarget.contains(el)) { lastClick = null; return; }
+    const r = el.getBoundingClientRect();
+    lastClick = { el, frac: r.height > 0 ? Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) : 0 };
+  }
+  $('preview').addEventListener('mousedown', noteClick);
+  $('hvBody').addEventListener('mousedown', noteClick);
+  const viewKey = () => (S.mode === 'history' ? 'history:' + S.hbase : S.mode);
+  const viewEl = () => (S.mode === 'edit' ? $('editor') : S.mode === 'preview' ? $('preview') : $('hvBody'));
+  // 編集の行ごとの縦の位置(textarea の中の位置。折り返した行は高さが増える)
+  function editorAnchors() {
+    const ta = $('editor'), cs = getComputedStyle(ta);
+    const lines = ta.value.split('\n');
+    const pt = parseFloat(cs.paddingTop) || 0, lh = parseFloat(cs.lineHeight) || 21;
+    const out = [];
+    if (lines.length > 20000 || !ta.clientWidth) {   // 行が多すぎるときは折り返しを無視する(行番号と同じ)
+      for (let i = 0; i < lines.length; i++) out.push({ s: i, e: i + 1, top: pt + i * lh, bottom: pt + (i + 1) * lh });
+      return out;
+    }
+    fitMirror(ta, cs);
+    mirror.innerHTML = lines.map(l => '<div>' + (l ? esc(l) : '&#8203;') + '</div>').join('');
+    const m0 = mirror.getBoundingClientRect().top, kids = mirror.children;
+    for (let i = 0; i < lines.length; i++) { const r = kids[i].getBoundingClientRect(); out.push({ s: i, e: i + 1, top: pt + r.top - m0, bottom: pt + r.bottom - m0 }); }
+    mirror.innerHTML = '';
+    return out;
+  }
+  // カーソル(位置 pos)の行の縦の位置
+  function caretBox(ta, pos) {
+    const cs = getComputedStyle(ta), pt = parseFloat(cs.paddingTop) || 0;
+    fitMirror(ta, cs);
+    mirror.textContent = ta.value.slice(0, pos);
+    const mk = document.createElement('span');
+    mk.textContent = '​';
+    mirror.appendChild(mk);
+    const m0 = mirror.getBoundingClientRect().top, r = mk.getBoundingClientRect();
+    mirror.textContent = '';
+    return { top: pt + r.top - m0, bottom: pt + r.bottom - m0 };
+  }
+  // プレビュー・履歴の表示の、行の範囲を持つかたまりの縦の位置(スクロールする中身の上からの位置)
+  function domAnchors(root) {
+    const rr = root.getBoundingClientRect(), base = root.scrollTop - rr.top;
+    const out = [...root.querySelectorAll('[data-line]')].map(el => {
+      const r = el.getBoundingClientRect(), s = +el.dataset.line;
+      return { s, e: Math.max(s + 1, +el.dataset.end || 0), top: r.top + base, bottom: r.bottom + base, el };
+    });
+    // 入れ子のリストの項目は、中の項目の上までを自分の場所にする(縦の位置が重ならないように)
+    for (let k = 0; k + 1 < out.length; k++) if (out[k].el.contains(out[k + 1].el)) out[k].bottom = Math.min(out[k].bottom, out[k + 1].top);
+    return out;
+  }
+  function syncCapture() {
+    const sc = viewEl(), top = sc.scrollTop, h = sc.clientHeight;
+    const a = { line: 0, offset: 0, edge: null, caretLine: -1, target: false };
+    if (S.mode === 'edit') {
+      const ta = sc, anchors = editorAnchors();
+      const pos = ta.selectionDirection === 'backward' ? ta.selectionStart : ta.selectionEnd;
+      const c = caretBox(ta, pos);
+      if (c.bottom > top && c.top < top + h) { a.line = yToLine(anchors, c.top + 0.5); a.offset = c.top - top; a.target = true; }
+      else a.line = yToLine(anchors, top);
+    } else {
+      const anchors = domAnchors(sc);
+      const el = lastClick && lastClick.el;
+      if (el && el.isConnected && sc.contains(el)) {
+        const r = el.getBoundingClientRect(), an = anchors.find(x => x.el === el);
+        let y = r.top - sc.getBoundingClientRect().top + top + r.height * lastClick.frac;
+        if (an && an.bottom > an.top) y = Math.min(Math.max(y, an.top), an.bottom - 0.5);   // 入れ子の項目を持つ項目は、自分の行の場所の中にする
+        if (y >= top && y <= top + h) {
+          a.line = yToLine(anchors, y);
+          a.offset = y - top;
+          a.target = true;
+          a.caretLine = an ? Math.min(an.e - 1, Math.max(an.s, Math.floor(a.line))) : Math.floor(a.line);
+        }
+      }
+      if (!a.target) a.line = yToLine(anchors, top);
+    }
+    lastClick = null;
+    if (!a.target) {
+      if (sc.scrollHeight <= h + 2 || top <= 1) a.edge = 'top';
+      else if (top + h >= sc.scrollHeight - 2) a.edge = 'bottom';
+    }
+    return a;
+  }
+  // 編集で、行 line の文字の始まり(行頭のリストの記号・見出しの # ・引用の > のあと)
+  function lineTextStart(text, line) {
+    let p = 0;
+    for (let k = 0; k < line; k++) { const q = text.indexOf('\n', p); if (q < 0) return text.length; p = q + 1; }
+    const end = text.indexOf('\n', p), ln = text.slice(p, end < 0 ? text.length : end);
+    const m = ln.match(/^\s*(?:(?:>\s?)+\s*)?(?:(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?|#{1,6}\s+)?/);
+    return p + (m ? m[0].length : 0);
+  }
+  function syncApply(a) {
+    const sc = viewEl();
+    if (S.mode === 'edit') {
+      const ta = sc;
+      if (a.caretLine >= 0) { const p = lineTextStart(ta.value, a.caretLine); ta.setSelectionRange(p, p); queueStatus(); }
+      const anchors = editorAnchors();
+      if (a.edge === 'top') ta.scrollTop = 0;
+      else if (a.edge === 'bottom') ta.scrollTop = ta.scrollHeight;
+      else ta.scrollTop = Math.max(0, lineToY(anchors, a.line) - a.offset);
+      if (!a.edge) flashEditorLine(anchorAt(anchors, a.line));
+      return;
+    }
+    const anchors = domAnchors(sc);
+    if (a.edge === 'top') sc.scrollTop = 0;
+    else if (a.edge === 'bottom') sc.scrollTop = sc.scrollHeight;
+    else sc.scrollTop = Math.max(0, lineToY(anchors, a.line) - a.offset);
+    const an = a.edge ? null : anchorAt(anchors, a.line);
+    if (an) {
+      an.el.classList.remove('sync-flash');
+      void an.el.offsetWidth;   // 続けて切り替えたときも、初めから光らせる
+      an.el.classList.add('sync-flash');
+      an.el.addEventListener('animationend', function off(e) { if (e.target === an.el) { an.el.classList.remove('sync-flash'); an.el.removeEventListener('animationend', off); } });
+    }
+    if (a.edge !== 'top') keepAnchor(a, sc, anchors);
+  }
+  /* 図(Mermaid)や画像は、あとから描かれて高さが変わる。描き終わるまで(最大で数秒)、同じ場所を見せ続ける。
+     ホイール・クリック・キーを使ったら、そこでやめる */
+  let keepTok = 0;
+  function keepAnchor(a, sc, anchors) {
+    const tok = ++keepTok, key = viewKey();
+    let ref = null;
+    if (!a.edge) {
+      const an = anchorAt(anchors, a.line);
+      if (an) {
+        const y = lineToY(anchors, a.line), r = an.el.getBoundingClientRect(), elTop = r.top - sc.getBoundingClientRect().top + sc.scrollTop;
+        ref = y >= elTop && r.height > 0 ? { el: an.el, frac: (y - elTop) / r.height } : { el: an.el, dy: y - elTop };
+      }
+      if (!ref) return;
+    }
+    let settled = false;
+    Promise.resolve(lastHydrate).catch(() => {}).then(() => { settled = performance.now(); });
+    const t0 = performance.now();
+    const quit = () => { keepTok++; };
+    const evs = ['wheel', 'mousedown', 'keydown', 'touchstart'];
+    evs.forEach(t => window.addEventListener(t, quit, { capture: true, passive: true, once: true }));
+    const step = () => {
+      const now = performance.now();
+      const live = tok === keepTok && viewKey() === key && (!ref || ref.el.isConnected) && now - t0 < 15000 && (now - t0 < 3000 || !settled || now - settled < 500);
+      if (!live) { evs.forEach(t => window.removeEventListener(t, quit, { capture: true })); return; }
+      let want;
+      if (!ref) want = sc.scrollHeight - sc.clientHeight;
+      else {
+        const r = ref.el.getBoundingClientRect(), elTop = r.top - sc.getBoundingClientRect().top + sc.scrollTop;
+        want = elTop + (ref.frac != null ? ref.frac * r.height : ref.dy) - a.offset;
+      }
+      want = Math.max(0, Math.min(want, sc.scrollHeight - sc.clientHeight));
+      if (Math.abs(sc.scrollTop - want) > 1) sc.scrollTop = want;
+      requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  // 編集の行を一瞬光らせる(textarea の中の行には色を付けられないので、後ろに重ねた帯を光らせる)
+  function flashEditorLine(an) {
+    if (!an) return;
+    const ta = $('editor');
+    let fl = $('syncFlash');
+    if (!fl) {
+      fl = document.createElement('div');
+      fl.id = 'syncFlash';
+      fl.setAttribute('aria-hidden', 'true');
+      fl.addEventListener('animationend', () => { fl.hidden = true; });
+      // スクロールしたら消す(位置を合わせたときのスクロールは、あとから届くので除く)
+      ta.addEventListener('scroll', () => { if (Math.abs(ta.scrollTop - (+fl.dataset.st || 0)) > 1) fl.hidden = true; });
+      $('edwrap').appendChild(fl);
+    }
+    const top = Math.max(0, an.top - ta.scrollTop), bottom = Math.min(ta.clientHeight, an.bottom - ta.scrollTop);
+    if (bottom <= top) return;
+    fl.style.cssText = 'top:' + (ta.offsetTop + top) + 'px;height:' + (bottom - top) + 'px;left:' + ta.offsetLeft + 'px;width:' + ta.clientWidth + 'px';
+    fl.className = '';
+    void fl.offsetWidth;
+    fl.className = 'sync-flash-line';
+    fl.dataset.st = String(ta.scrollTop);
+    fl.hidden = false;
+  }
+  /* 「編集」「プレビュー」に切り替える。履歴表示の最中なら、履歴のまま(同じ版で)表示を切り替える。
+     どちらも、見ていた場所を切り替えたあとの表示に合わせる */
+  function switchBase(m) {
+    if (S.mode === 'history') stop();
+    const same = S.mode === 'history' ? S.hbase === m : S.mode === m;
+    let a = null;
+    if (!same && cur()) { try { a = syncCapture(); } catch (e) { a = null; } }
+    if (S.mode === 'history') { S.hbase = m; setMode('history'); }
+    else setMode(m, true);
+    if (a) { try { syncApply(a); } catch (e) { /* 合わせられなくても切り替えは済んでいる */ } }
+  }
+  document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => switchBase(b.dataset.mode)));
   const toggleHistory = () => (S.mode === 'history' ? setMode(S.hbase, true) : setMode('history'));
   $('histBtn').addEventListener('click', toggleHistory);
 
@@ -408,8 +601,8 @@
     if (!text && !(op && op.d)) {
       body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
-      body.innerHTML = '<div class="md">' + md(text) + '</div>';
-      hydrate(body, cur().id);
+      body.innerHTML = '<div class="md">' + md(text, { lines: true }) + '</div>';
+      lastHydrate = hydrate(body, cur().id);
       highlight(body, S.q);
     } else {
       const ranges = S.q ? matchRanges(text, S.q) : [];
@@ -417,9 +610,10 @@
       if (S.lines) {
         const digits = Math.max(2, String(lines.length).length);
         body.innerHTML = '<div class="diff lined" style="--ln-w: calc(' + digits + 'ch + 36px)">' +
-          lines.map((h, i) => '<div class="dl' + (/<(ins|del)\b/.test(h) ? ' chg' : '') + '"><span class="n">' + (i + 1) + '</span><span class="t">' + (h || '&#8203;') + '</span></div>').join('') + '</div>';
+          lines.map((h, i) => '<div class="dl' + (/<(ins|del)\b/.test(h) ? ' chg' : '') + '"' + lineAttr(0, i, i + 1) + '><span class="n">' + (i + 1) + '</span><span class="t">' + (h || '&#8203;') + '</span></div>').join('') + '</div>';
       } else {
-        body.innerHTML = '<pre class="diff">' + lines.join('\n') + '</pre>';
+        // 行ごとに span で囲んで行の範囲を付ける(編集とプレビューを切り替えたときの位置合わせに使う)
+        body.innerHTML = '<pre class="diff">' + lines.map((h, i) => '<span' + lineAttr(0, i, i + 1) + '>' + h + '</span>').join('\n') + '</pre>';
       }
       const target = body.querySelector('ins, del') || body.querySelector('mark');
       if (target) target.scrollIntoView({ block: 'nearest' });
@@ -1199,7 +1393,7 @@
     else if (name === 'print') printNote('print');
     else if (name === 'pdf') printNote('pdf');
     else if (name === 'html' || name === 'mhtml' || name === 'adoc' || name === 'docx') exportPage(name);
-    else if (name.indexOf('mode:') === 0) { if (S.mode === 'history') { stop(); S.hbase = name.slice(5); setMode('history'); } else setMode(name.slice(5), true); }
+    else if (name.indexOf('mode:') === 0) switchBase(name.slice(5));
   });
   /* ---------- 印刷・PDF ----------
      いまのメモを、プレビューと同じ整形した見た目で出す。履歴表示中は、見ている版を出す。

@@ -2,7 +2,7 @@
   "name": "everpad",
   "productName": "EverPad",
   "desktopName": "everpad.desktop",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
