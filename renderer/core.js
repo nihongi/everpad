@@ -53,6 +53,10 @@ function renderMath(tex, display, block) {
     return '<' + tag + ' class="' + cls + ' math-error"' + attr + ' title="' + esc(msg) + '">' + esc(tex) + '</' + tag + '>';
   }
 }
+/* Mermaid の図のかたまり。data-src に元の文を持たせ、図にするまで(図にできないときも)元の文をコードとして出す */
+function diagramHtml(src) {
+  return '<div class="diagram" data-src="' + esc(src) + '"><pre class="diagram-src"><code>' + esc(src) + '</code></pre></div>';
+}
 /* 文中の $…$ を探す。金額の $ を数式にしないよう、Pandoc と同じ規則にする:
    開きの $ の直後は空白でない。閉じの $ の直前は空白でなく、直後は数字でない */
 function inlineDollars(s, keep) {
@@ -495,6 +499,16 @@ function md(text) {
     }
     const mb = mathBlock(lines, i);
     if (mb) { flush(); out.push(renderMath(mb.tex, true, true)); i = mb.next; continue; }
+    // Mermaid の図: ```mermaid のコードブロック。ここでは元の文を出し、画面側(diagram.js)があとで図に置き換える
+    const mm = ln.match(/^\s*(`{3,}|~{3,})mermaid\s*$/);
+    if (mm) {
+      flush();
+      const buf = [];
+      for (i++; i < lines.length && !fenceCloses(lines[i], mm[1]); i++) buf.push(lines[i]);
+      i++;
+      out.push(diagramHtml(buf.join('\n')));
+      continue;
+    }
     if (FENCE_OPEN.test(ln)) {
       flush();
       const f = mdFence(lines, i);

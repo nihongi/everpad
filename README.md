@@ -17,6 +17,7 @@ This program was created with the help of Claude Code.
 - **Full edit history**: every edit is recorded. Drag the time slider or play the history back to see any past version, and restore it with one click.
 - **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables.
 - **Math**: LaTeX math (and chemical formulas) is shown as formatted formulas in the preview, the history and printouts.
+- **Diagrams**: flowcharts, sequence diagrams and other diagrams written in [Mermaid](https://mermaid.js.org/) are drawn in the preview, the history and printouts.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
 - **Find and replace**: with case sensitivity, whole-word and regular-expression options.
 - **Images and attachments**: paste screenshots or drop files into a note.
@@ -64,16 +65,16 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.24.1.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" under "macOS and Linux (untested)").
+This creates an installer (`EverPad Setup 0.25.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" under "macOS and Linux (untested)").
 
 **Uninstalling**: the uninstaller never deletes your data folder (your notes stay). It offers a check box (off by default) to also delete EverPad's settings (`%APPDATA%\EverPad`: the data folder location, language, window position, recently viewed notes and so on). Settings are kept per Windows user, so only the settings of the user running the uninstaller are deleted, also when EverPad was installed for all users; other users' settings are not touched. Updates and silent uninstalls (`/S`) never delete settings.
 
 ### Portable version
 
-The portable executable (`EverPad 0.24.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.25.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.24.1.exe
+EverPad 0.25.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -92,11 +93,11 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.24.1.AppImage` (x64)
+- Linux: `EverPad-0.25.0.AppImage` (x64)
 
-**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.24.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.25.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
-**Microsoft Store package**: on Windows, `npm run dist:store` creates `EverPad-0.24.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking. In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and File has no Add to the "Send to" Menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
+**Microsoft Store package**: on Windows, `npm run dist:store` creates `EverPad-0.25.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking. In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and File has no Add to the "Send to" Menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
 
 **macOS**
 
@@ -112,7 +113,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.24.1.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.25.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -186,6 +187,14 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - In a table, `|` inside a formula is taken as a cell separator; write `\vert` instead.
 - A formula with an error is shown as its LaTeX in red; hover over it to see the error. Right-click a formula and choose Copy LaTeX to copy its source.
 - Math is drawn with [KaTeX](https://katex.org/), which is bundled with the app (no internet connection is used). KaTeX supports most common math commands, but not everything in LaTeX (for example, drawings such as TikZ, or `\label` / `\ref`). Commands that refer to external resources, such as `\href` and `\includegraphics`, are disabled.
+
+**Diagrams (Mermaid)**
+
+- Write [Mermaid](https://mermaid.js.org/) syntax in a ```` ```mermaid ```` code block to draw a diagram: flowcharts, sequence diagrams, class diagrams, state diagrams, Gantt charts, pie charts, mind maps and more. See the Mermaid documentation for the syntax.
+- Diagrams are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become pictures, and AsciiDoc files keep the source in a `[mermaid]` block (drawn as a diagram where Asciidoctor Diagram is installed). The editor and search keep the source as text.
+- The colors follow dark mode. Printouts and exported files always use light colors.
+- A diagram with an error is shown as its source in red; hover over it to see the error. Right-click a diagram and choose Copy Diagram Source to copy its source.
+- Diagrams are drawn with Mermaid, which is bundled with the app (no internet connection is used). It is loaded the first time a note with a diagram is shown, so the first diagram can take about a second to appear. Clicks and links in diagrams are disabled.
 
 **Formatting lines**
 
@@ -285,6 +294,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 | Horizontal rules | `---` |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
+| Diagrams | ```` ```mermaid ```` code block with [Mermaid](https://mermaid.js.org/) syntax |
 | Links to notes | `[text](note:note ID)`, inserted with `Ctrl+K` |
 | Attachments | `![name](attach:…)` (image), `[name](attach:…)` (file), inserted automatically |
 
@@ -349,12 +359,14 @@ textcodec.js     Detecting the encoding of imported text files (testable without
 archive.js       EverPad archives: building, checking and reading (testable without Electron)
 ziplite.js       Minimal ZIP reading and writing for archives, using Node.js zlib (testable without Electron)
 sendto.js        The "Send to" shortcut and reading files passed at startup (testable without Electron)
-renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js),
+renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js), Mermaid diagrams (diagram.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
+                 the script that copies Mermaid into renderer/vendor/mermaid (vendor-mermaid.js),
                  the script that makes the Microsoft Store icons (make-store-assets.js),
                  and the Windows startup checks used by GitHub Actions (ci-smoke-windows.ps1, ci-smoke-store.ps1)
 renderer/vendor/katex/  KaTeX for math (copied from node_modules automatically before npm start and npm run dist; not stored in Git)
+renderer/vendor/mermaid/  Mermaid for diagrams (copied the same way as KaTeX; not stored in Git)
 build/installer.nsh  The installer's "Send to" check box and the uninstaller's "delete settings" check box
 .github/workflows/build.yml  Building the Windows, macOS and Linux versions with GitHub Actions
 test/            Automated tests
@@ -364,6 +376,7 @@ test/            Automated tests
 
 - Images are loaded only through the dedicated `everpad-file://` scheme, which cannot read files outside the data folder.
 - The UI cannot connect to the network (Content Security Policy `connect-src 'none'`). The update check runs in the main process, uses only the version number from GitHub's response, and opens only fixed addresses (the release page or the repository page), never a URL taken from the response.
+- Mermaid diagrams are drawn in Mermaid's strict mode, which disables clicks, links and scripts in diagrams. The Content Security Policy also keeps the UI from running scripts other than the app's own files.
 - The UI cannot use Node.js directly (`contextIsolation` and `sandbox` are enabled) and cannot navigate away from the app. Only external links are opened, in the default browser.
 - The installed app does not accept debugging connections: `--inspect`, `NODE_OPTIONS` and `ELECTRON_RUN_AS_NODE` are disabled in the executable itself (Electron fuses), and `--remote-debugging-port` and similar switches are ignored. Development runs with `npm start` are not affected.
 - The installed app checks at startup that its code (`app.asar`) has not been modified, and refuses to start if it has been changed or replaced (Electron fuses: OnlyLoadAppFromAsar and EnableEmbeddedAsarIntegrityValidation).
@@ -383,6 +396,8 @@ Copyright (c) 2026 Nobuyoshi NIHONGI
 
 EverPad includes [KaTeX](https://github.com/KaTeX/KaTeX) (MIT License, Copyright (c) 2013-2020 Khan Academy and other contributors) for showing math. Its license is copied to `renderer/vendor/katex/LICENSE`.
 
+EverPad also includes [Mermaid](https://github.com/mermaid-js/mermaid) (MIT License, Copyright (c) 2014 - 2022 Knut Sveidqvist) for drawing diagrams. Its license is copied to `renderer/vendor/mermaid/LICENSE`, and the licenses of the libraries bundled in it are kept at the end of `mermaid.min.js`.
+
 ---
 
 ## 日本語
@@ -398,6 +413,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **すべての編集を履歴に残す**: タイムスライダーを動かすか履歴を再生すると、どの時点の版でも見られます。その版にはボタン1つで戻せます。
 - **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表に対応しています。
 - **数式**: LaTeX の数式(と化学式)を、プレビュー・履歴・印刷で整形した数式として表示します。
+- **図**: [Mermaid](https://mermaid.js.org/) で書いたフローチャートやシーケンス図などを、プレビュー・履歴・印刷で図として表示します。
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
 - **検索と置換**: 大文字/小文字の区別、単語単位、正規表現を選べます。
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
@@ -445,16 +461,16 @@ Windows 版は、次の2か所で配布しています。
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.24.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(「macOS と Linux(未確認)」の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.25.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(「macOS と Linux(未確認)」の「GitHub Actions で作る」を見てください)。
 
 **アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(既定はオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
 
 ### portable 版
 
-portable 版(`EverPad 0.24.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.25.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.24.1.exe
+EverPad 0.25.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -473,11 +489,11 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.24.1.AppImage`(x64)
+- Linux: `EverPad-0.25.0.AppImage`(x64)
 
-**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.24.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.25.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
-**Microsoft Store 版**: Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.24.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、「ファイル」に「「送る」メニューに登録」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
+**Microsoft Store 版**: Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.25.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、「ファイル」に「「送る」メニューに登録」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
 
 **macOS**
 
@@ -493,7 +509,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.24.1.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.25.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -567,6 +583,14 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 表の中の数式で `|` を使うと、セルの区切りと見なされます。`\vert` と書いてください。
 - 誤りのある数式は、元の LaTeX を赤字で表示します。マウスを重ねると誤りの内容が出ます。数式を右クリックして「数式の LaTeX をコピー」を選ぶと、元の LaTeX をコピーできます。
 - 数式の表示には、アプリに同梱した [KaTeX](https://katex.org/) を使います(インターネットには接続しません)。よく使う数式コマンドにはほぼ対応していますが、LaTeX のすべてではありません(TikZ などの図や、`\label`・`\ref` には対応しません)。`\href` や `\includegraphics` のように外部を参照するコマンドは使えません。
+
+**図(Mermaid)**
+
+- ```` ```mermaid ```` のコードブロックに [Mermaid](https://mermaid.js.org/) の書き方で書くと、図になります。フローチャート、シーケンス図、クラス図、状態遷移図、ガントチャート、円グラフ、マインドマップなどが書けます。書き方は Mermaid の説明を見てください。
+- 図は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書では画像になり、AsciiDoc では `[mermaid]` のブロックに元の文のまま入ります(Asciidoctor Diagram が入っていれば図になります)。編集画面と検索では、元の文のまま扱います。
+- 図の配色はダークモードに合わせます。印刷と書き出したファイルは、いつも明るい配色です。
+- 書き方に誤りのある図は、元の文を赤く表示します。マウスを重ねると誤りの内容が出ます。図を右クリックして「図の元の文をコピー」を選ぶと、元の文をコピーできます。
+- 図の表示には、アプリに同梱した Mermaid を使います(インターネットには接続しません)。図のあるメモを初めて表示したときに読み込むので、最初の図が出るまで1秒ほどかかることがあります。図の中のクリックやリンクは使えません。
 
 **行の書式**
 
@@ -666,6 +690,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 | 区切り線 | `---` |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
+| 図 | ```` ```mermaid ```` のコードブロックに [Mermaid](https://mermaid.js.org/) の書き方で書く |
 | 他のメモへのリンク | `[表示する文字](note:メモID)`。`Ctrl+K` で挿入できます |
 | 添付 | `![名前](attach:…)`(画像)、`[名前](attach:…)`(ファイル)。添付すると自動で書かれます |
 
@@ -730,12 +755,14 @@ textcodec.js     取り込むテキストファイルの文字コードの判定
 archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)
 ziplite.js       アーカイブに使う最小限の ZIP の読み書き。Node.js の zlib を使う(Electron なしでテストできる)
 sendto.js        「送る」メニューのショートカットと、起動時に渡されたファイルの取り出し(Electron なしでテストできる)
-renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、
+renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、Mermaid の図(diagram.js)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、
+                 Mermaid を renderer/vendor/mermaid にコピーするスクリプト(vendor-mermaid.js)、
                  Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、
                  GitHub Actions で使う Windows 版の起動の確認(ci-smoke-windows.ps1、ci-smoke-store.ps1)
 renderer/vendor/katex/  数式の表示に使う KaTeX(npm start と npm run dist の前に node_modules から自動でコピーする。Git には入れない)
+renderer/vendor/mermaid/  図の表示に使う Mermaid(KaTeX と同じく自動でコピーする。Git には入れない)
 build/installer.nsh  インストーラーの「送る」メニューと、アンインストーラーの「設定も削除する」のチェックボックス
 .github/workflows/build.yml  GitHub Actions で Windows 版・macOS 版・Linux 版を作る
 test/            自動テスト
@@ -745,6 +772,7 @@ test/            自動テスト
 
 - 画像は専用の `everpad-file://` からだけ読み込み、保存先のフォルダの外のファイルは読めません。
 - 画面からはネットワークに接続できません(Content Security Policy の `connect-src 'none'`)。更新の確認はメインプロセスで行い、GitHub の応答からは版の番号だけを使います。開くのは固定の場所(リリースのページかリポジトリのページ)だけで、応答に含まれる URL は開きません。
+- Mermaid の図は、Mermaid の strict モードで描き、図の中のクリック・リンク・スクリプトは使えません。Content Security Policy でも、画面はアプリのファイル以外のスクリプトを実行できません。
 - 画面からは Node.js の機能を直接使えない構成(`contextIsolation`、`sandbox`)で、ページの外へ移動することも禁止しています。外部リンクだけは既定のブラウザで開きます。
 - インストールしたアプリは、デバッグ用の接続を受け付けません。`--inspect`、`NODE_OPTIONS`、`ELECTRON_RUN_AS_NODE` は実行ファイル自体で無効にしてあり(Electron の fuses)、`--remote-debugging-port` などの起動オプションは無視します。`npm start` での開発時の起動には影響しません。
 - インストールしたアプリは、起動時にアプリ本体(`app.asar`)が書き換えられていないかを確かめ、書き換えや差し替えがあれば起動しません(Electron の fuses の OnlyLoadAppFromAsar と EnableEmbeddedAsarIntegrityValidation)。
@@ -763,3 +791,5 @@ MIT License です。全文は [LICENSE](LICENSE) にあります。
 Copyright (c) 2026 Nobuyoshi NIHONGI
 
 数式の表示のために [KaTeX](https://github.com/KaTeX/KaTeX)(MIT License、Copyright (c) 2013-2020 Khan Academy and other contributors)を同梱しています。ライセンスは `renderer/vendor/katex/LICENSE` にコピーしてあります。
+
+図の表示のために [Mermaid](https://github.com/mermaid-js/mermaid)(MIT License、Copyright (c) 2014 - 2022 Knut Sveidqvist)も同梱しています。ライセンスは `renderer/vendor/mermaid/LICENSE` にコピーしてあり、Mermaid に含まれるライブラリのライセンスは `mermaid.min.js` の最後に入っています。

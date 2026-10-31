@@ -525,7 +525,7 @@
   function highlight(root, q) {
     if (!q) return;
     const re = new RegExp(escRe(q), 'gi');
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && n.parentElement.closest('.math') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && n.parentElement.closest('.math, .diagram') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
     const nodes = [];
     while (w.nextNode()) nodes.push(w.currentNode);
     for (const nd of nodes) {
@@ -936,7 +936,7 @@
      本文から消しても履歴には残るので、ファイルは削除しない。 */
   const MAX_ATTACH_MB = 50;
   const missingEl = alt => { const s = document.createElement('span'); s.className = 'att-missing'; s.textContent = T('imageMissing', { alt: alt }); return s; };
-  function hydrate(root, noteId) {
+  function hydrate(root, noteId, diagramOpts) {
     root.querySelectorAll('img[data-att]').forEach(img => {
       img.addEventListener('error', () => img.replaceWith(missingEl(img.alt)), { once: true });
       img.src = api.fileUrl(noteId, img.dataset.att);
@@ -947,7 +947,11 @@
       a.removeAttribute('title');
       a.dataset.status = n ? T('linkStatusNote', { title: shownTitle(n.title) }) : T('linkStatusMissing');
     });
+    // Mermaid の図(diagram.js)。印刷と書き出しは、描き終わるのを待つ
+    return Diagrams.render(root, diagramOpts).catch(() => {});
   }
+  // ダークモードが変わったら、プレビューと履歴の図を描き直す
+  Diagrams.onThemeChange(() => { Diagrams.render($('preview')); Diagrams.render($('hvBody')); });
   async function openAttachment(id) {
     let r = 'none';
     try { r = await api.attachOpen(S.active, id); } catch (e) { r = 'none'; }
@@ -1007,14 +1011,15 @@
     openAttachment(t.dataset.att);
   });
   // 右クリック: 画像は「コピー・開く・場所を開く・名前をつけて保存」、ファイルは「開く・場所を開く」(左クリックはこれまでどおり開く)
-  // 数式を右クリック: 元の LaTeX をコピーできる
+  // 数式・図を右クリック: 元の LaTeX・図の元の文をコピーできる
   document.addEventListener('contextmenu', async e => {
-    const m = e.target.closest && e.target.closest('#preview .math, #hvBody .math');
+    const m = e.target.closest && e.target.closest('#preview .math, #hvBody .math, #preview .diagram, #hvBody .diagram');
     if (!m || (window.getSelection().toString().trim() && !window.getSelection().isCollapsed)) return;
     e.preventDefault();
+    const diagram = m.classList.contains('diagram');
     let r = null;
-    try { r = await api.mathMenu(m.dataset.tex || ''); } catch (err) { r = null; }
-    if (r && r.status === 'copied') toast(T('texCopied'));
+    try { r = await api.mathMenu(diagram ? m.dataset.src || '' : m.dataset.tex || '', diagram ? 'diagram' : 'math'); } catch (err) { r = null; }
+    if (r && r.status === 'copied') toast(T(diagram ? 'diagramCopied' : 'texCopied'));
   });
   document.addEventListener('contextmenu', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
@@ -1211,7 +1216,7 @@
     const title = shownTitle(titleOf(text));
     const area = $('printArea');
     area.innerHTML = '<div class="md">' + md(text) + '</div>';
-    hydrate(area, n.id);
+    await hydrate(area, n.id, { light: true });
     const edited = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
     const stampText = T(kind === 'pdf' ? 'printCreated' : 'printPrinted', { when: fmtFull(Date.now()) });
     const box = 'font-family: ' + getComputedStyle(document.body).fontFamily.replace(/[;{}]/g, '') + '; font-size: 8.5pt; color: #4A5468;';
@@ -1260,6 +1265,15 @@
       const op = k > 0 ? n.ops[k - 1] : null;
       const box = document.createElement('div');
       box.innerHTML = md(text);
+      await Diagrams.render(box, { light: true });
+      for (const el of box.querySelectorAll('.diagram[data-src]')) {
+        el.removeAttribute('data-theme');
+        if (!(kind === 'adoc' || kind === 'docx')) continue;
+        const svg = el.querySelector('svg');
+        const p = kind === 'docx' && svg ? await Diagrams.toPng(svg) : null;
+        if (p) { el.dataset.png = p.png; el.dataset.w = p.w; el.dataset.h = p.h; }
+        el.textContent = '';
+      }
       const plain = (el, prefix) => { const s = document.createElement('span'); s.className = el.classList.contains('att-file') ? 'att-file' : ''; s.textContent = (prefix || '') + el.textContent; el.replaceWith(s); };
       box.querySelectorAll('a.note-link, .link-other').forEach(el => plain(el));
       box.querySelectorAll('a.att-file').forEach(el => plain(el, '📎 '));

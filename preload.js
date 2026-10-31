@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachTrash: (noteId, fileId, name, refs) => ipcRenderer.invoke('attach:trash', noteId, fileId, name, refs),
   // 古い履歴の削除(確認・アーカイブへの書き出し・書き換え・使われなくなった添付をごみ箱へ、まで main.js が行う)
   pruneHistory: (id, k, n, title) => ipcRenderer.invoke('history:prune', id, k, n, title),
-  mathMenu: tex => ipcRenderer.invoke('math:menu', tex),
+  mathMenu: (tex, kind) => ipcRenderer.invoke('math:menu', tex, kind),
   noteMenu: title => ipcRenderer.invoke('note:menu', title),
   // 最近見たメモ(メニューを作り直してもらう)
   setRecent: items => ipcRenderer.send('recent:set', items),

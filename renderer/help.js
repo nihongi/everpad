@@ -21,6 +21,9 @@
     html += '</div></section>';
   }
   root.innerHTML = html;
+  // Mermaid の図の例を図にする(ダークモードが変わったら描き直す)
+  Diagrams.render(root).catch(() => {});
+  Diagrams.onThemeChange(() => { Diagrams.render(root).catch(() => {}); });
   // リンクにマウスを重ねている間、行き先を左下に出す
   const box = document.getElementById('linkStatus');
   document.addEventListener('mouseover', e => {

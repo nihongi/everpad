@@ -1,10 +1,13 @@
 'use strict';
 /* 文書の形式で書き出す: AsciiDoc(.adoc)と Word(.docx)。
    本文は画面側(renderer)で整形した HTML を受け取る(HTML・MHTML の書き出しと同じもの。ただし数式は中身を空にして、
-   data-tex に LaTeX、data-mml に KaTeX の MathML を持たせ、画像は data-att にファイル ID、data-w・data-h に大きさを持たせる)。
+   data-tex に LaTeX、data-mml に KaTeX の MathML を持たせ、画像は data-att にファイル ID、data-w・data-h に大きさを持たせる。
+   Mermaid の図は中身を空にして、data-src に元の文、Word のときは data-png に図の PNG(base64)と data-w・data-h を持たせる)。
    それを見出し・段落・リストなどの構造(ブロックと文中の要素の木)にしてから、それぞれの形式に書く。
-   - AsciiDoc: テキストなので、画像はファイルの外(同じ場所のフォルダー)に置いて参照する。数式は latexmath で LaTeX のまま入れる
-   - Word: ZIP に XML をまとめる(ziplite.js)。数式は MathML を Word の数式(OMML)に変換し、Word で編集できるようにする
+   - AsciiDoc: テキストなので、画像はファイルの外(同じ場所のフォルダー)に置いて参照する。数式は latexmath で LaTeX のまま入れる。
+     図は [mermaid] のブロックで元の文のまま入れる(Asciidoctor Diagram があれば図になる)
+   - Word: ZIP に XML をまとめる(ziplite.js)。数式は MathML を Word の数式(OMML)に変換し、Word で編集できるようにする。
+     図は PNG の画像にする(PNG が無いときは元の文をコードとして入れる)
    Electron なしでテストできるよう、ファイルの読み書きはしない(main.js が行う)。 */
 const { writeZip } = require('./ziplite');
 
@@ -45,7 +48,7 @@ const textOf = n => (n.text != null ? n.text : (n.children || []).map(textOf).jo
 const hasClass = (n, c) => (' ' + (n.attrs && n.attrs.class || '') + ' ').indexOf(' ' + c + ' ') >= 0;
 
 /* ---------- 本文の HTML → 構造 ----------
-   ブロック: { t:'p', c } { t:'h', level, c } { t:'pre', text } { t:'math', tex, mml, error } { t:'hr' }
+   ブロック: { t:'p', c } { t:'h', level, c } { t:'pre', text } { t:'math', tex, mml, error } { t:'hr' } { t:'diagram', src, png, w, h }
              { t:'quote', c:[ブロック] } { t:'list', ordered, start, items:[{ check: null|true|false, c:[ブロック] }] }
              { t:'table', align:['l'|'c'|'r'], head:[セル], rows:[[セル]] }(セルは文中の要素の配列)
    文中: { t:'text', v } { t:'br' } { t:'b'|'i'|'s', c } { t:'code', v } { t:'a', href, c }
@@ -53,6 +56,10 @@ const hasClass = (n, c) => (' ' + (n.attrs && n.attrs.class || '') + ' ').indexO
 const HEADING = /^h([1-6])$/;
 function mathNode(n, display) {
   return { t: 'math', tex: n.attrs['data-tex'] || '', mml: n.attrs['data-mml'] || '', error: hasClass(n, 'math-error'), display: !!display };
+}
+function diagramNode(n) {
+  const png = n.attrs['data-png'] || '';
+  return { t: 'diagram', src: n.attrs['data-src'] || '', png: /^[A-Za-z0-9+/]+={0,2}$/.test(png) ? png : '', w: +n.attrs['data-w'] || 0, h: +n.attrs['data-h'] || 0 };
 }
 function inlinesOf(nodes) {
   const out = [];
@@ -112,6 +119,7 @@ function blocksOf(nodes) {
     else if (tag === 'blockquote') { flush(); out.push({ t: 'quote', c: blocksOf(n.children) }); }
     else if (tag === 'ul' || tag === 'ol') { flush(); out.push(listOf(n)); }
     else if (tag === 'table') { flush(); out.push(tableOf(n)); }
+    else if (tag === 'div' && hasClass(n, 'diagram')) { flush(); out.push(diagramNode(n)); }
     else if (tag === 'div' && hasClass(n, 'math')) { flush(); const m = mathNode(n, true); out.push({ t: 'math', tex: m.tex, mml: m.mml, error: m.error }); }
     else if (tag === 'div') { flush(); out.push(...blocksOf(n.children)); }
     else pending.push(n);
@@ -237,6 +245,7 @@ function adocBlock(b, ctx) {
   if (b.t === 'h') return '='.repeat(Math.min(6, b.level + ctx.shift)) + ' ' + (adocInline(b.c, Object.assign({}, ctx, { oneLine: true })) || '{empty}');
   if (b.t === 'pre') return (/<\d+>\s*$/m.test(b.text) ? '[subs=-callouts]\n' : '') + adocDelimited('-', 4, b.text);
   if (b.t === 'math') return '[latexmath]\n' + adocDelimited('+', 4, b.tex);
+  if (b.t === 'diagram') return '[mermaid]\n' + adocDelimited('.', 4, b.src);
   if (b.t === 'hr') return "'''";
   if (b.t === 'quote') { const q = ctx.quote || 0; return adocDelimited('_', 4 + q, adocBlocks(b.c, Object.assign({}, ctx, { quote: q + 1, inItem: false }))); }
   if (b.t === 'list') return adocList(b, ctx);
@@ -542,6 +551,15 @@ function rPr(st) {
   if (st.code && st.link) s += '<w:color w:val="0563C1"/><w:u w:val="single"/>';
   return s ? '<w:rPr>' + s + '</w:rPr>' : '';
 }
+/* 図の PNG を Word の画像として登録し、その名前を返す。PNG でなければ null */
+function diagramImage(b, X) {
+  if (!b.png) return null;
+  const data = Buffer.from(b.png, 'base64');
+  if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) return null;
+  const key = '#diagram' + (X.nDiagram = (X.nDiagram || 0) + 1);
+  X.images[key] = { data: data, ext: 'png', w: b.w, h: b.h };
+  return key;
+}
 function imageXml(x, X, maxTwips) {
   const img = X.images[x.file];
   if (!img) return '';
@@ -602,6 +620,11 @@ function docxBlock(b, ctx, X) {
     const om = !b.error && b.mml ? mathmlToOmml(b.mml) : null;
     if (om) return para({ left: ctx.ind }, '<m:oMathPara>' + om + '</m:oMathPara>');
     return para({ style: 'SourceCode', left: ctx.ind }, '<w:r>' + wText(b.tex) + '</w:r>');
+  }
+  if (b.t === 'diagram') {
+    const key = diagramImage(b, X);
+    if (key) return para({ jc: 'center', left: ctx.ind }, imageXml({ file: key, alt: '', w: b.w, h: b.h }, X, width));
+    return para({ style: 'SourceCode', left: ctx.ind }, b.src ? '<w:r>' + wText(b.src) + '</w:r>' : '');
   }
   if (b.t === 'hr') return para({ border: true, left: ctx.ind }, '');
   if (b.t === 'quote') return docxBlocks(b.c, Object.assign({}, ctx, { ind: ctx.ind + STEP, quote: ctx.quote + 1 }), X);

@@ -275,12 +275,12 @@ ipcMain.handle('note:menu', (e, title) => {
   });
 });
 
-// 数式を右クリックしたときのメニュー: 元の LaTeX をコピーする
-ipcMain.handle('math:menu', (e, tex) => {
+// 数式・図を右クリックしたときのメニュー: 元の LaTeX・図の元の文をコピーする(kind: 'math' か 'diagram')
+ipcMain.handle('math:menu', (e, tex, kind) => {
   if (!fromOurWindow(e)) return null;
   return new Promise(resolve => {
     let chosen = false;
-    const menu = Menu.buildFromTemplate([{ label: T('mCopyTex'), click: async () => {
+    const menu = Menu.buildFromTemplate([{ label: T(kind === 'diagram' ? 'mCopyDiagram' : 'mCopyTex'), click: async () => {
       chosen = true;
       try { await clipboard.writeText(String(tex || '').slice(0, 100000)); resolve({ status: 'copied' }); } catch (err) { resolve({ status: 'none' }); }
     } }]);

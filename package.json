@@ -2,7 +2,7 @@
   "name": "everpad",
   "productName": "EverPad",
   "desktopName": "everpad.desktop",
-  "version": "0.24.1",
+  "version": "0.25.0",
   "description": "テキストとMarkdownで書けて、全編集の履歴をタイムスライダーで巻き戻せるメモ帳",
   "main": "main.js",
   "private": true,
@@ -15,12 +15,13 @@
   },
   "scripts": {
     "vendor:katex": "node tools/vendor-katex.js",
-    "prestart": "node tools/vendor-katex.js",
+    "vendor:mermaid": "node tools/vendor-mermaid.js",
+    "prestart": "node tools/vendor-katex.js && node tools/vendor-mermaid.js",
     "start": "electron .",
     "test": "node --test",
-    "predist": "node tools/vendor-katex.js",
+    "predist": "node tools/vendor-katex.js && node tools/vendor-mermaid.js",
     "dist": "electron-builder",
-    "predist:store": "node tools/vendor-katex.js && node tools/make-store-assets.js",
+    "predist:store": "node tools/vendor-katex.js && node tools/vendor-mermaid.js && node tools/make-store-assets.js",
     "dist:store": "electron-builder --win appx"
   },
   "build": {
@@ -134,6 +135,7 @@
   "devDependencies": {
     "electron": "^44.9.3",
     "electron-builder": "^26.15.3",
-    "katex": "^0.19.0"
+    "katex": "^0.19.0",
+    "mermaid": "^12.2.0"
   }
 }

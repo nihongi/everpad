@@ -200,6 +200,10 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .md .math-display .katex-display { margin: 0; }
 .md .math-src { font-family: var(--mono); }
 .md .math-error { font-family: var(--mono); color: var(--del-fg); background: var(--del); border-radius: 3px; padding: 0 .2em; cursor: help; }
+.md .diagram { margin: .8em 0; overflow-x: auto; text-align: center; break-inside: avoid; }
+.md .diagram svg { max-width: 100%; height: auto; }
+.md .diagram-src { text-align: left; }
+.md .diagram-error .diagram-src { color: var(--del-fg); background: var(--del); cursor: help; }
 /* 他のメモへのリンク。参照先が削除されていれば、灰色の取り消し線 */
 .md a.note-link { color: var(--accent); text-underline-offset: 3px; text-decoration-style: dotted; }
 .md a.note-link.missing { color: var(--fg-2); text-decoration: line-through; }
