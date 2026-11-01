@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.25.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.27.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -26,6 +26,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ■ 書く  
 ・プレーンテキストでも Markdown でも書けます。見出し、リスト、チェックボックス、コード、引用、表、リンクをプレビューで整形して表示します。  
 ・編集とプレビューを切り替えても、見ていた場所はそのままです。  
+・選んだ文字を、右クリックで太字・斜体・取り消し線・コードにできます。  
 ・LaTeX の数式と化学式を、整った数式として表示します。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
@@ -51,9 +52,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・Mermaid の図に対応しました。```mermaid のコードブロックに Mermaid の書き方で書くと、フローチャート、シーケンス図、クラス図、ガントチャート、円グラフなどの図になります。  
-・図は、プレビュー・履歴・印刷・PDF・HTML・MHTML に表示され、Word には画像で書き出します。配色はダークモードに合わせます。  
-・図を右クリックすると、元の文をコピーできます。書き方は「ヘルプ」→「Markdown の書き方」の「図(Mermaid)」にあります。
+・編集画面で文字を選んで右クリックすると、太字・斜体・取り消し線・コードにできるようになりました(「編集」→「書式」にもあります)。もう一度選ぶと外れます。ショートカットは、太字 Ctrl+Shift+B、斜体 Ctrl+I、取り消し線 Ctrl+Shift+X、コード Ctrl+E です。  
+・複数行を選んだときは、行ごとに装飾します。箇条書きの記号や「#」「>」は外側に残し、空の行とコードブロックは飛ばし、表はセルごとに装飾します。  
+・右クリックメニューの「引用」「箇条書き」などを、サブメニューに入れずに直接出すようにしました。メモの題名では、太字などの記号を外して表示します。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -72,6 +73,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 13. 日本語と英語の画面、ダークモード
 14. Mermaid の図(フローチャート・シーケンス図など)
 15. 編集とプレビューを切り替えても、見ていた場所がそのまま
+16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
 
 ### 検索キーワード(7 個まで、各 30 文字まで)
 
@@ -109,6 +111,7 @@ Every edit, from a single character to a full rewrite, is kept in the history. D
 WRITE  
 • Write in plain text or Markdown. Headings, lists, check boxes, code, block quotes, tables and links are formatted in the preview.  
 • Switching between Edit and Preview keeps your place.  
+• Make selected text bold, italic, struck through or code from the right-click menu.  
 • LaTeX math and chemical formulas are shown as formatted formulas.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax.  
 • Paste screenshots or drop files to attach images and files to a note.  
@@ -134,9 +137,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Mermaid diagrams: write Mermaid syntax in a ```mermaid code block to draw flowcharts, sequence diagrams, class diagrams, Gantt charts, pie charts and more.  
-• Diagrams appear in the preview, the history, printouts, PDFs, HTML and MHTML files, and Word documents get them as pictures. The colors follow dark mode.  
-• Right-click a diagram to copy its source. See Help → Markdown Guide → Diagrams (Mermaid).
+• Select text in the editor and right-click to make it bold, italic, struck through or code (also in Edit → Format). Choose it again to remove it. Shortcuts: Bold Ctrl+Shift+B, Italic Ctrl+I, Strikethrough Ctrl+Shift+X, Code Ctrl+E.  
+• When the selection spans several lines, each line is decorated separately. List marks, # and > stay outside, empty lines and code blocks are skipped, and each table cell is decorated separately.  
+• The right-click menu now shows Quote, Bulleted List and the other formats directly instead of in a submenu. Note titles leave out marks such as those for bold.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -155,6 +158,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 13. English and Japanese interface, with dark mode
 14. Mermaid diagrams: flowcharts, sequence diagrams and more
 15. Switching between Edit and Preview keeps your place
+16. Bold, italic, strikethrough and code from the right-click menu
 
 ### Search terms (up to 7, up to 30 characters each)
 
