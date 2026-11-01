@@ -264,7 +264,7 @@ test('AsciiDoc・Word: メニュー・画面・main.js へのつなぎ込み', (
   const main = read('main.js'), app = read('renderer/app.js');
   assert.match(main, /require\('\.\/docexport'\)/);
   for (const [label, kind] of [['mExportAdoc', 'adoc'], ['mExportDocx', 'docx']]) {
-    assert.match(main, new RegExp("T\\('" + label + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
+    assert.match(main, new RegExp("T\\('" + label + "'\\), accelerator: A\\('" + kind + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
     assert.match(main, new RegExp("T\\('" + label + "'\\), click: pick\\('export" + kind[0].toUpperCase() + kind.slice(1) + "'\\)"));
   }
   assert.match(app, /action === 'exportAdoc'\) exportPage\('adoc', n\)/);

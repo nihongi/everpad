@@ -149,7 +149,7 @@ test('HTML・MHTML: メニュー・画面・main.js へのつなぎ込み', () =
   assert.match(main, /require\('\.\/pageexport'\)/);
   // ファイルメニューと、一覧の右クリックの「エクスポート」の両方
   for (const [label, kind] of [['mExportHtml', 'html'], ['mExportMhtml', 'mhtml']]) {
-    assert.match(main, new RegExp("T\\('" + label + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
+    assert.match(main, new RegExp("T\\('" + label + "'\\), accelerator: A\\('" + kind + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
     assert.match(main, new RegExp("T\\('" + label + "'\\), click: pick\\('export" + kind[0].toUpperCase() + kind.slice(1) + "'\\)"));
   }
   assert.match(app, /name === 'html' \|\| name === 'mhtml' \|\| name === 'adoc' \|\| name === 'docx'\) exportPage\(name\)/);

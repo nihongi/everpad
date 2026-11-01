@@ -40,14 +40,14 @@
 
   <main class="main">
     <header class="bar">
-      <button class="btn ibtn" id="menuBtn" type="button" aria-label="メモ一覧と検索の表示を切り替え (Ctrl+B)" title="メモ一覧と検索の表示を切り替え (Ctrl+B)" aria-pressed="true" data-i18n-aria="toggleSide" data-i18n-title="toggleSide"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="2.2" rx="1"/><rect x="4" y="11" width="16" height="2.2" rx="1"/><rect x="4" y="16" width="16" height="2.2" rx="1"/></svg></button>
+      <button class="btn ibtn" id="menuBtn" data-key="side" type="button" aria-label="メモ一覧と検索の表示を切り替え (Ctrl+B)" title="メモ一覧と検索の表示を切り替え (Ctrl+B)" aria-pressed="true" data-i18n-aria="toggleSide" data-i18n-title="toggleSide"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="2.2" rx="1"/><rect x="4" y="11" width="16" height="2.2" rx="1"/><rect x="4" y="16" width="16" height="2.2" rx="1"/></svg></button>
       <h1 id="docTitle"></h1>
       <div class="seg" id="tabs" role="tablist" aria-label="表示" data-i18n-aria="viewAria">
         <button type="button" role="tab" data-mode="edit" aria-selected="true" data-i18n="edit">編集</button>
         <button type="button" role="tab" data-mode="preview" aria-selected="false" data-i18n="preview">プレビュー</button>
       </div>
-      <button class="btn tgl-hist" id="histBtn" type="button" aria-pressed="false" data-i18n="history" data-i18n-title="historyTitle" title="履歴表示の切り替え (Ctrl+3)。いまの表示(編集/プレビュー)のまま、過去の版をタイムスライダーで見られます">履歴</button>
-      <button class="btn" id="attBtn" type="button" data-i18n="attach" data-i18n-title="attachTitle" title="画像・ファイルを添付 (Ctrl+Shift+U)。貼り付けやドラッグ&ドロップでも追加できます">添付</button>
+      <button class="btn tgl-hist" id="histBtn" data-key="mode:history" type="button" aria-pressed="false" data-i18n="history" data-i18n-title="historyTitle" title="履歴表示の切り替え (Ctrl+3)。いまの表示(編集/プレビュー)のまま、過去の版をタイムスライダーで見られます">履歴</button>
+      <button class="btn" id="attBtn" data-key="attach" type="button" data-i18n="attach" data-i18n-title="attachTitle" title="画像・ファイルを添付 (Ctrl+Shift+U)。貼り付けやドラッグ&ドロップでも追加できます">添付</button>
       <button class="btn" id="delBtn" type="button" data-i18n="delete">削除</button>
     </header>
 
@@ -112,7 +112,7 @@
     </div>
 
     <div class="link-status" id="linkStatus" hidden></div>
-    <footer class="status"><span id="stLeft"></span><span class="stR"><button type="button" class="tgl" id="lnBtn" aria-pressed="false" title="行番号の表示を切り替え (Ctrl+L)" data-i18n="lineNumbers" data-i18n-title="lineNumbersTitle">行番号</button><span id="stRight"></span></span></footer>
+    <footer class="status"><span id="stLeft"></span><span class="stR"><button type="button" class="tgl" id="lnBtn" data-key="lines" aria-pressed="false" title="行番号の表示を切り替え (Ctrl+L)" data-i18n="lineNumbers" data-i18n-title="lineNumbersTitle">行番号</button><span id="stRight"></span></span></footer>
   </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>

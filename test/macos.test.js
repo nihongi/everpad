@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { macTemplate } = require('../macmenu');
+const keymap = require('../keymap');
 const { macKeys } = require('../renderer/core');
 const { buildTemplate, formatItems, inlineItems } = require('../contextmenu');
 const { portableDirFromEnv } = require('../portable');
@@ -56,18 +57,21 @@ test('Mac のメニュー: 「EverPad について」と「終了」はアプリ
   assert.deepStrictEqual(help.map(x => x.label), ['Markdown の書き方']);
 });
 
-test('Mac のメニュー: Mac で別の意味があるショートカットを変え、他は変えない', () => {
+test('Mac の既定のキー: Mac で別の意味があるショートカットは変え、他は Windows と同じ', () => {
+  const mac = keymap.defaults('darwin'), win = keymap.defaults('win32');
+  assert.strictEqual(mac.back, 'CmdOrCtrl+[');
+  assert.strictEqual(mac.props, 'CmdOrCtrl+I');
+  assert.strictEqual(mac.replace, 'CmdOrCtrl+Alt+F');
+  assert.ok(!Object.values(mac).includes('CmdOrCtrl+H'));   // ⌘H は「隠す」
+  assert.strictEqual(mac.new, 'CmdOrCtrl+N');
+  assert.strictEqual(mac.export, 'CmdOrCtrl+Shift+E');
+  assert.deepStrictEqual([win.back, win.props, win.replace], ['Alt+Left', 'Alt+Enter', 'CmdOrCtrl+H']);
+  // Mac のメニューに組み替えても、キーは変えない(キーは main.js が keymap.js から付ける)
   const m = macTemplate(winTemplate(), { T, appName: 'EverPad' });
   const all = [];
   const walk = items => items.forEach(x => { all.push(x); if (Array.isArray(x.submenu)) walk(x.submenu); });
   walk(m);
-  const key = id => all.find(x => x.id === id).accelerator;
-  assert.strictEqual(key('back'), 'Cmd+[');
-  assert.strictEqual(key('props'), 'Cmd+I');
-  assert.strictEqual(key('replace'), 'Cmd+Alt+F');
-  assert.ok(!all.some(x => x.accelerator === 'CmdOrCtrl+H'));   // ⌘H は「隠す」
-  assert.ok(all.some(x => x.accelerator === 'CmdOrCtrl+N'));
-  assert.ok(all.some(x => x.accelerator === 'CmdOrCtrl+Shift+E'));
+  assert.strictEqual(all.find(x => x.id === 'back').accelerator, 'Alt+Left');
 });
 
 test('Windows のメニューは組み替えない(元の形を変えない)', () => {
@@ -86,10 +90,10 @@ test('Mac のメニューの文言は日本語と英語の両方にある', () =
 
 test('書式と右クリック: Mac では ⌘⇧Q(ログアウト)を使わず、やり直しは ⇧⌘Z', () => {
   const noop = () => {};
-  assert.strictEqual(formatItems(T, noop, 'darwin')[0].accelerator, "Cmd+'");
+  assert.strictEqual(formatItems(T, noop, 'darwin')[0].accelerator, "CmdOrCtrl+'");
   assert.strictEqual(formatItems(T, noop, 'win32')[0].accelerator, 'CmdOrCtrl+Shift+Q');
   // Mac の ⌘I はプロパティなので、斜体は ⌘⇧I
-  assert.strictEqual(inlineItems(T, noop, 'darwin')[1].accelerator, 'Cmd+Shift+I');
+  assert.strictEqual(inlineItems(T, noop, 'darwin')[1].accelerator, 'CmdOrCtrl+Shift+I');
   assert.strictEqual(inlineItems(T, noop, 'win32')[1].accelerator, 'CmdOrCtrl+I');
   const params = { isEditable: true, editFlags: {} };
   const redo = p => buildTemplate(params, { platform: p }).find(x => x.role === 'redo').accelerator;

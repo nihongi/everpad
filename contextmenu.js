@@ -2,6 +2,7 @@
 /* 右クリックメニューの中身(Electronに依存しないので、テストできる)。
    params は Electron の 'context-menu' イベントの引数。 */
 const I18N = require('./renderer/i18n');
+const keymap = require('./keymap');
 
 function buildTemplate(params, opts) {
   const onSelectAll = opts && opts.onSelectAll;
@@ -14,8 +15,8 @@ function buildTemplate(params, opts) {
     const body = params.formControlType === 'text-area' && opts && opts.onFormat;
     const fmt = body
       ? [{ type: 'separator' }].concat(
-          inlineItems(T, opts.onFormat, platform).map(x => Object.assign(x, { enabled: !!params.selectionText })),
-          [{ type: 'separator' }], formatItems(T, opts.onFormat, platform))
+          inlineItems(T, opts.onFormat, platform, opts.keys).map(x => Object.assign(x, { enabled: !!params.selectionText })),
+          [{ type: 'separator' }], formatItems(T, opts.onFormat, platform, opts.keys))
       : [];
     return [
       { label: T('mUndo'), role: 'undo', enabled: !!f.canUndo, accelerator: 'CmdOrCtrl+Z', registerAccelerator: false },
@@ -41,15 +42,18 @@ function buildTemplate(params, opts) {
   }
   return [];
 }
+/* 書式と装飾のキー。keys は main.js が使っているキー({ 操作の id: キー }、keymap.js)。無ければ既定のキー */
+const fmtKey = (keys, platform, kind) => (keys || keymap.defaults(platform || process.platform))['fmt:' + kind] || undefined;
+
 /* 書式(選んだ行をまとめて引用・箇条書き・番号付き・コードブロックにする)。メニューバーと右クリックで同じ項目を使う。
-   Mac の ⌘⇧Q はログアウトなので、引用は ⌘'(Mac のメールと同じ) */
-function formatItems(T, onFormat, platform) {
-  const mac = (platform || process.platform) === 'darwin';
+   既定のキーは keymap.js にある(Mac の ⌘⇧Q はログアウトなので、Mac の引用は ⌘') */
+function formatItems(T, onFormat, platform, keys) {
+  const K = kind => fmtKey(keys, platform, kind);
   return [
-    { label: T('mFmtQuote'), accelerator: mac ? "Cmd+'" : 'CmdOrCtrl+Shift+Q', click: () => onFormat('quote') },
-    { label: T('mFmtBullet'), accelerator: 'CmdOrCtrl+Shift+8', click: () => onFormat('bullet') },
-    { label: T('mFmtNumbered'), accelerator: 'CmdOrCtrl+Shift+7', click: () => onFormat('numbered') },
-    { label: T('mFmtCode'), accelerator: 'CmdOrCtrl+Shift+K', click: () => onFormat('code') },
+    { label: T('mFmtQuote'), accelerator: K('quote'), click: () => onFormat('quote') },
+    { label: T('mFmtBullet'), accelerator: K('bullet'), click: () => onFormat('bullet') },
+    { label: T('mFmtNumbered'), accelerator: K('numbered'), click: () => onFormat('numbered') },
+    { label: T('mFmtCode'), accelerator: K('code'), click: () => onFormat('code') },
     { type: 'separator' },
     // Tab / Shift+Tab は本文の中で画面側が受け取るので、メニューでは表示だけにする(ほかの入力欄の Tab を奪わない)
     { label: T('mFmtIndent'), accelerator: 'Tab', registerAccelerator: false, click: () => onFormat('indent') },
@@ -58,14 +62,14 @@ function formatItems(T, onFormat, platform) {
 }
 
 /* 装飾(選んだ文字を太字・斜体・取り消し線・コードにする)。右クリックと、メニューバーの「書式」で同じ項目を使う。
-   Ctrl+B はサイドバーの表示なので、太字は Ctrl+Shift+B。Mac の ⌘I はプロパティなので、Mac の斜体は ⌘⇧I */
-function inlineItems(T, onFormat, platform) {
-  const mac = (platform || process.platform) === 'darwin';
+   既定のキーは keymap.js にある(Ctrl+B はサイドバーの表示なので、太字は Ctrl+Shift+B) */
+function inlineItems(T, onFormat, platform, keys) {
+  const K = kind => fmtKey(keys, platform, kind);
   return [
-    { label: T('mFmtBold'), accelerator: 'CmdOrCtrl+Shift+B', click: () => onFormat('bold') },
-    { label: T('mFmtItalic'), accelerator: mac ? 'Cmd+Shift+I' : 'CmdOrCtrl+I', click: () => onFormat('italic') },
-    { label: T('mFmtStrike'), accelerator: 'CmdOrCtrl+Shift+X', click: () => onFormat('strike') },
-    { label: T('mFmtInlineCode'), accelerator: 'CmdOrCtrl+E', click: () => onFormat('icode') }
+    { label: T('mFmtBold'), accelerator: K('bold'), click: () => onFormat('bold') },
+    { label: T('mFmtItalic'), accelerator: K('italic'), click: () => onFormat('italic') },
+    { label: T('mFmtStrike'), accelerator: K('strike'), click: () => onFormat('strike') },
+    { label: T('mFmtInlineCode'), accelerator: K('icode'), click: () => onFormat('icode') }
   ];
 }
 

@@ -14,6 +14,7 @@ const I18N = require('./renderer/i18n');
 const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv } = require('./portable');
 const datalock = require('./datalock');
 const { macTemplate } = require('./macmenu');
+const keymap = require('./keymap');
 const updater = require('./updatecheck');
 const pageexport = require('./pageexport');
 const docexport = require('./docexport');
@@ -392,12 +393,13 @@ ipcMain.handle('history:prune', async (e, id, k, n, title) => {
 
 /* ---------- 画面の状態に合わせて、実行できないメニューを押せなくする ----------
    edit: 編集画面か(書式・リンクの挿入・添付・検索と置換は編集画面だけ)、lines: 行番号が出る表示か(プレビューでは出ない)、
-   back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)。押せない項目はキー操作も効かない */
-let ui = { edit: true, lines: true, back: false, hist: false };
+   back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)、
+   base: いま見ている表示(edit / preview。履歴の表示の中ではその元の表示。「表示」→「編集」「プレビュー」は、いま見ていないほうだけ押せる)。押せない項目はキー操作も効かない */
+let ui = { edit: true, lines: true, back: false, hist: false, base: 'edit' };
 ipcMain.on('ui:state', (e, st) => {
   if (!fromOurWindow(e) || !st) return;
-  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back, hist: !!st.hist };
-  if (next.edit === ui.edit && next.lines === ui.lines && next.back === ui.back && next.hist === ui.hist) return;
+  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit' };
+  if (Object.keys(next).every(k => next[k] === ui[k])) return;
   ui = next;
   buildMenu();
 });
@@ -803,33 +805,128 @@ function setEditPref(key, value) {
   if (win && !win.isDestroyed()) win.webContents.send('menu', 'prefs:' + JSON.stringify(p));
 }
 
+/* ---------- キーボードショートカット(「編集」→「キーボードショートカット…」) ----------
+   キーの一覧と判定は keymap.js。変えたキーは config.json の keys に覚える(パソコンごと。メモのフォルダには入れない)。
+   キーを割り当てている間は、押したキーをメニューにも画面にも渡さずに main.js が読み(before-input-event)、画面に知らせる */
+let keyMap = null;
+const curKeys = () => keyMap || (keyMap = keymap.resolve(readConfig().keys, process.platform));
+const keyDefaults = keymap.defaults(process.platform);
+const keyShown = () => { const KM = curKeys(), o = {}; for (const c of keymap.COMMANDS) o[c.id] = keymap.display(KM[c.id], process.platform); return o; };
+/* 拡大・縮小・全画面: キーが既定のままなら Electron の役割に任せ、変えたら自分で動かす(役割の既定のキーを使わないため) */
+const ROLE_RUN = {
+  zoomIn: wc => wc.setZoomLevel(wc.getZoomLevel() + 0.5),
+  zoomOut: wc => wc.setZoomLevel(wc.getZoomLevel() - 0.5),
+  resetZoom: wc => wc.setZoomLevel(0)
+};
+function roleItem(KM, id, label) {
+  const c = keymap.COMMANDS.find(x => x.id === id);
+  if (KM[id] === keyDefaults[id]) return { role: c.role, label: label };
+  return {
+    label: label,
+    accelerator: KM[id] || undefined,
+    click: () => {
+      const w = BrowserWindow.getFocusedWindow() || win;
+      if (!w || w.isDestroyed()) return;
+      if (id === 'fullscreen') w.setFullScreen(!w.isFullScreen());
+      else ROLE_RUN[id](w.webContents);
+    }
+  };
+}
+const keyGroup = c => c.group.split('>').map(g => T(g)).join(' › ');
+function keysList() {
+  const KM = curKeys(), P = process.platform;
+  return {
+    items: keymap.COMMANDS.map(c => ({
+      id: c.id, group: keyGroup(c), label: T(c.label),
+      shown: keymap.display(KM[c.id], P), def: keymap.display(keyDefaults[c.id], P), changed: KM[c.id] !== keyDefaults[c.id], has: !!KM[c.id]
+    })),
+    fixed: keymap.fixedKeys(P).map(f => ({ label: T(f.label), shown: f.keys.map(k => keymap.display(k, P)).join(' / ') }))
+  };
+}
+function saveKeys(next) {
+  try { writeConfig(Object.assign(readConfig(), { keys: next })); } catch (e) { /* 覚えられなくても、今回は使う */ }
+  keyMap = keymap.resolve(next, process.platform);
+  buildMenu();
+  if (win && !win.isDestroyed()) win.webContents.send('menu', 'keys:' + JSON.stringify(keyShown()));
+  if (helpWin && !helpWin.isDestroyed()) loadHelp();
+}
+let keyCapture = null;   // キーを割り当て中の操作の id
+ipcMain.on('keys:capture', (e, id) => {
+  if (!fromOurWindow(e)) return;
+  keyCapture = typeof id === 'string' && keymap.COMMANDS.some(c => c.id === id) ? id : null;
+});
+ipcMain.handle('keys:list', e => (fromOurWindow(e) ? keysList() : null));
+// accel: 新しいキー('' はキーなし、null は既定に戻す)。重なる操作はキーなしにする
+ipcMain.handle('keys:set', (e, id, accel) => {
+  if (!fromOurWindow(e) || typeof id !== 'string' || !(accel === null || typeof accel === 'string')) return null;
+  if (accel && keymap.check(accel, process.platform)) return keysList();
+  saveKeys(keymap.assign(readConfig().keys, id, accel, process.platform));
+  return keysList();
+});
+ipcMain.handle('keys:resetAll', async e => {
+  if (!fromOurWindow(e)) return null;
+  const r = await dialog.showMessageBox(win, {
+    type: 'question', buttons: [T('keysResetAllButton'), T('cancel')], defaultId: 0, cancelId: 1,
+    title: APP_NAME, icon: ICON, message: T('keysResetAllQ')
+  });
+  if (r.response !== 0) return null;
+  saveKeys({});
+  return keysList();
+});
+/* 割り当て中に押したキーを読んで、画面に知らせる。Esc はやめる、Enter は決める(どちらも修飾キーなし) */
+function onCaptureInput(e, input) {
+  if (!keyCapture || (input.type !== 'keyDown' && input.type !== 'keyUp')) return;
+  e.preventDefault();
+  if (input.type !== 'keyDown') return;
+  const P = process.platform;
+  const plain = !input.control && !input.alt && !input.meta && !input.shift;
+  let r;
+  if (plain && input.code === 'Escape') r = { cancel: true };
+  else if (plain && (input.code === 'Enter' || input.code === 'NumpadEnter')) r = { enter: true };
+  else {
+    const f = keymap.fromInput(input, P);
+    const pre = f.prefix ? keymap.display(f.prefix + '+…', P) : '';
+    if (f.mods) r = { partial: pre };
+    else if (f.bad) r = { shown: pre, error: f.win ? 'winKey' : 'badKey' };
+    else {
+      const err = keymap.check(f.accel, P);
+      const other = err ? null : keymap.conflictOf(readConfig().keys, keyCapture, f.accel, P);
+      const oc = other && keymap.COMMANDS.find(c => c.id === other);
+      r = { accel: f.accel, shown: keymap.display(f.accel, P), error: err, conflict: oc ? T(oc.label) : null };
+    }
+  }
+  if (win && !win.isDestroyed()) win.webContents.send('keys:captured', r);
+}
+
 function buildMenu() {
   const ep = editPrefs();
+  const KM = curKeys();
+  const A = id => KM[id] || undefined;   // メニューのキー(キーなしは undefined)
   const template = [
     {
       label: T('mFile'),
       submenu: [
-        { label: T('mNewNote'), accelerator: 'CmdOrCtrl+N', click: () => send('new') },
-        { label: T('mSearchAll'), accelerator: 'CmdOrCtrl+F', click: () => send('search') },
+        { label: T('mNewNote'), accelerator: A('new'), click: () => send('new') },
+        { label: T('mSearchAll'), accelerator: A('search'), click: () => send('search') },
         { type: 'separator' },
         { label: T('mRecent'), submenu: recentMenu() },
-        { id: 'back', label: T('mBack'), accelerator: 'Alt+Left', enabled: ui.back, click: () => send('back') },
+        { id: 'back', label: T('mBack'), accelerator: A('back'), enabled: ui.back, click: () => send('back') },
         { type: 'separator' },
-        { label: T('mImport'), accelerator: 'CmdOrCtrl+O', click: pickImport },
+        { label: T('mImport'), accelerator: A('import'), click: pickImport },
         { label: T('mExportMenu'), submenu: [
-          { label: T('mExportText'), accelerator: 'CmdOrCtrl+Shift+E', click: () => send('export') },
-          { label: T('mExportPdf'), accelerator: 'CmdOrCtrl+Shift+P', click: () => send('pdf') },
-          { label: T('mExportHtml'), click: () => send('html') },
-          { label: T('mExportMhtml'), click: () => send('mhtml') },
-          { label: T('mExportAdoc'), click: () => send('adoc') },
-          { label: T('mExportDocx'), click: () => send('docx') },
-          { label: T('mExportArchive'), click: () => send('archive') }
+          { label: T('mExportText'), accelerator: A('export'), click: () => send('export') },
+          { label: T('mExportPdf'), accelerator: A('pdf'), click: () => send('pdf') },
+          { label: T('mExportHtml'), accelerator: A('html'), click: () => send('html') },
+          { label: T('mExportMhtml'), accelerator: A('mhtml'), click: () => send('mhtml') },
+          { label: T('mExportAdoc'), accelerator: A('adoc'), click: () => send('adoc') },
+          { label: T('mExportDocx'), accelerator: A('docx'), click: () => send('docx') },
+          { label: T('mExportArchive'), accelerator: A('archive'), click: () => send('archive') }
         ] },
-        { label: T('mPrint'), accelerator: 'CmdOrCtrl+P', click: () => send('print') },
+        { label: T('mPrint'), accelerator: A('print'), click: () => send('print') },
         { type: 'separator' },
-        { id: 'props', label: T('mProps'), accelerator: 'Alt+Enter', click: () => send('props') },
+        { id: 'props', label: T('mProps'), accelerator: A('props'), click: () => send('props') },
         { type: 'separator' },
-        { label: T('mOpenDir'), click: () => shell.openPath(store.dir) },
+        { label: T('mOpenDir'), accelerator: A('openDir'), click: () => shell.openPath(store.dir) },
         { label: T('mChangeDir'), click: changeFolder },
         ...(process.platform === 'win32' && !isStore ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
         { type: 'separator' },
@@ -842,10 +939,10 @@ function buildMenu() {
         { role: 'undo', label: T('mUndo') },
         { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
-        { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', enabled: ui.edit, click: () => send('attach') },
-        { id: 'replace', label: T('mReplace'), accelerator: 'CmdOrCtrl+H', enabled: ui.edit, click: () => send('replace') },
-        { label: T('mFormat'), enabled: ui.edit, submenu: inlineItems(T, kind => send('fmt:' + kind)).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind))).map(x => Object.assign(x, { enabled: ui.edit })) },
-        { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', enabled: ui.edit, click: () => send('link') },
+        { label: T('mAttach'), accelerator: A('attach'), enabled: ui.edit, click: () => send('attach') },
+        { id: 'replace', label: T('mReplace'), accelerator: A('replace'), enabled: ui.edit, click: () => send('replace') },
+        { label: T('mFormat'), enabled: ui.edit, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.edit })) },
+        { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit, click: () => send('link') },
         { type: 'separator' },
         { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },
         { label: T('mAutoList'), type: 'checkbox', checked: ep.autoList, click: item => setEditPref('autoList', item.checked) },
@@ -853,6 +950,7 @@ function buildMenu() {
           { label: T('mIndent2'), type: 'radio', checked: ep.indentWidth === 2, click: () => setEditPref('indentWidth', 2) },
           { label: T('mIndent4'), type: 'radio', checked: ep.indentWidth === 4, click: () => setEditPref('indentWidth', 4) }
         ] },
+        { label: T('mKeys'), click: () => send('keys') },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
@@ -863,18 +961,18 @@ function buildMenu() {
     {
       label: T('mView'),
       submenu: [
-        { label: T('mModeEdit'), accelerator: 'CmdOrCtrl+1', click: () => send('mode:edit') },
-        { label: T('mModePreview'), accelerator: 'CmdOrCtrl+2', click: () => send('mode:preview') },
-        { label: T('mModeHistory'), accelerator: 'CmdOrCtrl+3', click: () => send('mode:history') },
-        { label: T('mPrune'), enabled: ui.hist, click: () => send('prune') },
-        { label: T('mSide'), accelerator: 'CmdOrCtrl+B', click: () => send('side') },
-        { label: T('mLines'), accelerator: 'CmdOrCtrl+L', enabled: ui.lines, click: () => send('lines') },
+        { label: T('mModeEdit'), accelerator: A('mode:edit'), enabled: ui.base !== 'edit', click: () => send('mode:edit') },
+        { label: T('mModePreview'), accelerator: A('mode:preview'), enabled: ui.base !== 'preview', click: () => send('mode:preview') },
+        { label: T('mModeHistory'), accelerator: A('mode:history'), click: () => send('mode:history') },
+        { label: T('mPrune'), accelerator: A('prune'), enabled: ui.hist, click: () => send('prune') },
+        { label: T('mSide'), accelerator: A('side'), click: () => send('side') },
+        { label: T('mLines'), accelerator: A('lines'), enabled: ui.lines, click: () => send('lines') },
         { type: 'separator' },
-        { role: 'zoomIn', label: T('mZoomIn') },
-        { role: 'zoomOut', label: T('mZoomOut') },
-        { role: 'resetZoom', label: T('mZoomReset') },
+        roleItem(KM, 'zoomIn', T('mZoomIn')),
+        roleItem(KM, 'zoomOut', T('mZoomOut')),
+        roleItem(KM, 'resetZoom', T('mZoomReset')),
         { type: 'separator' },
-        { role: 'togglefullscreen', label: T('mFullscreen') },
+        roleItem(KM, 'fullscreen', T('mFullscreen')),
         { type: 'separator' },
         { label: T('mLanguage'), submenu: [
           { label: '日本語', type: 'radio', checked: lang === 'ja', click: () => setLang('ja') },
@@ -887,7 +985,7 @@ function buildMenu() {
       id: 'help',
       label: T('mHelp'),
       submenu: [
-        { label: T('mMdHelp'), click: showMdHelp },
+        { label: T('mMdHelp'), accelerator: A('mdHelp'), click: showMdHelp },
         { type: 'separator' },
         ...(isStore ? [] : [
           { label: T('mCheckUpdate'), click: () => checkForUpdates(true) },
@@ -916,13 +1014,14 @@ async function setLang(l) {
   if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
 }
 // os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
-const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform }, editQuery()) }); };
+const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform, kd: JSON.stringify(keyShown()) }, editQuery()) }); };
 // 画面に渡す改行と字下げの設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅)
 const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth) }; };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
-const loadHelp = () => helpWin.loadFile(path.join(__dirname, 'renderer', 'help.html'), { query: { lang: lang, os: process.platform } });
+// kl: 「メモへのリンクを挿入…」のキー(説明文の Ctrl+K を、いまのキーにする)
+const loadHelp = () => helpWin.loadFile(path.join(__dirname, 'renderer', 'help.html'), { query: { lang: lang, os: process.platform, kl: keyShown().link } });
 function showMdHelp() {
   if (helpWin && !helpWin.isDestroyed()) { if (helpWin.isMinimized()) helpWin.restore(); helpWin.focus(); return; }
   helpWin = new BrowserWindow({
@@ -1065,10 +1164,13 @@ function createWindow() {
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', e => e.preventDefault());
+  // キーボードショートカットの割り当て中は、押したキーを main.js が読む(画面を読み込み直したらやめる)
+  win.webContents.on('before-input-event', onCaptureInput);
+  win.webContents.on('did-start-loading', () => { keyCapture = null; });
 
   // 右クリック: Electronには標準のメニューが無いので、切り取り・コピー・貼り付けなどを自前で出す
   win.webContents.on('context-menu', (_e, params) => {
-    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), lang: lang });
+    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), lang: lang, keys: curKeys() });
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: win });
   });
 

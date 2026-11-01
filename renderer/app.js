@@ -19,6 +19,17 @@
   document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = T(el.dataset.i18nTitle); });
   document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', T(el.dataset.i18nAria)); });
   document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = T(el.dataset.i18nPh); });
+  /* ボタンの説明に出すキー。main.js が index.html?kd= で { 操作の id: 表示するキー } を渡し、キーを変えたら送り直す。
+     data-key の付いた要素の説明の {k} を「 (Ctrl+B)」にする(キーなしなら何も出さない) */
+  const KEYD = (() => { try { return JSON.parse(query.get('kd') || '{}') || {}; } catch (e) { return {}; } })();
+  function applyKeyTitles() {
+    document.querySelectorAll('[data-key]').forEach(el => {
+      const p = { k: KEYD[el.dataset.key] ? ' (' + KEYD[el.dataset.key] + ')' : '' };
+      if (el.dataset.i18nTitle) el.title = T(el.dataset.i18nTitle, p);
+      if (el.dataset.i18nAria) el.setAttribute('aria-label', T(el.dataset.i18nAria, p));
+    });
+  }
+  applyKeyTitles();
   const shownTitle = title => title || T('untitled');   // 題名が無い(空の)メモの表示
   // 例: 20261006-175012-k3x9(日時順に並び、そのままファイル名になる)
   const uid = () => { const d = new Date(); return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + '-' + Math.random().toString(36).slice(2, 6).padEnd(4, '0'); };
@@ -333,7 +344,7 @@
     // 行番号が出るのは、編集画面と、編集から入った履歴の表示(変更箇所の表示)だけ
     const lines = S.mode === 'edit' || (S.mode === 'history' && S.hbase === 'edit');
     $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
-    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history' });
+    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase });
   }
   /* ---------- 「編集」と「プレビュー」を切り替えたときの位置合わせ ----------
      切り替える前の表示で基準の場所(元の文の行と、画面の上からの高さ)を決め、切り替えたあとの表示で、その行を同じ高さに出して一瞬光らせる。
@@ -1385,6 +1396,8 @@
     else if (name === 'prune') pruneHistory();
     else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
     else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } }
+    else if (name.indexOf('keys:') === 0) { try { Object.assign(KEYD, JSON.parse(name.slice(5))); applyKeyTitles(); } catch (err) { /* 読めなければ今のまま */ } }
+    else if (name === 'keys') showKeys();
     else if (name.indexOf('open:') === 0) openNoteById(name.slice(5), 'noteDeleted');
     else if (name === 'back') goBack();
     else if (name === 'recent:clear') clearRecent();
@@ -1512,7 +1525,10 @@
   }
   /* ---------- 画面の上に出す小さな窓 ---------- */
   let modalBack = null;
-  function openModal(title, body) {
+  let modalOnClose = null;   // 閉じるときに呼ぶ(キーボードショートカットの割り当てをやめるなど)
+  function openModal(title, body, onClose) {
+    if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
+    modalOnClose = onClose || null;
     modalBack = document.activeElement;
     $('modalTitle').textContent = title;
     const b = $('modalBody'); b.textContent = ''; b.appendChild(body);
@@ -1521,6 +1537,7 @@
   }
   function closeModal() {
     if ($('modal').hidden) return;
+    if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
     $('modal').hidden = true;
     $('modalBody').textContent = '';
     if (modalBack && modalBack.focus) modalBack.focus({ preventScroll: true });
@@ -1689,6 +1706,97 @@
     });
     paint();
     openModal(T('linkPickTitle'), box);
+    input.focus();
+  }
+
+  /* ---------- キーボードショートカット(「編集」→「キーボードショートカット…」) ----------
+     一覧と判定は main.js(keymap.js)。行をダブルクリックするか、選んで Enter を押すと、割り当てを始める。
+     割り当て中に押したキーは main.js が読んで知らせる(そのあいだ、メニューのキーは効かない)。Enter で決め、Esc でやめる */
+  let keysCap = null;          // 割り当て中: { id, accel, shown, error, conflict }
+  let keysOnCaptured = null;   // 開いている一覧の、押したキーの受け取り
+  api.onKeysCaptured(r => { if (keysOnCaptured) keysOnCaptured(r); });
+  async function showKeys() {
+    let data = await api.keysList();
+    if (!data || !data.items.length) return;
+    let sel = data.items[0].id;
+    const box = el('div', 'keys');
+    const input = el('input'); input.type = 'search'; input.placeholder = T('keysFilter'); input.setAttribute('aria-label', T('keysFilter'));
+    const list = el('div', 'keys-list'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', T('keysTitle'));
+    const msg = el('p', 'keys-msg'); msg.setAttribute('aria-live', 'polite');
+    const btn = (label, fn) => { const b = el('button', 'btn', label); b.type = 'button'; b.addEventListener('click', fn); return b; };
+    const bChange = btn(T('keysChange'), () => startCap(sel));
+    const bClear = btn(T('keysClear'), () => setKey(sel, ''));
+    const bReset = btn(T('keysReset'), () => setKey(sel, null));
+    const bAll = btn(T('keysResetAll'), async () => { stopCap(); const r = await api.keysResetAll(); if (r) data = r; paint(); });
+    const bar = el('div', 'keys-bar'), left = el('div', 'keys-btns');
+    left.append(bChange, bClear, bReset);
+    bar.append(left, bAll);
+    box.append(el('p', 'lead', T('keysLead')), input, list, msg, bar);
+    const item = id => data.items.find(x => x.id === id);
+    const filterText = () => input.value.trim().toLowerCase();
+    const shown = () => data.items.filter(x => !filterText() || (x.group + ' ' + x.label + ' ' + x.shown).toLowerCase().includes(filterText()));
+    const errText = e => T(e === 'needMod' ? 'keysErrNeedMod' : e === 'reserved' ? 'keysErrReserved' : e === 'winKey' ? 'keysErrWinKey' : 'keysErrBadKey', { mods: T(IS_MAC ? 'keysModsMac' : 'keysModsWin') });
+    const defText = x => (x.def ? T('keysDefault', { key: x.def }) : T('keysDefaultNone'));
+    function stopCap() { if (!keysCap) return; keysCap = null; api.keysCapture(null); }
+    function startCap(id) { if (!item(id)) return; sel = id; keysCap = { id: id }; api.keysCapture(id); paint(true); }
+    async function setKey(id, accel) { stopCap(); const r = await api.keysSet(id, accel); if (r) data = r; paint(true); }
+    function paint(focus) {
+      const keepFocus = focus || list.contains(document.activeElement);
+      const items = shown();
+      if (!keysCap && items.length && !items.some(x => x.id === sel)) sel = items[0].id;
+      list.textContent = '';
+      let group = null, selBtn = null;
+      if (!items.length) list.appendChild(el('div', 'keys-none', T('keysNoMatch')));
+      for (const x of items) {
+        if (x.group !== group) { group = x.group; list.appendChild(el('div', 'keys-group', group)); }
+        const b = el('button', 'keys-row'); b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', String(x.id === sel));
+        const cap = keysCap && keysCap.id === x.id;
+        const k = el('span', 'keys-key' + (cap ? ' cap' : x.has ? '' : ' none'), cap ? (keysCap.shown || T('keysPress')) : x.has ? x.shown : T('keysNone'));
+        const badge = el('span', 'keys-badge', x.changed ? T('keysChanged') : '');
+        if (x.changed) badge.title = defText(x);
+        b.append(el('span', 'keys-label', x.label), k, badge);
+        b.addEventListener('click', () => { if (keysCap && keysCap.id !== x.id) stopCap(); sel = x.id; paint(true); });
+        b.addEventListener('dblclick', () => startCap(x.id));
+        list.appendChild(b);
+        if (x.id === sel) selBtn = b;
+      }
+      const fixed = data.fixed.filter(f => !filterText() || (f.label + ' ' + f.shown).toLowerCase().includes(filterText()));
+      if (fixed.length) {
+        list.appendChild(el('div', 'keys-group', T('keysFixed')));
+        for (const f of fixed) { const r = el('div', 'keys-row fixed'); r.append(el('span', 'keys-label', f.label), el('span', 'keys-key', f.shown), el('span', 'keys-badge', '')); list.appendChild(r); }
+      }
+      const cur = item(sel);
+      bChange.disabled = !cur; bClear.disabled = !cur || !cur.has; bReset.disabled = !cur || !cur.changed;
+      msg.className = 'keys-msg';
+      if (keysCap) {
+        if (keysCap.error) { msg.textContent = errText(keysCap.error); msg.classList.add('err'); }
+        else if (keysCap.conflict) { msg.textContent = T('keysConflict', { key: keysCap.shown, cmd: keysCap.conflict }); msg.classList.add('warn'); }
+        else msg.textContent = T(keysCap.accel ? 'keysEnter' : 'keysPressHint');
+      } else msg.textContent = cur && cur.changed ? defText(cur) : '';
+      if (selBtn && keepFocus) { selBtn.focus({ preventScroll: true }); selBtn.scrollIntoView({ block: 'nearest' }); }
+    }
+    list.addEventListener('keydown', e => {
+      if (keysCap) return;
+      const items = shown(), i = items.findIndex(x => x.id === sel);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const j = Math.max(0, Math.min(items.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+        if (items[j]) { sel = items[j].id; paint(true); }
+      } else if (e.key === 'Enter' && e.target.classList.contains('keys-row') && !e.target.classList.contains('fixed')) { e.preventDefault(); startCap(sel); }
+    });
+    input.addEventListener('input', () => paint());
+    input.addEventListener('keydown', e => { if (e.key === 'ArrowDown' && shown().length) { e.preventDefault(); paint(true); } });
+    keysOnCaptured = r => {
+      if (!keysCap || !r) return;
+      if (r.cancel) { stopCap(); paint(true); return; }
+      if (r.enter) { if (keysCap.accel && !keysCap.error) setKey(keysCap.id, keysCap.accel); return; }
+      keysCap = r.partial !== undefined
+        ? { id: keysCap.id, shown: r.partial }
+        : { id: keysCap.id, accel: r.error ? null : r.accel, shown: r.shown, error: r.error || null, conflict: r.conflict || null };
+      paint(true);
+    };
+    paint();
+    openModal(T('keysTitle'), box, () => { stopCap(); keysOnCaptured = null; });
     input.focus();
   }
 

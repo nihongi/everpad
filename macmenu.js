@@ -3,10 +3,8 @@
    main.js が作る Windows の形のメニューを、Mac の流儀に組み替える。
    - 一番左にアプリ名のメニュー(EverPad について/サービス/隠す/終了)を足し、「終了」と「EverPad について」をそこへ移す
    - 「ウインドウ」メニューを足す
-   - Mac で別の意味があるショートカットを、Mac でよく使うキーに変える(⌘H は「隠す」なので、置換は ⌘⌥F)
-   項目は id で探す: quit / about / back / replace / props */
-
-const MAC_KEYS = { back: 'Cmd+[', replace: 'Cmd+Alt+F', props: 'Cmd+I' };
+   Mac で別の意味があるショートカット(⌘H は「隠す」など)は、keymap.js の Mac の既定のキーで変えてある。
+   項目は id で探す: quit / about */
 
 /* items から id の項目を取り除いて返す */
 function takeOut(items, id) {
@@ -24,13 +22,6 @@ function tidy(items) {
   return out;
 }
 
-function remapKeys(items) {
-  for (const it of items) {
-    if (it.id && MAC_KEYS[it.id]) it.accelerator = MAC_KEYS[it.id];
-    if (Array.isArray(it.submenu)) remapKeys(it.submenu);
-  }
-}
-
 /* template: Windows の形のメニュー(最上位は ファイル/編集/表示/ヘルプ。各 submenu は配列)
    o: { T(key), appName } */
 function macTemplate(template, o) {
@@ -43,7 +34,6 @@ function macTemplate(template, o) {
     about = takeOut(m.submenu, 'about') || about;
     m.submenu = tidy(m.submenu);
   }
-  remapKeys(tpl);
   const appMenu = {
     label: o.appName,
     submenu: [
@@ -72,4 +62,4 @@ function macTemplate(template, o) {
   return [appMenu, ...tpl, windowMenu, ...(help ? [Object.assign(help, { role: 'help' })] : [])];
 }
 
-module.exports = { macTemplate, MAC_KEYS };
+module.exports = { macTemplate };

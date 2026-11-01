@@ -27,6 +27,12 @@ contextBridge.exposeInMainWorld('memoApi', {
   setRecent: items => ipcRenderer.send('recent:set', items),
   // 画面の状態(メニューの押せる・押せないに使う)
   setUiState: st => ipcRenderer.send('ui:state', st),
+  // キーボードショートカット(一覧・変更・すべて既定に戻す。割り当て中に押したキーは main.js が読んで知らせる)
+  keysList: () => ipcRenderer.invoke('keys:list'),
+  keysSet: (id, accel) => ipcRenderer.invoke('keys:set', id, accel),
+  keysResetAll: () => ipcRenderer.invoke('keys:resetAll'),
+  keysCapture: id => ipcRenderer.send('keys:capture', id),
+  onKeysCaptured: cb => { ipcRenderer.on('keys:captured', (_e, r) => cb(r)); },
   // プロパティ
   noteInfo: id => ipcRenderer.invoke('note:info', id),
   revealNote: (id, kind) => ipcRenderer.invoke('note:reveal', id, kind),

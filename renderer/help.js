@@ -8,7 +8,11 @@
   const lang = HELP[q] ? q : 'ja';
   const H = HELP[lang];
   // Mac では、説明文のショートカットキーを Mac の書き方(⌘)にする(例の Markdown はそのまま)
-  const keys = query.get('os') === 'darwin' ? macKeys : s => s;
+  // 「メモへのリンクを挿入…」の (Ctrl+K) は、main.js が kl で渡すいまのキーにする(キーなしなら消す)
+  const mac = query.get('os') === 'darwin' ? macKeys : s => s;
+  const kl = query.get('kl');
+  const linkKey = s => (kl === null ? s : s.replace(/ ?[(（]Ctrl\+K[)）]/g, m => (kl ? m.replace('Ctrl+K', kl) : '')));
+  const keys = s => mac(linkKey(s));
   document.documentElement.lang = lang;
   document.title = H.title + ' - EverPad';
   const root = document.getElementById('help');
