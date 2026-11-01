@@ -27,24 +27,34 @@ test('読み取り専用の場所の「すべて選択」は、渡された関�
   assert.equal(called, 1);
 });
 
-test('右クリック: 編集画面(テキストエリア)だけに「書式」が出て、選ぶと種類が渡される', () => {
+test('右クリック: 本文では、装飾と行の書式がサブメニューにならずに並び、選ぶと種類が渡される', () => {
   const got = [];
   const onFormat = k => got.push(k);
   // ショートカットは Windows のもの(Mac の分は macos.test.js で確かめる)
-  const area = buildTemplate({ isEditable: true, formControlType: 'text-area', editFlags: {} }, { onFormat, platform: 'win32' });
-  const fmt = area.find(x => x.label === '書式');
-  assert.ok(fmt, '書式が無い');
-  const items = fmt.submenu.filter(x => x.type !== 'separator');
-  assert.deepStrictEqual(items.map(x => x.label), ['引用', '箇条書き', '番号付きの箇条書き', 'コードブロック', '字下げ', '字下げを戻す']);
-  assert.deepStrictEqual(items.map(x => x.accelerator), ['CmdOrCtrl+Shift+Q', 'CmdOrCtrl+Shift+8', 'CmdOrCtrl+Shift+7', 'CmdOrCtrl+Shift+K', 'Tab', 'Shift+Tab']);
+  const sel = buildTemplate({ isEditable: true, formControlType: 'text-area', selectionText: 'あ', editFlags: {} }, { onFormat, platform: 'win32' });
+  assert.deepStrictEqual(labels(sel), ['元に戻す', 'やり直し', '切り取り', 'コピー', '貼り付け', '削除', 'すべて選択',
+    '太字', '斜体', '取り消し線', 'コード', '引用', '箇条書き', '番号付きの箇条書き', 'コードブロック', '字下げ', '字下げを戻す']);
+  assert.ok(!sel.some(x => x.submenu), 'サブメニューがある');
+  const items = sel.slice(sel.findIndex(x => x.label === '太字')).filter(x => x.label);
+  assert.deepStrictEqual(items.map(x => x.accelerator), ['CmdOrCtrl+Shift+B', 'CmdOrCtrl+I', 'CmdOrCtrl+Shift+X', 'CmdOrCtrl+E',
+    'CmdOrCtrl+Shift+Q', 'CmdOrCtrl+Shift+8', 'CmdOrCtrl+Shift+7', 'CmdOrCtrl+Shift+K', 'Tab', 'Shift+Tab']);
   // Tab / Shift+Tab は表示だけ(ほかの入力欄の Tab を奪わない)
-  assert.deepStrictEqual(items.slice(4).map(x => x.registerAccelerator), [false, false]);
+  assert.deepStrictEqual(items.slice(8).map(x => x.registerAccelerator), [false, false]);
+  assert.ok(items.slice(0, 4).every(x => x.enabled));
   items.forEach(x => x.click());
-  assert.deepStrictEqual(got, ['quote', 'bullet', 'numbered', 'code', 'indent', 'outdent']);
+  assert.deepStrictEqual(got, ['bold', 'italic', 'strike', 'icode', 'quote', 'bullet', 'numbered', 'code', 'indent', 'outdent']);
+  // 区切り線: 装飾・行の書式・字下げのまとまりの間にあり、続かない。最後は区切り線ではない
+  sel.forEach((x, i) => assert.ok(!(x.type === 'separator' && sel[i + 1] && sel[i + 1].type === 'separator')));
+  assert.notStrictEqual(sel[sel.length - 1].type, 'separator');
+  assert.deepStrictEqual(['太字', '引用', '字下げ'].map(l => sel[sel.findIndex(x => x.label === l) - 1].type), ['separator', 'separator', 'separator']);
+  // 文字を選んでいないとき: 同じ並びで、装飾だけグレー
+  const none = buildTemplate({ isEditable: true, formControlType: 'text-area', selectionText: '', editFlags: {} }, { onFormat, platform: 'win32' });
+  assert.deepStrictEqual(labels(none), labels(sel));
+  assert.deepStrictEqual(none.filter(x => x.label && x.click).map(x => x.enabled !== false), [false, false, false, false, true, true, true, true, true, true]);
   // 検索欄などの1行の入力欄には出さない
-  const input = buildTemplate({ isEditable: true, formControlType: 'input-text', editFlags: {} }, { onFormat });
-  assert.ok(!input.some(x => x.label === '書式'));
+  const input = buildTemplate({ isEditable: true, formControlType: 'input-text', selectionText: 'あ', editFlags: {} }, { onFormat });
+  assert.deepStrictEqual(labels(input), ['元に戻す', 'やり直し', '切り取り', 'コピー', '貼り付け', '削除', 'すべて選択']);
   // 英語
-  const en = buildTemplate({ isEditable: true, formControlType: 'text-area', editFlags: {} }, { onFormat, lang: 'en' });
-  assert.deepStrictEqual(en.find(x => x.label === 'Format').submenu.filter(x => x.label).map(x => x.label), ['Quote', 'Bulleted List', 'Numbered List', 'Code Block', 'Indent', 'Outdent']);
+  const en = buildTemplate({ isEditable: true, formControlType: 'text-area', selectionText: 'a', editFlags: {} }, { onFormat, lang: 'en' });
+  assert.deepStrictEqual(labels(en).slice(7), ['Bold', 'Italic', 'Strikethrough', 'Code', 'Quote', 'Bulleted List', 'Numbered List', 'Code Block', 'Indent', 'Outdent']);
 });

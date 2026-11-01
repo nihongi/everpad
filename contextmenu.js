@@ -9,6 +9,14 @@ function buildTemplate(params, opts) {
   const platform = (opts && opts.platform) || process.platform;
   const f = params.editFlags || {};
   if (params.isEditable) {
+    // 本文(テキストエリア)では、装飾(太字など)と行の書式(引用など)も、サブメニューにせずに並べる。
+    // 装飾は文字を選んでいるときだけ使える(選んでいなければグレー。項目の位置は変えない)
+    const body = params.formControlType === 'text-area' && opts && opts.onFormat;
+    const fmt = body
+      ? [{ type: 'separator' }].concat(
+          inlineItems(T, opts.onFormat, platform).map(x => Object.assign(x, { enabled: !!params.selectionText })),
+          [{ type: 'separator' }], formatItems(T, opts.onFormat, platform))
+      : [];
     return [
       { label: T('mUndo'), role: 'undo', enabled: !!f.canUndo, accelerator: 'CmdOrCtrl+Z', registerAccelerator: false },
       { label: T('mRedo'), role: 'redo', enabled: !!f.canRedo, accelerator: platform === 'darwin' ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y', registerAccelerator: false },
@@ -19,7 +27,7 @@ function buildTemplate(params, opts) {
       { label: T('mDelete'), role: 'delete', enabled: !!f.canDelete },
       { type: 'separator' },
       { label: T('mSelectAll'), role: 'selectAll', enabled: !!f.canSelectAll, accelerator: 'CmdOrCtrl+A', registerAccelerator: false }
-    ].concat(params.formControlType === 'text-area' && opts && opts.onFormat ? [{ type: 'separator' }, { label: T('mFormat'), submenu: formatItems(T, opts.onFormat, platform) }] : []);
+    ].concat(fmt);
   }
   // 編集できない場所(プレビュー・履歴など): 文字を選んでいるときだけ出す
   if (params.selectionText && params.selectionText.trim()) {
@@ -49,6 +57,18 @@ function formatItems(T, onFormat, platform) {
   ];
 }
 
+/* 装飾(選んだ文字を太字・斜体・取り消し線・コードにする)。右クリックと、メニューバーの「書式」で同じ項目を使う。
+   Ctrl+B はサイドバーの表示なので、太字は Ctrl+Shift+B。Mac の ⌘I はプロパティなので、Mac の斜体は ⌘⇧I */
+function inlineItems(T, onFormat, platform) {
+  const mac = (platform || process.platform) === 'darwin';
+  return [
+    { label: T('mFmtBold'), accelerator: 'CmdOrCtrl+Shift+B', click: () => onFormat('bold') },
+    { label: T('mFmtItalic'), accelerator: mac ? 'Cmd+Shift+I' : 'CmdOrCtrl+I', click: () => onFormat('italic') },
+    { label: T('mFmtStrike'), accelerator: 'CmdOrCtrl+Shift+X', click: () => onFormat('strike') },
+    { label: T('mFmtInlineCode'), accelerator: 'CmdOrCtrl+E', click: () => onFormat('icode') }
+  ];
+}
+
 /* 添付の画像・ファイルを右クリックしたときのメニュー。actions は { copy, open, show, save, trash } のクリック時の処理。
    trash があるとき(編集画面とプレビュー。履歴の表示では出さない)だけ、最後に「ごみ箱に入れる…」を出す */
 function buildAttachTemplate(image, actions, lang) {
@@ -68,4 +88,4 @@ function buildAttachTemplate(image, actions, lang) {
   if (actions.trash) items.push({ type: 'separator' }, { label: T('mTrashAttach'), click: actions.trash });
   return items;
 }
-module.exports = { buildTemplate, buildAttachTemplate, formatItems };
+module.exports = { buildTemplate, buildAttachTemplate, formatItems, inlineItems };

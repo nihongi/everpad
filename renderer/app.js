@@ -1035,13 +1035,15 @@
     if (prev && prev !== ed && $('frbar').contains(prev)) prev.focus();
   }
   /* 選んだ行をまとめて引用・箇条書き・番号付き・コードブロックにする(すでにその書式なら外す)。
+     選んだ文字を太字・斜体・取り消し線・コードにする(複数行なら行ごと。core.js の inlineFormat)。
      1回の編集として履歴に残り、Ctrl+Z で戻せる。編集画面でだけ使える */
   function applyFormat(kind) {
     if (S.mode !== 'edit' || !$('modal').hidden) return;
     const ed = $('editor');
     const r = kind === 'indent' || kind === 'outdent'
       ? indentEdit(ed.value, ed.selectionStart, ed.selectionEnd, EDIT.indentWidth, kind === 'outdent')
-      : formatLines(ed.value, ed.selectionStart, ed.selectionEnd, kind);
+      : ['bold', 'italic', 'strike', 'icode'].indexOf(kind) >= 0 ? inlineFormat(ed.value, ed.selectionStart, ed.selectionEnd, kind)
+        : formatLines(ed.value, ed.selectionStart, ed.selectionEnd, kind);
     if (!r) return;
     if (ed.value.slice(r.from, r.to) !== r.insert) frInsert(r.from, r.to, r.insert);
     ed.focus();

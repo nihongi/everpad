@@ -8,7 +8,7 @@ const { decodeText, MAX_IMPORT } = require('./textcodec');
 const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
 const { buildArchive, readArchive, looksLikeArchive } = require('./archive');
 const { titleOf } = require('./renderer/core');
-const { buildTemplate, buildAttachTemplate, formatItems } = require('./contextmenu');
+const { buildTemplate, buildAttachTemplate, formatItems, inlineItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
 const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv } = require('./portable');
@@ -844,7 +844,7 @@ function buildMenu() {
         { type: 'separator' },
         { label: T('mAttach'), accelerator: 'CmdOrCtrl+Shift+U', enabled: ui.edit, click: () => send('attach') },
         { id: 'replace', label: T('mReplace'), accelerator: 'CmdOrCtrl+H', enabled: ui.edit, click: () => send('replace') },
-        { label: T('mFormat'), enabled: ui.edit, submenu: formatItems(T, kind => send('fmt:' + kind)).map(x => Object.assign(x, { enabled: ui.edit })) },
+        { label: T('mFormat'), enabled: ui.edit, submenu: inlineItems(T, kind => send('fmt:' + kind)).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind))).map(x => Object.assign(x, { enabled: ui.edit })) },
         { label: T('mInsertLink'), accelerator: 'CmdOrCtrl+K', enabled: ui.edit, click: () => send('link') },
         { type: 'separator' },
         { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },

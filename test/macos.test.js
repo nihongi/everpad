@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { macTemplate } = require('../macmenu');
 const { macKeys } = require('../renderer/core');
-const { buildTemplate, formatItems } = require('../contextmenu');
+const { buildTemplate, formatItems, inlineItems } = require('../contextmenu');
 const { portableDirFromEnv } = require('../portable');
 const I18N = require('../renderer/i18n');
 
@@ -88,6 +88,9 @@ test('書式と右クリック: Mac では ⌘⇧Q(ログアウト)を使わず�
   const noop = () => {};
   assert.strictEqual(formatItems(T, noop, 'darwin')[0].accelerator, "Cmd+'");
   assert.strictEqual(formatItems(T, noop, 'win32')[0].accelerator, 'CmdOrCtrl+Shift+Q');
+  // Mac の ⌘I はプロパティなので、斜体は ⌘⇧I
+  assert.strictEqual(inlineItems(T, noop, 'darwin')[1].accelerator, 'Cmd+Shift+I');
+  assert.strictEqual(inlineItems(T, noop, 'win32')[1].accelerator, 'CmdOrCtrl+I');
   const params = { isEditable: true, editFlags: {} };
   const redo = p => buildTemplate(params, { platform: p }).find(x => x.role === 'redo').accelerator;
   assert.strictEqual(redo('darwin'), 'Shift+Cmd+Z');

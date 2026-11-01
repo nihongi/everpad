@@ -19,12 +19,13 @@ EverPad
 
 ### 説明(10,000 文字まで)
 
-EverPad は、すべてを記録して、直感的に使えるメモ帳です。
+EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 
 1文字の入力から大きな書き換えまで、すべての編集を履歴に残します。タイムスライダーを動かしたり、履歴を再生したりすると、メモがどう書かれていったかを見返せます。消してしまった文章も、過去の版を開けばそこにあり、ワンクリックで元に戻せます。
 
 ■ 書く  
 ・プレーンテキストでも Markdown でも書けます。見出し、リスト、チェックボックス、コード、引用、表、リンクをプレビューで整形して表示します。  
+・編集とプレビューを切り替えても、見ていた場所はそのままです。  
 ・LaTeX の数式と化学式を、整った数式として表示します。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
@@ -70,6 +71,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 12. アカウント不要、インターネットに接続しない
 13. 日本語と英語の画面、ダークモード
 14. Mermaid の図(フローチャート・シーケンス図など)
+15. 編集とプレビューを切り替えても、見ていた場所がそのまま
 
 ### 検索キーワード(7 個まで、各 30 文字まで)
 
@@ -106,6 +108,7 @@ Every edit, from a single character to a full rewrite, is kept in the history. D
 
 WRITE  
 • Write in plain text or Markdown. Headings, lists, check boxes, code, block quotes, tables and links are formatted in the preview.  
+• Switching between Edit and Preview keeps your place.  
 • LaTeX math and chemical formulas are shown as formatted formulas.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax.  
 • Paste screenshots or drop files to attach images and files to a note.  
@@ -151,6 +154,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 12. No account, and no internet connection
 13. English and Japanese interface, with dark mode
 14. Mermaid diagrams: flowcharts, sequence diagrams and more
+15. Switching between Edit and Preview keeps your place
 
 ### Search terms (up to 7, up to 30 characters each)
 

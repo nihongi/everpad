@@ -237,19 +237,159 @@ function formatLines(text, selStart, selEnd, kind) {
   return { from: from, to: to, insert: insert, selStart: from, selEnd: from + insert.length };
 }
 
+/* ---------- 選んだ文字を太字・斜体・取り消し線・コードにする ----------
+   kind: bold(**) / italic(*) / strike(~~) / icode(`)。戻り値は formatLines と同じ形で、何もしないときは null。
+   - 選択が複数行にまたがるときは、行ごとに、その行の選んだ部分だけを装飾する
+   - 行頭の字下げ・箇条書きの記号・チェックボックス・> ・# と、前後の空白は、記号の外に残す
+   - 空の行・コードブロック(囲みの行も)・区切り線・表の |---| の行は飛ばす。表の行はセルごとに装飾する
+   - 選んだ部分がすべてすでにその装飾なら外す(記号まで含めて選んでも、内側だけを選んでも同じ)。
+     そうでなければ装飾する。中にある同じ装飾は先に外し、すでに装飾されている部分はそのままにする
+   - 装飾したあとは、記号の内側の文字を選んだままにする(続けて別の装飾もかけられる)。複数の部分なら、最初から最後までを選ぶ
+   - 何も選んでいないときは、記号の組を入れてカーソルを真ん中に置く(空の組の真ん中なら、組を消す) */
+const INLINE_MARKS = { bold: '**', italic: '*', strike: '~~', icode: '`' };
+const BLOCK_PREFIX = /^(?:[ \t]*(?:>[ \t]?|(?:[-*+]|\d{1,9}[.)])[ \t]+(?:\[[ xX]\][ \t]+)?|#{1,6}(?:[ \t]+|$)))*[ \t]*/;
+const HR_RE = /^\s*([-*_])(?:\s*\1){2,}\s*$/;
+const runBefore = (s, i, ch) => { let k = 0; while (i - k > 0 && s[i - k - 1] === ch) k++; return k; };
+const runAfter = (s, i, ch) => { let k = 0; while (s[i + k] === ch) k++; return k; };
+/* 記号の連なり n 個が、その装飾の記号として読めるか(*** は太字と斜体の両方) */
+const inlineRunOk = (kind, n) => (kind === 'bold' ? n === 2 || n === 3 : kind === 'italic' ? n === 1 || n === 3 : kind === 'strike' ? n === 2 : n >= 1);
+/* u の中に、その装飾の記号として読める連なりがあるか */
+function hasInlineMark(u, kind) {
+  const re = { bold: /\*+/g, italic: /\*+/g, strike: /~+/g }[kind];
+  return (u.match(re) || []).some(r => inlineRunOk(kind, r.length));
+}
+/* u 全体がその装飾で囲まれていれば、記号を外した中身を返す。囲まれていなければ null */
+function inlineInner(u, kind) {
+  const ch = INLINE_MARKS[kind][0];
+  const n = runAfter(u, 0, ch), m = runBefore(u, u.length, ch);
+  if (!n || n !== m || n + m >= u.length || !inlineRunOk(kind, n)) return null;
+  if (kind === 'icode') {
+    let c = u.slice(n, u.length - n);
+    if ((c.match(/`+/g) || []).some(r => r.length === n)) return null;
+    if (c.length >= 2 && c[0] === ' ' && c[c.length - 1] === ' ' && c.trim()) c = c.slice(1, -1);
+    return c;
+  }
+  const k = INLINE_MARKS[kind].length, c = u.slice(k, u.length - k);
+  return hasInlineMark(c, kind) ? null : c;
+}
+/* u のすぐ外側(text の a の前と b の後)がその装飾の記号なら、外す記号の数。違えば 0 */
+function inlineOuter(text, a, b, kind) {
+  const ch = INLINE_MARKS[kind][0];
+  const l = runBefore(text, a, ch), r = runAfter(text, b, ch);
+  if (!l || l !== r || !inlineRunOk(kind, l)) return 0;
+  return kind === 'icode' ? l : INLINE_MARKS[kind].length;
+}
+/* 装飾を付けた文字列 { s: 全体, at: 中身の始まり, len: 中身の長さ } */
+function inlineWrap(u, kind) {
+  if (kind === 'icode') {
+    const n = Math.max(0, ...(u.match(/`+/g) || []).map(r => r.length)) + 1;
+    const pad = u[0] === '`' || u[u.length - 1] === '`' ? ' ' : '';
+    const f = '`'.repeat(n);
+    return { s: f + pad + u + pad + f, at: n + pad.length, len: u.length };
+  }
+  // 中にある同じ装飾を外す(プレビューと同じ読み方で、装飾として表示されるものだけ)
+  const c = kind === 'bold' ? u.replace(/\*\*([^*]+)\*\*/g, '$1')
+    : kind === 'italic' ? u.replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1$2')
+      : u.replace(/~~([^~]+)~~/g, '$1');
+  const mk = INLINE_MARKS[kind];
+  return { s: mk + c + mk, at: mk.length, len: c.length };
+}
+/* 表の行か(md と同じく、「|」のある行の次が |---| の行なら見出しの行、その下に続く「|」のある行も表の行) */
+function isTableRowAt(lines, k) {
+  const bar = l => l != null && l.indexOf('|') >= 0;
+  if (!bar(lines[k])) return false;
+  if (lines[k + 1] != null && isDelim(lines[k + 1])) return true;
+  for (let j = k - 1; j >= 1; j--) {
+    if (isDelim(lines[j])) return bar(lines[j - 1]);
+    if (!lines[j].trim() || !bar(lines[j])) return false;
+  }
+  return false;
+}
+function inlineFormat(text, selStart, selEnd, kind) {
+  const mk = INLINE_MARKS[kind];
+  if (!mk) return null;
+  if (selStart === selEnd) {
+    const s = selStart, ch = mk[0];
+    if (runBefore(text, s, ch) === mk.length && runAfter(text, s, ch) === mk.length) {
+      return { from: s - mk.length, to: s + mk.length, insert: '', selStart: s - mk.length, selEnd: s - mk.length };
+    }
+    return { from: s, to: s, insert: mk + mk, selStart: s + mk.length, selEnd: s + mk.length };
+  }
+  const end = text[selEnd - 1] === '\n' ? selEnd - 1 : selEnd;
+  const from = text.lastIndexOf('\n', selStart - 1) + 1;
+  let to = text.indexOf('\n', end); if (to < 0) to = text.length;
+  const lines = text.split('\n');
+  let li = text.slice(0, from).split('\n').length - 1;
+  let open = fenceOpenAt(text, from);
+  // 装飾する部分(units)を集める
+  const units = [];
+  for (let ls = from; ; li++) {
+    let le = text.indexOf('\n', ls); if (le < 0) le = text.length;
+    const line = text.slice(ls, le);
+    if (open) { if (fenceCloses(line, open)) open = null; }
+    else if (FENCE_OPEN.test(line)) open = line.match(FENCE_OPEN_RE)[1];
+    else if (line.trim() && !HR_RE.test(line) && !isDelim(line)) {
+      const a = Math.max(selStart, ls + line.match(BLOCK_PREFIX)[0].length), b = Math.min(end, le);
+      const cells = [];
+      if (isTableRowAt(lines, li)) {
+        let cs = ls;
+        for (let i = ls; i <= le; i++) {
+          if (i === le || (text[i] === '|' && text[i - 1] !== '\\')) { cells.push([cs, i]); cs = i + 1; }
+        }
+      } else cells.push([ls, le]);
+      for (const c of cells) {
+        let ua = Math.max(a, c[0]), ub = Math.min(b, c[1]);
+        while (ua < ub && /\s/.test(text[ua])) ua++;
+        while (ub > ua && /\s/.test(text[ub - 1])) ub--;
+        if (ua < ub) units.push({ a: ua, b: ub });
+      }
+    }
+    if (le >= to) break;
+    ls = le + 1;
+  }
+  if (!units.length) return null;
+  for (const u of units) {
+    u.inner = inlineInner(text.slice(u.a, u.b), kind);
+    u.outer = u.inner == null ? inlineOuter(text, u.a, u.b, kind) : 0;
+  }
+  const off = units.every(u => u.inner != null || u.outer);
+  // 置き換えを組み立てる。e: { a, b: 置き換える範囲, s: 新しい文字列, at, len: 新しい文字列の中で、選ぶ部分 }
+  const edits = units.map(u => {
+    const t = text.slice(u.a, u.b);
+    if (off) return u.inner != null ? { a: u.a, b: u.b, s: u.inner, at: 0, len: u.inner.length } : { a: u.a - u.outer, b: u.b + u.outer, s: t, at: 0, len: t.length };
+    if (u.inner != null || u.outer) return { a: u.a, b: u.b, s: t, at: 0, len: t.length };
+    const w = inlineWrap(t, kind);
+    return { a: u.a, b: u.b, s: w.s, at: w.at, len: w.len };
+  });
+  let out = '', pos = from;
+  for (const e of edits) {
+    out += text.slice(pos, e.a);
+    e.start = from + out.length;
+    out += e.s;
+    pos = e.b;
+  }
+  out += text.slice(pos, to);
+  const first = edits[0], last = edits[edits.length - 1];
+  return edits.length === 1
+    ? { from: from, to: to, insert: out, selStart: first.start + first.at, selEnd: first.start + first.at + first.len }
+    : { from: from, to: to, insert: out, selStart: first.start, selEnd: last.start + last.s.length };
+}
+
 /* ---------- 改行と字下げ(自動インデント・箇条書きの続き・Tab) ----------
    どれも { from, to, insert, selStart, selEnd }(from〜to を insert に置き換え、選択を selStart〜selEnd にする)を返す。
    何もしないとき(ブラウザの普通の改行でよいとき)は null */
 
 /* pos のある行が、コードブロック(``` か ~~~ の囲み)の中か。囲みの決まりはプレビューと同じ */
-function inFenceAt(text, pos) {
+function inFenceAt(text, pos) { return !!fenceOpenAt(text, pos); }
+/* pos のある行の時点で開いている囲みの記号(``` など)。囲みの外なら null */
+function fenceOpenAt(text, pos) {
   const lines = text.slice(0, text.lastIndexOf('\n', pos - 1) + 1).split('\n');
   let open = null;
   for (const ln of lines) {
     if (open) { if (fenceCloses(ln, open)) open = null; }
     else if (FENCE_OPEN.test(ln)) open = ln.match(FENCE_OPEN_RE)[1];
   }
-  return !!open;
+  return open;
 }
 
 /* 箇条書き・番号付き・チェックボックス・引用の記号。
@@ -379,8 +519,13 @@ function pushRecent(list, id, title, max) {
 const headingSlug = text => String(text).trim().toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
 
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
+/* 題名: 最初の文字のある行。装飾の記号(**・*・~~・`)は、プレビューと同じ読み方で外す(「# **買い物**」は「買い物」) */
+const plainInline = s => s.replace(/(`+)(.+?)\1/g, (m, f, c) => c.trim() || c)
+  .replace(/\*\*([^*]+)\*\*/g, '$1')
+  .replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1$2')
+  .replace(/~~([^~]+)~~/g, '$1');
 const titleOf = text => {
-  for (const ln of text.split('\n')) { const t = ln.replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
+  for (const ln of text.split('\n')) { const t = plainInline(ln).replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
   return '';
 };
 
@@ -779,5 +924,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }
