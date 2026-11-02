@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.28.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.29.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -27,6 +27,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・プレーンテキストでも Markdown でも書けます。見出し、リスト、チェックボックス、コード、引用、表、リンクをプレビューで整形して表示します。  
 ・編集とプレビューを切り替えても、見ていた場所はそのままです。  
 ・選んだ文字を、右クリックで太字・斜体・取り消し線・コードにできます。  
+・GitHub と同じ書き方で、絵文字(:smile: など。打つと候補が出ます)、色付きの注意書き(アラート)、脚注を書けます。  
 ・LaTeX の数式と化学式を、整った数式として表示します。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
@@ -53,9 +54,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・キーボードショートカットを変えられるようになりました。「編集」→「キーボードショートカット…」で、メニューの操作とキーを一覧で見られ、名前やキーで絞り込めます。操作をダブルクリックしてキーを押し、Enter で決めます。  
-・ほかの操作が使っているキーなら、どの操作かを知らせ、Enter で置き換えます。既定でキーの無い操作(HTML へのエクスポートなど)にも割り当てられ、既定に戻すこともできます。  
-・「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ押せないようにしました。
+・GitHub と同じ書き方に対応しました。:smile: や :+1: と書くと絵文字になり、編集画面で : に続けて2文字打つと候補が出ます(↑↓ で選んで Enter)。  
+・引用の1行目に [!NOTE] や [!WARNING] と書くと、色と見出しの付いた注意書きになります。本文[^1] と [^1]: 注の文 で脚注も書けます。Word に書き出すと Word の脚注になります。  
+・https:// で始まるアドレスは、そのまま書くだけでリンクになります。記号の前に \ を付けると、記号のまま表示します。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -76,6 +77,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 15. 編集とプレビューを切り替えても、見ていた場所がそのまま
 16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
 17. キーボードショートカットを好きなキーに変えられる
+18. GitHub と同じ絵文字ショートコード(入力候補つき)・アラート・脚注
 
 ### 検索キーワード(7 個まで、各 30 文字まで)
 
@@ -114,6 +116,7 @@ WRITE
 • Write in plain text or Markdown. Headings, lists, check boxes, code, block quotes, tables and links are formatted in the preview.  
 • Switching between Edit and Preview keeps your place.  
 • Make selected text bold, italic, struck through or code from the right-click menu.  
+• Use GitHub's emoji shortcodes (such as :smile:, with suggestions as you type), alerts and footnotes.  
 • LaTeX math and chemical formulas are shown as formatted formulas.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax.  
 • Paste screenshots or drop files to attach images and files to a note.  
@@ -140,9 +143,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• You can now change keyboard shortcuts. Choose Edit → Keyboard Shortcuts… to see the menu commands and their keys, and filter them by name or key. Double-click a command, press the keys you want, then press Enter.  
-• If another command already uses the key, EverPad tells you which one, and Enter moves the key here. Commands without a default key (such as exporting to HTML) can be given one too, and keys can be reset to the defaults.  
-• In the View menu, Edit or Preview is grayed out while that view is shown.
+• Supports more GitHub Markdown. Write :smile: or :+1: for emoji; in the editor, type : and two letters to see suggestions (choose with ↑ ↓ and press Enter).  
+• A block quote starting with [!NOTE] or [!WARNING] becomes a colored notice with a heading. Footnotes work with text[^1] and [^1]: the note, and become Word footnotes when exported to Word.  
+• Addresses starting with https:// become links as you type them. Put \ before a Markdown mark to show it as it is.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -163,6 +166,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 15. Switching between Edit and Preview keeps your place
 16. Bold, italic, strikethrough and code from the right-click menu
 17. Keyboard shortcuts you can change
+18. GitHub emoji shortcodes (with suggestions), alerts and footnotes
 
 ### Search terms (up to 7, up to 30 characters each)
 
