@@ -15,7 +15,7 @@ This program was created with the help of Claude Code.
 ### Features
 
 - **Full edit history**: every edit is recorded. Drag the time slider or play the history back to see any past version, and restore it with one click.
-- **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables. Switching between Edit and Preview keeps your place. Selected text can be made bold, italic, struck through or code from the right-click menu, line by line when the selection spans several lines.
+- **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables, plus GitHub's emoji shortcodes (`:smile:`, with suggestions as you type), alerts (`> [!NOTE]`) and footnotes. Switching between Edit and Preview keeps your place. Selected text can be made bold, italic, struck through or code from the right-click menu, line by line when the selection spans several lines.
 - **Math**: LaTeX math (and chemical formulas) is shown as formatted formulas in the preview, the history and printouts.
 - **Diagrams**: flowcharts, sequence diagrams and other diagrams written in [Mermaid](https://mermaid.js.org/) are drawn in the preview, the history and printouts.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
@@ -66,16 +66,16 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.28.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" under "macOS and Linux (untested)").
+This creates an installer (`EverPad Setup 0.29.0.exe`) and a portable executable that needs no installation in the `dist` folder. The installer can be shown in English or Japanese, and offers a check box (off by default) to add EverPad to the Explorer "Send to" menu. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" under "macOS and Linux (untested)").
 
 **Uninstalling**: the uninstaller never deletes your data folder (your notes stay). It offers a check box (off by default) to also delete EverPad's settings (`%APPDATA%\EverPad`: the data folder location, language, window position, recently viewed notes and so on). Settings are kept per Windows user, so only the settings of the user running the uninstaller are deleted, also when EverPad was installed for all users; other users' settings are not touched. Updates and silent uninstalls (`/S`) never delete settings.
 
 ### Portable version
 
-The portable executable (`EverPad 0.28.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.29.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.28.0.exe
+EverPad 0.29.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -94,11 +94,11 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.28.0.AppImage` (x64)
+- Linux: `EverPad-0.29.0.AppImage` (x64)
 
-**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.28.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+**Building with GitHub Actions**: the repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.29.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
-**Microsoft Store package**: on Windows, `npm run dist:store` creates `EverPad-0.28.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking. In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and File has no Add to the "Send to" Menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
+**Microsoft Store package**: on Windows, `npm run dist:store` creates `EverPad-0.29.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking. In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and File has no Add to the "Send to" Menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
 
 **macOS**
 
@@ -114,7 +114,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.28.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.29.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -199,6 +199,16 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - A diagram with an error is shown as its source in red; hover over it to see the error. Right-click a diagram and choose Copy Diagram Source to copy its source.
 - Diagrams are drawn with Mermaid, which is bundled with the app (no internet connection is used). It is loaded the first time a note with a diagram is shown, so the first diagram can take about a second to appear. Clicks and links in diagrams are disabled.
 
+**Emoji, plain URLs, alerts and footnotes (as on GitHub)**
+
+- **Emoji**: write `:name:` to show an emoji, with the same names as GitHub (`:smile:` 😄, `:+1:` 👍, `:tada:` 🎉; about 1,900 of them). In the editor, type `:` and two letters of a name to see suggestions at the cursor. Choose one with ↑ / ↓ and press Enter or Tab to insert `:name:` (one edit, undone with `Ctrl+Z`), or click it; Esc closes the list. Suggestions are not shown right after a letter, a digit, `:` or `/` (as in `12:30` or `http:`), or in code blocks. The note keeps `:name:`, so the emoji also shows on GitHub. Unknown names, names right after or before a letter or digit, and names in code are left as they are. Note titles show the emoji too.
+- **Plain URLs**: addresses starting with `http://`, `https://` or `www.` become links without `[ ]( )`, and so does an address surrounded by `< >`. An address ends before a space or a non-ASCII character (so `https://example.comを見る` links only the address), and a final `.`, `,`, `:`, `;`, `!`, `?` or an unmatched `)` is not part of it.
+- **Writing marks as text**: put `\` before an ASCII punctuation character to show it as it is: `\*` shows `*` instead of starting italics, and `\#`, `\-`, `1\.` or `\>` at the start of a line do not make a heading, list or quote. Two backslashes show one, so a path written as `\\server\share` is shown as `\server\share` in the preview (the editor keeps what you typed; put it in `` ` `` to show it unchanged). Code and math are not affected (`\$` is still a literal dollar sign).
+- **Alerts**: a block quote whose first line is only `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` is shown as a colored notice with an icon and the heading Note, Tip, Important, Warning or Caution (注記・ヒント・重要・警告・注意 in Japanese).
+- **Footnotes**: write `[^name]` in the text and `[^name]: the note` at the start of a line (anywhere in the note). Notes are numbered in the order they are first referred to and listed at the end of the note; notes that are never referred to are not shown, and `[^name]` without a note stays as text. To continue a note on more lines or paragraphs, indent them by two spaces. Click a number to go to its note and ↩ to go back; pointing at a number shows the note at the bottom left.
+- These are kept in printouts, PDFs, HTML and MHTML files. Word documents get Word footnotes and alerts as block quotes with a colored line and heading; AsciiDoc files get `footnote:[…]` and admonition blocks (`[NOTE]` and so on, with the Japanese headings set when the interface is in Japanese).
+- The emoji list comes from [gemoji](https://github.com/wooorm/gemoji), the list GitHub uses; it is part of the app, so no internet connection is used.
+
 **Bold, italic, strikethrough and code**
 
 - Select text in the editor and right-click to choose Bold, Italic, Strikethrough or Code (also in Edit → Format). The text is surrounded by `**`, `*`, `~~` or `` ` ``. Ctrl+B shows and hides the left pane, so Bold is `Ctrl+Shift+B`.
@@ -281,7 +291,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **AsciiDoc and Word**
 
-- File → Export → AsciiDoc… or Word Document… saves the current note in a form other programs can edit. While the history is shown, the version being viewed is saved. Headings, paragraphs and line breaks, bold, italic, strikethrough, code, lists, check boxes, block quotes, code blocks, tables, horizontal rules, web links, images and formulas are converted. As in HTML files, links that only work inside EverPad become plain text.
+- File → Export → AsciiDoc… or Word Document… saves the current note in a form other programs can edit. While the history is shown, the version being viewed is saved. Headings, paragraphs and line breaks, bold, italic, strikethrough, code, lists, check boxes, block quotes, alerts, code blocks, tables, horizontal rules, web links, images, formulas, emoji and footnotes are converted. As in HTML files, links that only work inside EverPad become plain text.
 - AsciiDoc (`.adoc`) is a text format. Attached images are copied to a folder named after the file with `_images` added (for `Notes.adoc`, the folder `Notes_images` next to it), and the `.adoc` file refers to them, so move the folder together with the file. Formulas keep their LaTeX (`latexmath`), so Asciidoctor shows them as formulas. If the note starts with its only top-level heading (`#`), that heading becomes the document title; otherwise the note title is used.
 - Word (`.docx`) opens in Microsoft Word and in other programs that read Word documents. Attached images are inside the file (WebP and AVIF images are converted to PNG, because older versions of Word cannot read them), and images wider than the page are shrunk to fit. Headings use Word's Heading 1–6 styles, so the Navigation pane and tables of contents work. Formulas become Word equations that can be edited in Word; a formula with an error is put in as its LaTeX. The body text uses Yu Mincho and the headings Yu Gothic (the fonts Word uses for Japanese documents), and no fonts are put in the file. The paper size is A4 (Letter in the United States and Canada).
 
@@ -289,7 +299,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 - Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Find and Replace…, Attach Image or File…, Format and Insert Link to Note… work only in the Edit view; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Edit view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Edit or Preview is grayed out while that view is shown (also during the history).
 - Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document or EverPad archive; the latest version), Properties… and Delete…. The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
-- Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, or the attachment name. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
+- Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, the attachment name, or the text of a footnote. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
@@ -306,13 +316,18 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 |---|---|
 | Headings | `# Heading 1`, `## Heading 2` … `###### Heading 6` |
 | Emphasis | `**bold**`, `*italic*`, `~~strikethrough~~`, `` `code` `` |
+| Marks as text | `\*`, `\#`, `\[` … (a `\` before ASCII punctuation) |
+| Emoji | `:smile:`, `:+1:` (the same names as GitHub; type `:` and two letters for suggestions) |
 | Lists | `- item` (or `*`, `+`; indent by two spaces to nest), `1. item` |
 | Check boxes | `- [ ] to do`, `- [x] done` |
 | Links | `[text](https://example.com)` (opened in the browser), `[text](#heading)` (jumps to a heading in the same note). Other links, such as relative paths, are shown as links but cannot be opened |
+| Plain URLs | `https://example.com`, `www.example.com`, `<https://example.com>` |
 | Block quotes | `> quoted text` |
+| Alerts | `> [!NOTE]` (or `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) on the first line of a block quote |
 | Code blocks | lines surrounded by ```` ``` ```` (or `~~~`); to put ```` ``` ```` lines inside, surround with ````` ```` ````` |
 | Horizontal rules | `---` |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
+| Footnotes | `text[^1]` and `[^1]: the note` at the start of a line |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
 | Diagrams | ```` ```mermaid ```` code block with [Mermaid](https://mermaid.js.org/) syntax |
 | Links to notes | `[text](note:note ID)`, inserted with `Ctrl+K` |
@@ -381,10 +396,11 @@ archive.js       EverPad archives: building, checking and reading (testable with
 ziplite.js       Minimal ZIP reading and writing for archives, using Node.js zlib (testable without Electron)
 sendto.js        The "Send to" shortcut and reading files passed at startup (testable without Electron)
 renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js), Mermaid diagrams (diagram.js),
+                 the emoji list for emoji shortcodes (emoji.js, made from gemoji by tools/make-emoji.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
                  the script that copies Mermaid into renderer/vendor/mermaid (vendor-mermaid.js),
-                 the script that makes the Microsoft Store icons (make-store-assets.js),
+                 the script that makes the Microsoft Store icons (make-store-assets.js), the script that makes renderer/emoji.js from gemoji (make-emoji.js),
                  and the Windows startup checks used by GitHub Actions (ci-smoke-windows.ps1, ci-smoke-store.ps1)
 renderer/vendor/katex/  KaTeX for math (copied from node_modules automatically before npm start and npm run dist; not stored in Git)
 renderer/vendor/mermaid/  Mermaid for diagrams (copied the same way as KaTeX; not stored in Git)
@@ -419,6 +435,8 @@ EverPad includes [KaTeX](https://github.com/KaTeX/KaTeX) (MIT License, Copyright
 
 EverPad also includes [Mermaid](https://github.com/mermaid-js/mermaid) (MIT License, Copyright (c) 2014 - 2022 Knut Sveidqvist) for drawing diagrams. Its license is copied to `renderer/vendor/mermaid/LICENSE`, and the licenses of the libraries bundled in it are kept at the end of `mermaid.min.js`.
 
+The emoji list in `renderer/emoji.js` is made from [gemoji](https://github.com/wooorm/gemoji) (MIT License, Copyright (c) 2014 Titus Wormer), and its license is at the top of that file.
+
 ---
 
 ## 日本語
@@ -432,7 +450,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 ### 特長
 
 - **すべての編集を履歴に残す**: タイムスライダーを動かすか履歴を再生すると、どの時点の版でも見られます。その版にはボタン1つで戻せます。
-- **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表に対応しています。編集とプレビューを切り替えても、見ていた場所はそのままです。選んだ文字は、右クリックで太字・斜体・取り消し線・コードにできます(複数行なら行ごと)。
+- **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表に対応しています。GitHub と同じ絵文字ショートコード(`:smile:`。打つと候補が出ます)、アラート(`> [!NOTE]`)、脚注も使えます。編集とプレビューを切り替えても、見ていた場所はそのままです。選んだ文字は、右クリックで太字・斜体・取り消し線・コードにできます(複数行なら行ごと)。
 - **数式**: LaTeX の数式(と化学式)を、プレビュー・履歴・印刷で整形した数式として表示します。
 - **図**: [Mermaid](https://mermaid.js.org/) で書いたフローチャートやシーケンス図などを、プレビュー・履歴・印刷で図として表示します。
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
@@ -483,16 +501,16 @@ Windows 版は、次の2か所で配布しています。
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.28.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(「macOS と Linux(未確認)」の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.29.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(「macOS と Linux(未確認)」の「GitHub Actions で作る」を見てください)。
 
 **アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(既定はオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
 
 ### portable 版
 
-portable 版(`EverPad 0.28.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.29.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.28.0.exe
+EverPad 0.29.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -511,11 +529,11 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.28.0.AppImage`(x64)
+- Linux: `EverPad-0.29.0.AppImage`(x64)
 
-**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.28.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+**GitHub Actions で作る**: Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.29.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
-**Microsoft Store 版**: Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.28.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、「ファイル」に「「送る」メニューに登録」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
+**Microsoft Store 版**: Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.29.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、「ファイル」に「「送る」メニューに登録」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
 
 **macOS**
 
@@ -531,7 +549,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.28.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.29.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -616,6 +634,16 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 書き方に誤りのある図は、元の文を赤く表示します。マウスを重ねると誤りの内容が出ます。図を右クリックして「図の元の文をコピー」を選ぶと、元の文をコピーできます。
 - 図の表示には、アプリに同梱した Mermaid を使います(インターネットには接続しません)。図のあるメモを初めて表示したときに読み込むので、最初の図が出るまで1秒ほどかかることがあります。図の中のクリックやリンクは使えません。
 
+**絵文字・URL・アラート・脚注(GitHub と同じ書き方)**
+
+- **絵文字**: `:名前:` と書くと絵文字になります。名前は GitHub と同じです(`:smile:` 😄、`:+1:` 👍、`:tada:` 🎉 など、約1,900個)。編集画面で `:` に続けて名前を2文字打つと、カーソルの位置に候補が出ます。↑・↓ で選んで Enter か Tab を押すと `:名前:` が入ります(1回の編集で、`Ctrl+Z` で戻せます)。候補はクリックでも選べ、Esc で閉じます。英字・数字・`:`・`/` のすぐ後ろ(`12:30` や `http:` など)と、コードブロックの中では候補を出しません。本文には `:名前:` のまま残るので、GitHub でも同じ絵文字になります。一覧に無い名前、前後に英字や数字が付いた名前、コードの中の名前は、そのまま文字で出します。メモの題名も絵文字で出します。
+- **URL をそのまま書く**: `http://`・`https://`・`www.` で始まるアドレスは、`[ ]( )` を使わなくてもリンクになります。`< >` で囲んだアドレスも同じです。アドレスは、空白か、日本語などの ASCII でない文字の手前で終わります(`https://example.comを見る` なら、アドレスだけがリンク)。最後の `.`・`,`・`:`・`;`・`!`・`?` と、対になっていない `)` は、アドレスに含めません。
+- **記号をそのまま書く**: ASCII の記号の前に `\` を付けると、その記号をそのまま出します。`\*` は斜体にならずに `*` と出て、行の先頭の `\#`・`\-`・`1\.`・`\>` は、見出し・箇条書き・引用になりません。`\` を2つ重ねると1つになるので、`\\server\share` と書いたパスは、プレビューでは `\server\share` と出ます(編集画面は書いたままです。そのまま出すには `` ` `` で囲みます)。コードと数式の中は変わりません(`\$` は今までどおり $ の文字です)。
+- **アラート**: 引用の1行目が `[!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` だけなら、色とアイコンと見出し(注記・ヒント・重要・警告・注意。英語の画面では Note などの英語)の付いた注意書きになります。
+- **脚注**: 本文に `[^名前]` と書き、行の先頭に `[^名前]: 注の文` と書きます(メモのどこに書いてもかまいません)。番号は本文で最初に参照した順に付き、注はメモの最後にまとめて表示されます。参照の無い注は表示せず、注の無い `[^名前]` はそのまま文字で出します。注を2行以上や複数の段落にするときは、空白2つで字下げします。番号をクリックすると注へ、↩ をクリックすると本文に戻ります。番号にマウスを重ねると、左下に注の文が出ます。
+- 印刷・PDF・HTML・MHTML にもそのまま出ます。Word 文書では、脚注は Word の脚注に、アラートは色の付いた線と見出しの引用になります。AsciiDoc では、`footnote:[…]` と注記のブロック(`[NOTE]` など。日本語の画面では見出しを日本語にする設定も入れます)になります。
+- 絵文字の一覧は、GitHub が使っている一覧の [gemoji](https://github.com/wooorm/gemoji) から作り、アプリに入れています(インターネットには接続しません)。
+
 **太字・斜体・取り消し線・コード**
 
 - 編集画面で文字を選んで右クリックし、「太字」「斜体」「取り消し線」「コード」を選びます(「編集」→「書式」にもあります)。選んだ文字を `**`・`*`・`~~`・`` ` `` で囲みます。Ctrl+B は左側の表示の切り替えなので、太字は `Ctrl+Shift+B` です。
@@ -698,7 +726,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **AsciiDoc と Word**
 
-- 「ファイル」→「エクスポート」→「AsciiDoc…」か「Word 文書…」で、今のメモを、ほかのソフトで編集できる形で保存します。履歴の表示中は、見ている版を保存します。見出し、段落と改行、太字・斜体・取り消し線・コード、リスト、チェックボックス、引用、コードブロック、表、区切り線、Web のリンク、画像、数式を変換します。HTML と同じく、EverPad の中でしか開けないリンクは、ただの文字になります。
+- 「ファイル」→「エクスポート」→「AsciiDoc…」か「Word 文書…」で、今のメモを、ほかのソフトで編集できる形で保存します。履歴の表示中は、見ている版を保存します。見出し、段落と改行、太字・斜体・取り消し線・コード、リスト、チェックボックス、引用、アラート、コードブロック、表、区切り線、Web のリンク、画像、数式、絵文字、脚注を変換します。HTML と同じく、EverPad の中でしか開けないリンクは、ただの文字になります。
 - AsciiDoc(`.adoc`)はテキストの形式です。添付の画像は、ファイル名に `_images` を付けたフォルダー(`メモ.adoc` なら、隣の `メモ_images`)に写して、`.adoc` から参照します。ファイルを移すときは、フォルダーも一緒に移してください。数式は LaTeX のまま(`latexmath`)入るので、Asciidoctor で数式として表示されます。メモの先頭が、ただ1つの大見出し(`#`)なら、それを文書の題名にします。そうでなければ、メモの題名を題名にします。
 - Word(`.docx`)は、Microsoft Word や、Word の文書を読めるほかのソフトで開けます。添付の画像はファイルの中に入れます(WebP と AVIF の画像は、古い Word では読めないので PNG にします)。ページの幅より大きい画像は、幅に収まるよう縮めます。見出しは Word の「見出し 1〜6」のスタイルにするので、ナビゲーションウィンドウや目次がそのまま使えます。数式は Word の数式になり、Word で編集できます。誤りのある数式は、LaTeX の文字のまま入れます。本文は游明朝、見出しは游ゴシック(Word で日本語の文書を作るときと同じフォント)にし、フォントはファイルに入れません。用紙は A4 です(米国とカナダでは Letter)。
 
@@ -706,7 +734,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 - 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「検索と置換…」「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」は編集画面だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(編集画面と、編集から入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。
 - 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・EverPad アーカイブ。最新の版を書き出します)「プロパティ…」「削除…」です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
-- プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
+- プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前、脚注の文)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
@@ -723,13 +751,18 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 |---|---|
 | 見出し | `# 見出し1`、`## 見出し2` … `###### 見出し6` |
 | 強調 | `**太字**`、`*斜体*`、`~~取り消し線~~`、`` `コード` `` |
+| 記号をそのまま | `\*`、`\#`、`\[` …(ASCII の記号の前に `\`) |
+| 絵文字 | `:smile:`、`:+1:`(名前は GitHub と同じ。`:` と2文字で候補が出る) |
 | 箇条書き | `- 項目`(`*`・`+` も可。空白2つで字下げすると入れ子)、`1. 項目` |
 | チェックボックス | `- [ ] 未完了`、`- [x] 完了` |
 | リンク | `[表示する文字](https://example.com)`(ブラウザで開く)、`[表示する文字](#見出し)`(同じメモの見出しへ移動)。相対パスなど、それ以外のリンクはリンクの見た目で表示するが、開けない |
+| URL | `https://example.com`、`www.example.com`、`<https://example.com>` |
 | 引用 | `> 引用する文` |
+| アラート | 引用の1行目に `> [!NOTE]`(`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` も) |
 | コードブロック | ```` ``` ```` だけの行で前後を囲む(`~~~` も可)。中に ```` ``` ```` の行を書くときは ````` ```` ````` で囲む |
 | 区切り線 | `---` |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
+| 脚注 | `本文[^1]` と、行の先頭に `[^1]: 注の文` |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
 | 図 | ```` ```mermaid ```` のコードブロックに [Mermaid](https://mermaid.js.org/) の書き方で書く |
 | 他のメモへのリンク | `[表示する文字](note:メモID)`。`Ctrl+K` で挿入できます |
@@ -798,10 +831,11 @@ archive.js       EverPad アーカイブの作成・検査・読み込み(Electr
 ziplite.js       アーカイブに使う最小限の ZIP の読み書き。Node.js の zlib を使う(Electron なしでテストできる)
 sendto.js        「送る」メニューのショートカットと、起動時に渡されたファイルの取り出し(Electron なしでテストできる)
 renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、Mermaid の図(diagram.js)、
+                 絵文字ショートコードの一覧(emoji.js。tools/make-emoji.js が gemoji から作る)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、
                  Mermaid を renderer/vendor/mermaid にコピーするスクリプト(vendor-mermaid.js)、
-                 Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、
+                 Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、gemoji から renderer/emoji.js を作るスクリプト(make-emoji.js)、
                  GitHub Actions で使う Windows 版の起動の確認(ci-smoke-windows.ps1、ci-smoke-store.ps1)
 renderer/vendor/katex/  数式の表示に使う KaTeX(npm start と npm run dist の前に node_modules から自動でコピーする。Git には入れない)
 renderer/vendor/mermaid/  図の表示に使う Mermaid(KaTeX と同じく自動でコピーする。Git には入れない)
@@ -835,3 +869,5 @@ Copyright (c) 2026 Nobuyoshi NIHONGI
 数式の表示のために [KaTeX](https://github.com/KaTeX/KaTeX)(MIT License、Copyright (c) 2013-2020 Khan Academy and other contributors)を同梱しています。ライセンスは `renderer/vendor/katex/LICENSE` にコピーしてあります。
 
 図の表示のために [Mermaid](https://github.com/mermaid-js/mermaid)(MIT License、Copyright (c) 2014 - 2022 Knut Sveidqvist)も同梱しています。ライセンスは `renderer/vendor/mermaid/LICENSE` にコピーしてあり、Mermaid に含まれるライブラリのライセンスは `mermaid.min.js` の最後に入っています。
+
+`renderer/emoji.js` の絵文字の一覧は、[gemoji](https://github.com/wooorm/gemoji)(MIT License、Copyright (c) 2014 Titus Wormer)から作っています。ライセンスは、そのファイルの先頭にあります。

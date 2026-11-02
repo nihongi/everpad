@@ -51,8 +51,11 @@ const hasClass = (n, c) => (' ' + (n.attrs && n.attrs.class || '') + ' ').indexO
    ブロック: { t:'p', c } { t:'h', level, c } { t:'pre', text } { t:'math', tex, mml, error } { t:'hr' } { t:'diagram', src, png, w, h }
              { t:'quote', c:[ブロック] } { t:'list', ordered, start, items:[{ check: null|true|false, c:[ブロック] }] }
              { t:'table', align:['l'|'c'|'r'], head:[セル], rows:[[セル]] }(セルは文中の要素の配列)
+             { t:'alert', kind:'note'|'tip'|'important'|'warning'|'caution', title:[文中], c:[ブロック] }
+             { t:'footnotes', items:[{ n, c:[ブロック] }] }(脚注の一覧。本文の最後に1つ)
    文中: { t:'text', v } { t:'br' } { t:'b'|'i'|'s', c } { t:'code', v } { t:'a', href, c }
-         { t:'img', file, alt, w, h } { t:'math', tex, mml, error, display } */
+         { t:'img', file, alt, w, h } { t:'math', tex, mml, error, display } { t:'fn', n }(脚注の参照) */
+const ALERT_KINDS = ['note', 'tip', 'important', 'warning', 'caution'];
 const HEADING = /^h([1-6])$/;
 function mathNode(n, display) {
   return { t: 'math', tex: n.attrs['data-tex'] || '', mml: n.attrs['data-mml'] || '', error: hasClass(n, 'math-error'), display: !!display };
@@ -67,6 +70,10 @@ function inlinesOf(nodes) {
     if (n.text != null) { if (n.text) out.push({ t: 'text', v: n.text.replace(/\r?\n/g, ' ') }); continue; }
     const tag = n.tag;
     if (hasClass(n, 'math')) out.push(mathNode(n, hasClass(n, 'math-display')));
+    else if (tag === 'sup' && hasClass(n, 'fnref')) {
+      const a = n.children.find(x => x.tag === 'a' && x.attrs['data-fn']);
+      if (a) out.push({ t: 'fn', n: +a.attrs['data-fn'] }); else out.push(...inlinesOf(n.children));
+    } else if ((tag === 'a' && hasClass(n, 'fnback')) || tag === 'svg') { /* 脚注の「本文に戻る」とアラートの絵は書き出さない */ }
     else if (tag === 'br') out.push({ t: 'br' });
     else if (tag === 'strong' || tag === 'b') out.push({ t: 'b', c: inlinesOf(n.children) });
     else if (tag === 'em' || tag === 'i') out.push({ t: 'i', c: inlinesOf(n.children) });
@@ -116,7 +123,19 @@ function blocksOf(nodes) {
     else if ((h = HEADING.exec(tag))) { flush(); out.push({ t: 'h', level: +h[1], c: inlinesOf(n.children).filter(x => x.t !== 'check') }); }
     else if (tag === 'pre') { flush(); out.push({ t: 'pre', text: textOf(n) }); }
     else if (tag === 'hr') { flush(); out.push({ t: 'hr' }); }
-    else if (tag === 'blockquote') { flush(); out.push({ t: 'quote', c: blocksOf(n.children) }); }
+    else if (tag === 'blockquote' && hasClass(n, 'alert') && ALERT_KINDS.indexOf(n.attrs['data-alert']) >= 0) {
+      flush();
+      const kids = n.children.filter(x => !(x.text != null && !x.text.trim()));
+      const head = kids[0] && kids[0].tag === 'p' && hasClass(kids[0], 'alert-title') ? kids.shift() : null;
+      out.push({ t: 'alert', kind: n.attrs['data-alert'], title: head ? inlinesOf(head.children) : [], c: blocksOf(kids) });
+    } else if (tag === 'blockquote') { flush(); out.push({ t: 'quote', c: blocksOf(n.children) }); }
+    else if (tag === 'section' && hasClass(n, 'footnotes')) {
+      flush();
+      const items = [];
+      const walk = x => { for (const c of x.children || []) { if (c.tag === 'li' && c.attrs['data-fn']) items.push({ n: +c.attrs['data-fn'], c: blocksOf(c.children) }); else if (c.tag) walk(c); } };
+      walk(n);
+      if (items.length) out.push({ t: 'footnotes', items: items });
+    }
     else if (tag === 'ul' || tag === 'ol') { flush(); out.push(listOf(n)); }
     else if (tag === 'table') { flush(); out.push(tableOf(n)); }
     else if (tag === 'div' && hasClass(n, 'diagram')) { flush(); out.push(diagramNode(n)); }
@@ -163,7 +182,7 @@ function treeImages(blocks) {
     if (Array.isArray(x)) { x.forEach(visit); return; }
     if (!x || typeof x !== 'object') return;
     if (x.t === 'img' && ids.indexOf(x.file) < 0) ids.push(x.file);
-    for (const k of ['c', 'items', 'head', 'rows']) if (x[k]) visit(x[k]);
+    for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
   };
   visit(blocks);
   return ids;
@@ -174,7 +193,7 @@ function treeHasMath(blocks) {
     if (found || !x || typeof x !== 'object') return;
     if (Array.isArray(x)) { x.forEach(visit); return; }
     if (x.t === 'math') { found = true; return; }
-    for (const k of ['c', 'items', 'head', 'rows']) if (x[k]) visit(x[k]);
+    for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
   };
   visit(blocks);
   return found;
@@ -213,8 +232,27 @@ function adocInline(nodes, ctx) {
     else if (x.t === 'a') s += 'link:++' + x.href.replace(/\+\+/g, '%2B%2B') + '++[' + (adocInline(x.c, Object.assign({}, ctx, { link: true })) || adocPass(x.href)) + ']';
     else if (x.t === 'img') s += 'image:' + x.file + '[' + adocAttr(x.alt) + ']';
     else if (x.t === 'math') s += 'latexmath:[' + texArg(x.tex) + ']';
+    else if (x.t === 'fn') s += adocFootnote(x.n, ctx);
   }
   return s;
+}
+/* 脚注: 最初の参照の場所に footnote:[注の文] を書く。2回以上参照する注は footnote:fn番号[注の文] にして、2回目からは footnote:fn番号[]。
+   AsciiDoc の脚注は文中の文だけなので、注の段落などは空白でつなぐ。注の中の参照は、上付きの番号にする */
+function adocFootnote(n, ctx) {
+  const f = ctx.notes && ctx.notes.get(n);
+  if (!f || ctx.inNote) return '^' + n + '^';
+  if (f.used++) return 'footnote:fn' + n + '[]';
+  const sub = Object.assign({}, ctx, { oneLine: true, inNote: true, link: false });
+  const text = f.c.map(b => adocNoteText(b, sub)).filter(Boolean).join(' ');
+  return 'footnote:' + (f.refs > 1 ? 'fn' + n : '') + '[' + text + ']';
+}
+function adocNoteText(b, ctx) {
+  if (b.t === 'p' || b.t === 'h') return adocInline(b.c, ctx);
+  if (b.t === 'pre') return b.text ? '``' + adocPass(b.text.replace(/\n/g, ' ')) + '``' : '';
+  if (b.t === 'math') return 'latexmath:[' + texArg(b.tex) + ']';
+  if (b.t === 'list') return b.items.map(it => it.c.map(x => adocNoteText(x, ctx)).filter(Boolean).join(' ')).filter(Boolean).join('; ');
+  if (b.t === 'quote' || b.t === 'alert') return b.c.map(x => adocNoteText(x, ctx)).filter(Boolean).join(' ');
+  return '';
 }
 // 行の先頭が AsciiDoc の記号(見出し・リスト・ブロックの区切り・属性・注記など)に見えるか
 const ADOC_LINE_START = /^(?:[=.*\-+:|>[/'"_`#~^<({\s]|\d+[.)]\s|[A-Za-z][.)]\s|[ivxIVX]+\)\s|(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION):)/;
@@ -248,6 +286,8 @@ function adocBlock(b, ctx) {
   if (b.t === 'diagram') return '[mermaid]\n' + adocDelimited('.', 4, b.src);
   if (b.t === 'hr') return "'''";
   if (b.t === 'quote') { const q = ctx.quote || 0; return adocDelimited('_', 4 + q, adocBlocks(b.c, Object.assign({}, ctx, { quote: q + 1, inItem: false }))); }
+  // アラートは AsciiDoc の注記(同じ5種類)。見出しの言葉は、文書の頭の :note-caption: など(toAsciiDoc)
+  if (b.t === 'alert') { const q = ctx.alert || 0; return '[' + b.kind.toUpperCase() + ']\n' + adocDelimited('=', 4 + q, adocBlocks(b.c, Object.assign({}, ctx, { alert: q + 1, inItem: false })) || '{empty}'); }
   if (b.t === 'list') return adocList(b, ctx);
   if (b.t === 'table') return adocTable(b, ctx);
   return '';
@@ -278,22 +318,50 @@ function adocTable(b, ctx) {
   const rows = [b.head.map(cell).join(' '), ''].concat(b.rows.map(r => r.map(cell).join(' ')));
   return '[cols="' + cols + '",options="header"]\n|===\n' + rows.join('\n') + '\n|===';
 }
+/* 脚注の一覧(番号 → { c, refs: 参照の数, used }) */
+function adocNotes(blocks) {
+  const notes = new Map();
+  const list = blocks.find(b => b.t === 'footnotes');
+  if (!list) return notes;
+  for (const it of list.items) notes.set(it.n, { c: it.c, refs: 0, used: 0 });
+  const visit = x => {
+    if (Array.isArray(x)) { x.forEach(visit); return; }
+    if (!x || typeof x !== 'object' || x.t === 'footnotes') return;
+    if (x.t === 'fn' && notes.has(x.n)) notes.get(x.n).refs++;
+    for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
+  };
+  visit(blocks);
+  return notes;
+}
 /* o: { title, imagesDir(画像を置くフォルダーの名前。画像が無ければ不要) } */
 function toAsciiDoc(blocks, o) {
   o = o || {};
   let body = blocks.slice(), title = String(o.title || ''), shift = 1;
   // 大見出し(#)が先頭に1つだけなら、それを文書の題名にして、## 以下を1段ずつ上げる
   const h1 = body.filter(b => b.t === 'h' && b.level === 1);
-  const ctx = { shift: 1 };
+  const ctx = { shift: 1, notes: adocNotes(blocks) };
   let titleText;
   if (h1.length === 1 && body[0] === h1[0]) {
-    titleText = adocInline(body.shift().c, { oneLine: true });
+    titleText = adocInline(body.shift().c, Object.assign({}, ctx, { oneLine: true }));
     shift = 0;
   } else titleText = adocText(title, {});
   ctx.shift = shift;
   const head = ['= ' + (titleText || '{empty}')];
   if (treeHasMath(blocks)) head.push(':stem: latexmath');
   if (o.imagesDir && treeImages(blocks).length) head.push(':imagesdir: ' + o.imagesDir);
+  // アラートの見出しの言葉(日本語の画面なら「注記」など)。Asciidoctor の既定(英語)と違うときだけ書く
+  const captions = {};
+  const visit = x => {
+    if (Array.isArray(x)) { x.forEach(visit); return; }
+    if (!x || typeof x !== 'object') return;
+    if (x.t === 'alert' && !(x.kind in captions)) captions[x.kind] = x.title.filter(y => y.t === 'text').map(y => y.v).join('').trim();
+    for (const k of ['c', 'items']) if (x[k]) visit(x[k]);
+  };
+  visit(blocks);
+  for (const k of ALERT_KINDS) {
+    const v = captions[k];
+    if (v && v !== k[0].toUpperCase() + k.slice(1)) head.push(':' + k + '-caption: ' + v.replace(/[\r\n]+/g, ' '));
+  }
   const text = adocBlocks(body, ctx);
   return head.join('\n') + '\n' + (text ? '\n' + text + '\n' : '');
 }
@@ -535,6 +603,7 @@ const EMU_PER_TWIP = 635;
 const PAGE = { A4: { w: 11906, h: 16838 }, Letter: { w: 12240, h: 15840 } };
 const MARGIN = 1440;
 const MIME = { png: 'image/png', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp' };
+const ALERT_COLORS = { note: '0969DA', tip: '1A7F37', important: '8250DF', warning: '9A6700', caution: 'D1242F' };   // アラートの線と見出しの色(GitHub と同じ)
 const FONT_MONO = '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:eastAsia="ＭＳ ゴシック" w:cs="Consolas"/>';
 
 function wText(v) {
@@ -549,6 +618,7 @@ function rPr(st) {
   if (st.i) s += '<w:i/><w:iCs/>';
   if (st.s) s += '<w:strike/>';
   if (st.code && st.link) s += '<w:color w:val="0563C1"/><w:u w:val="single"/>';
+  else if (st.color) s += '<w:color w:val="' + st.color + '"/>';
   return s ? '<w:rPr>' + s + '</w:rPr>' : '';
 }
 /* 図の PNG を Word の画像として登録し、その名前を返す。PNG でなければ null */
@@ -563,7 +633,8 @@ function diagramImage(b, X) {
 function imageXml(x, X, maxTwips) {
   const img = X.images[x.file];
   if (!img) return '';
-  if (!img.rid) { img.rid = 'rIdImg' + (++X.nImg); img.name = 'image' + X.nImg + '.' + img.ext; X.rels.push({ id: img.rid, type: 'image', target: 'media/' + img.name }); }
+  const ridKey = X.part === 'fn' ? 'fnRid' : 'rid';
+  if (!img[ridKey]) { img[ridKey] = 'rIdImg' + (++X.nImg); if (!img.name) img.name = 'image' + X.nImg + '.' + img.ext; X.rels.push({ id: img[ridKey], type: 'image', target: 'media/' + img.name }); }
   let w = (x.w || img.w || 320) * EMU_PER_PX, h = (x.h || img.h || 240) * EMU_PER_PX;
   const maxW = Math.max(1, maxTwips) * EMU_PER_TWIP, maxH = (X.page.h - 2 * MARGIN) * EMU_PER_TWIP * 0.9;
   if (w > maxW) { h = h * maxW / w; w = maxW; }
@@ -573,7 +644,7 @@ function imageXml(x, X, maxTwips) {
   return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + w + '" cy="' + h + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/>'
     + '<wp:docPr id="' + id + '" name="Picture ' + id + '" descr="' + xesc(x.alt) + '"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>'
     + '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="' + id + '" name="' + img.name + '"/><pic:cNvPicPr/></pic:nvPicPr>'
-    + '<pic:blipFill><a:blip r:embed="' + img.rid + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+    + '<pic:blipFill><a:blip r:embed="' + img[ridKey] + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
     + '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + w + '" cy="' + h + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
 }
 function mathInline(x, st) {
@@ -593,15 +664,23 @@ function runs(nodes, st, X, maxTwips) {
       s += '<w:hyperlink r:id="' + id + '" w:history="1">' + runs(x.c.length ? x.c : [{ t: 'text', v: x.href }], Object.assign({}, st, { link: true }), X, maxTwips) + '</w:hyperlink>';
     } else if (x.t === 'img') s += imageXml(x, X, maxTwips);
     else if (x.t === 'math') s += mathInline(x, st);
+    else if (x.t === 'fn') s += footnoteRun(x.n, X);
   }
   return s;
 }
-/* 段落の書式。o: { style, numId, ilvl, left, hanging, jc, border, keepNext, spacingAfter } */
+/* 脚注の参照: 本文で最初に参照したところに Word の脚注を置く。同じ注の2回目からと、注の中の参照は、上付きの番号の文字にする */
+const FN_REF = '<w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr>';
+function footnoteRun(n, X) {
+  if (X.part !== 'fn' && X.notes.has(n) && !X.fnIds.has(n)) { const id = X.fnIds.size + 1; X.fnIds.set(n, id); return '<w:r>' + FN_REF + '<w:footnoteReference w:id="' + id + '"/></w:r>'; }
+  return '<w:r>' + FN_REF + '<w:t>' + (X.fnIds.get(n) || n) + '</w:t></w:r>';
+}
+/* 段落の書式。o: { style, numId, ilvl, left, hanging, jc, border, bar(左の線の色), keepNext, spacingAfter } */
 function pPr(o) {
   let s = '';
   if (o.style) s += '<w:pStyle w:val="' + o.style + '"/>';
+  if (o.keepNext) s += '<w:keepNext/>';
   if (o.numId) s += '<w:numPr><w:ilvl w:val="' + o.ilvl + '"/><w:numId w:val="' + o.numId + '"/></w:numPr>';
-  if (o.border) s += '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="BFBFBF"/></w:pBdr>';
+  if (o.border || o.bar) s += '<w:pBdr>' + (o.bar ? '<w:left w:val="single" w:sz="18" w:space="8" w:color="' + o.bar + '"/>' : '') + (o.border ? '<w:bottom w:val="single" w:sz="6" w:space="1" w:color="BFBFBF"/>' : '') + '</w:pBdr>';
   if (o.spacingAfter != null) s += '<w:spacing w:after="' + o.spacingAfter + '"/>';
   if (o.left || o.hanging) s += '<w:ind w:left="' + (o.left || 0) + '"' + (o.hanging ? ' w:hanging="' + o.hanging + '"' : '') + '/>';
   if (o.jc) s += '<w:jc w:val="' + o.jc + '"/>';
@@ -613,7 +692,7 @@ function docxBlocks(blocks, ctx, X) {
 }
 function docxBlock(b, ctx, X) {
   const width = X.textW - ctx.ind;
-  if (b.t === 'p') return para({ style: ctx.quote ? 'BlockQuote' : null, left: ctx.ind }, runs(b.c, {}, X, width));
+  if (b.t === 'p') return para({ style: ctx.note ? 'FootnoteText' : ctx.quote ? 'BlockQuote' : null, left: ctx.ind, bar: ctx.bar }, runs(b.c, {}, X, width));
   if (b.t === 'h') return para({ style: 'Heading' + b.level, left: ctx.ind }, runs(b.c.filter(x => x.t !== 'br'), {}, X, width));
   if (b.t === 'pre') return para({ style: 'SourceCode', left: ctx.ind }, b.text ? '<w:r>' + wText(b.text) + '</w:r>' : '');
   if (b.t === 'math') {
@@ -627,7 +706,13 @@ function docxBlock(b, ctx, X) {
     return para({ style: 'SourceCode', left: ctx.ind }, b.src ? '<w:r>' + wText(b.src) + '</w:r>' : '');
   }
   if (b.t === 'hr') return para({ border: true, left: ctx.ind }, '');
-  if (b.t === 'quote') return docxBlocks(b.c, Object.assign({}, ctx, { ind: ctx.ind + STEP, quote: ctx.quote + 1 }), X);
+  if (b.t === 'quote') return docxBlocks(b.c, Object.assign({}, ctx, { ind: ctx.ind + STEP, quote: ctx.quote + 1, bar: null }), X);
+  if (b.t === 'alert') {
+    // 引用と同じ字下げで、左の線と見出しを種類の色にする
+    const color = ALERT_COLORS[b.kind] || '595959';
+    const sub = Object.assign({}, ctx, { ind: ctx.ind + STEP, quote: ctx.quote + 1, bar: color });
+    return para({ style: 'BlockQuote', left: sub.ind, bar: color, keepNext: b.c.length > 0 }, runs(b.title, { b: true, color: color }, X, X.textW - sub.ind)) + docxBlocks(b.c, sub, X);
+  }
   if (b.t === 'list') return docxList(b, ctx, X);
   if (b.t === 'table') return docxTable(b, ctx, X);
   return '';
@@ -644,8 +729,8 @@ function docxList(b, ctx, X) {
     const first = c[0] && c[0].t === 'p' ? c.shift() : null;
     const content = first ? runs(first.c, {}, X, X.textW - itemInd) : '';
     const style = ctx.quote ? 'BlockQuote' : 'ListParagraph';
-    if (it.check != null) s += para({ style: style, left: itemInd, hanging: STEP }, '<w:r><w:t>' + (it.check ? '☑' : '☐') + '</w:t><w:tab/></w:r>' + content);
-    else s += para({ style: style, numId: numId, ilvl: ilvl, left: itemInd, hanging: STEP }, content);
+    if (it.check != null) s += para({ style: style, left: itemInd, hanging: STEP, bar: ctx.bar }, '<w:r><w:t>' + (it.check ? '☑' : '☐') + '</w:t><w:tab/></w:r>' + content);
+    else s += para({ style: style, numId: numId, ilvl: ilvl, left: itemInd, hanging: STEP, bar: ctx.bar }, content);
     s += docxBlocks(c, sub, X);
   }
   return s;
@@ -694,6 +779,9 @@ function stylesXml(lang) {
     + '<w:shd w:val="clear" w:color="auto" w:fill="F6F8FA"/><w:wordWrap w:val="0"/><w:spacing w:before="60" w:after="180" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr>' + FONT_MONO + '<w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr></w:style>'
     + '<w:style w:type="character" w:customStyle="1" w:styleId="InlineCode"><w:name w:val="Inline Code"/><w:basedOn w:val="DefaultParagraphFont"/><w:qFormat/>'
     + '<w:rPr>' + FONT_MONO + '<w:sz w:val="19"/><w:szCs w:val="19"/><w:shd w:val="clear" w:color="auto" w:fill="EFF1F3"/></w:rPr></w:style>'
+    + '<w:style w:type="paragraph" w:styleId="FootnoteText"><w:name w:val="footnote text"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="99"/><w:unhideWhenUsed/>'
+    + '<w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr></w:style>'
+    + '<w:style w:type="character" w:styleId="FootnoteReference"><w:name w:val="footnote reference"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style>'
     + '<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>'
     + '</w:styles>';
 }
@@ -710,16 +798,43 @@ function numberingXml(nums) {
   for (const n of nums) s += '<w:num w:numId="' + n.id + '"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="' + n.ilvl + '"><w:startOverride w:val="' + n.start + '"/></w:lvlOverride></w:num>';
   return s + '</w:numbering>';
 }
+/* 脚注の部品(word/footnotes.xml)。本文で参照した注だけを、参照した順に入れる。注の中のリンクと画像の関係は X.fnRels。参照が無ければ '' */
+function footnotesXml(X) {
+  X.fnRels = [];
+  if (!X.fnIds.size) return '';
+  const docRels = X.rels;
+  X.part = 'fn'; X.rels = X.fnRels;
+  const mark = '<w:r>' + FN_REF + '<w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>';
+  const sep = (type, id, el) => '<w:footnote w:type="' + type + '" w:id="' + id + '"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:' + el + '/></w:r></w:p></w:footnote>';
+  let s = XML_HEAD + '<w:footnotes ' + NS + '>' + sep('separator', -1, 'separator') + sep('continuationSeparator', 0, 'continuationSeparator');
+  const ctx = { ind: 0, lvl: 0, quote: 0, note: true };
+  for (const [n, id] of X.fnIds) {
+    const c = X.notes.get(n).slice();
+    const first = c[0] && c[0].t === 'p' ? c.shift() : null;
+    s += '<w:footnote w:id="' + id + '">' + para({ style: 'FootnoteText' }, mark + (first ? runs(first.c, {}, X, X.textW) : '')) + docxBlocks(c, ctx, X) + '</w:footnote>';
+  }
+  X.part = 'doc'; X.rels = docRels;
+  return s + '</w:footnotes>';
+}
+function relsXml(rels) {
+  const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
+  return XML_HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + rels.map(r => '<Relationship Id="' + r.id + '" Type="' + REL + r.type + '" Target="' + xesc(r.target) + '"' + (r.external ? ' TargetMode="External"' : '') + '/>').join('')
+    + '</Relationships>';
+}
 const iso = d => new Date(d).toISOString().replace(/\.\d+Z$/, 'Z');
 /* o: { title, lang('ja'|'en'), paper('A4'|'Letter'), generator, date,
         images: { [ファイルID]: { data: Buffer, ext: 'png'|'jpeg'|'gif'|'bmp', w, h } } } → .docx の Buffer */
 function toDocx(blocks, o) {
   o = o || {};
   const page = PAGE[o.paper] || PAGE.A4;
-  const X = { images: {}, rels: [], nums: [], nImg: 0, nLink: 0, nPic: 0, page: page, textW: page.w - 2 * MARGIN };
+  const X = { images: {}, rels: [], nums: [], nImg: 0, nLink: 0, nPic: 0, page: page, textW: page.w - 2 * MARGIN, part: 'doc', notes: new Map(), fnIds: new Map() };
+  const fnList = blocks.find(b => b.t === 'footnotes');
+  if (fnList) for (const it of fnList.items) X.notes.set(it.n, it.c);
   for (const [k, v] of Object.entries(o.images || {})) if (v && v.data && MIME[v.ext]) X.images[k] = Object.assign({}, v);
   let body = docxBlocks(blocks, { ind: 0, lvl: 0, quote: 0 }, X);
   if (!body || /<\/w:tbl>$/.test(body)) body += '<w:p/>';
+  const notesXml = footnotesXml(X);
   const doc = XML_HEAD + '<w:document ' + NS + '><w:body>' + body
     + '<w:sectPr><w:pgSz w:w="' + page.w + '" w:h="' + page.h + '"/><w:pgMar w:top="' + MARGIN + '" w:right="' + MARGIN + '" w:bottom="' + MARGIN + '" w:left="' + MARGIN + '" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>'
     + '</w:body></w:document>';
@@ -727,9 +842,10 @@ function toDocx(blocks, o) {
   const docRels = XML_HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
     + '<Relationship Id="rId1" Type="' + REL + 'styles" Target="styles.xml"/><Relationship Id="rId2" Type="' + REL + 'settings" Target="settings.xml"/>'
     + '<Relationship Id="rId3" Type="' + REL + 'numbering" Target="numbering.xml"/>'
+    + (notesXml ? '<Relationship Id="rId4" Type="' + REL + 'footnotes" Target="footnotes.xml"/>' : '')
     + X.rels.map(r => '<Relationship Id="' + r.id + '" Type="' + REL + r.type + '" Target="' + xesc(r.target) + '"' + (r.external ? ' TargetMode="External"' : '') + '/>').join('')
     + '</Relationships>';
-  const used = Object.values(X.images).filter(v => v.rid);
+  const used = Object.values(X.images).filter(v => v.rid || v.fnRid);
   const exts = [...new Set(used.map(v => v.ext))];
   const types = XML_HEAD + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
     + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
@@ -738,6 +854,7 @@ function toDocx(blocks, o) {
     + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
     + '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>'
     + '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>'
+    + (notesXml ? '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>' : '')
     + '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
     + '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>';
   const rootRels = XML_HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
@@ -751,7 +868,7 @@ function toDocx(blocks, o) {
     + '<dcterms:modified xsi:type="dcterms:W3CDTF">' + when + '</dcterms:modified></cp:coreProperties>';
   const app = XML_HEAD + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>' + xesc(o.generator || 'EverPad') + '</Application></Properties>';
   const settings = XML_HEAD + '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">'
-    + '<w:defaultTabStop w:val="840"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>'
+    + '<w:defaultTabStop w:val="840"/>' + (notesXml ? '<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>' : '') + '<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>'
     + '<m:mathPr><m:mathFont m:val="Cambria Math"/><m:dispDef/><m:lMargin m:val="0"/><m:rMargin m:val="0"/><m:defJc m:val="centerGroup"/><m:wrapIndent m:val="1440"/><m:intLim m:val="subSup"/><m:naryLim m:val="undOvr"/></m:mathPr>'
     + '</w:settings>';
   const entries = [
@@ -765,6 +882,10 @@ function toDocx(blocks, o) {
     { name: 'docProps/core.xml', data: core },
     { name: 'docProps/app.xml', data: app }
   ];
+  if (notesXml) {
+    entries.push({ name: 'word/footnotes.xml', data: notesXml });
+    if (X.fnRels.length) entries.push({ name: 'word/_rels/footnotes.xml.rels', data: relsXml(X.fnRels) });
+  }
   for (const v of used) entries.push({ name: 'word/media/' + v.name, data: v.data });
   return writeZip(entries.map(e => ({ name: e.name, data: Buffer.isBuffer(e.data) ? e.data : Buffer.from(e.data, 'utf8') })), o.date ? new Date(o.date) : new Date());
 }

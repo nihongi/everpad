@@ -14,6 +14,7 @@
   const linkKey = s => (kl === null ? s : s.replace(/ ?[(（]Ctrl\+K[)）]/g, m => (kl ? m.replace('Ctrl+K', kl) : '')));
   const keys = s => mac(linkKey(s));
   document.documentElement.lang = lang;
+  setMdLang(lang);   // アラートの見出しなど、Markdown の表示に出す言葉
   document.title = H.title + ' - EverPad';
   const root = document.getElementById('help');
   let html = '<h1>' + esc(H.title) + '</h1><p class="intro">' + esc(keys(H.intro)) + '</p>';

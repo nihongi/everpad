@@ -176,6 +176,7 @@
     linkStatusAttach: '添付: {name}',
     linkPickTitle: 'メモへのリンクを挿入',
     linkFilter: '題名で絞り込む',
+    emojiPick: '絵文字の候補',
     linkNoMatch: '該当するメモがありません。',
     // 取り込み・書き出し
     impDone: '「{name}」を取り込みました({enc})。',
@@ -594,6 +595,7 @@
     linkStatusAttach: 'Attachment: {name}',
     linkPickTitle: 'Insert Link to Note',
     linkFilter: 'Filter by title',
+    emojiPick: 'Emoji suggestions',
     linkNoMatch: 'No matching notes.',
     impDone: 'Imported "{name}" ({enc}).',
     impDoneN: p => 'Imported ' + plural(p.n, 'file', 'files') + '.',

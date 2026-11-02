@@ -15,6 +15,11 @@
   --del: #F6D2CD;
   --del-fg: #8A2B23;
   --hit: #FFE08A;
+  --al-note: #0969DA;
+  --al-tip: #1A7F37;
+  --al-important: #8250DF;
+  --al-warning: #9A6700;
+  --al-caution: #D1242F;
   --ui: 'Yu Gothic UI', 'Meiryo UI', 'Hiragino Sans', 'Segoe UI', sans-serif;
   --mono: 'BIZ UDGothic', 'MS Gothic', 'Cascadia Mono', ui-monospace, monospace;
   color-scheme: light;
@@ -40,6 +45,11 @@
     --del: #4A2220;
     --del-fg: #F2A9A1;
     --hit: #7A5F12;
+    --al-note: #4493F8;
+    --al-tip: #3FB950;
+    --al-important: #AB7DF8;
+    --al-warning: #D29922;
+    --al-caution: #F85149;
     color-scheme: dark;
   }
 }
@@ -59,6 +69,11 @@
   --del: #4A2220;
   --del-fg: #F2A9A1;
   --hit: #7A5F12;
+  --al-note: #4493F8;
+  --al-tip: #3FB950;
+  --al-important: #AB7DF8;
+  --al-warning: #D29922;
+  --al-caution: #F85149;
   color-scheme: dark;
 }
 
@@ -212,6 +227,25 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .md .al-l { text-align: left; }
 .md .al-c { text-align: center; }
 .md .al-r { text-align: right; }
+/* 絵文字ショートコード: 色付きの絵文字のフォントで出す */
+.md .emoji { font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif; font-style: normal; font-weight: normal; }
+/* アラート(> [!NOTE] など): 左の線と見出しを種類の色にする */
+.md blockquote.alert { color: var(--fg); border-left-color: var(--alert); }
+.md .alert-note { --alert: var(--al-note); }
+.md .alert-tip { --alert: var(--al-tip); }
+.md .alert-important { --alert: var(--al-important); }
+.md .alert-warning { --alert: var(--al-warning); }
+.md .alert-caution { --alert: var(--al-caution); }
+.md .alert-title { display: flex; align-items: center; gap: .45em; font-weight: 600; color: var(--alert); }
+.md .alert-icon { flex: none; }
+/* 脚注: 本文の番号は上付き、一覧はメモの最後に線で区切って小さめに */
+.md sup.fnref { font-size: .75em; line-height: 0; }
+.md sup.fnref a { text-decoration: none; padding: 0 .1em; }
+.md .footnotes { margin-top: 2em; padding-top: .4em; border-top: 1px solid var(--line); font-size: .9em; color: var(--fg-2); }
+.md .footnotes ol { padding-left: 1.8em; }
+.md .footnotes li > p { margin: .25em 0; }
+.md a.fnback { text-decoration: none; margin-left: .15em; }
+.md .fn-flash { background: var(--hit); border-radius: 3px; transition: background-color 1.2s; }
 
 /* ---- history ---- */
 #histView { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -356,6 +390,13 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .linkpick .lt { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .linkpick .lm { display: block; font-size: 12.5px; color: var(--fg-2); }
 .linkpick .none { color: var(--fg-2); padding: 7px 10px; }
+/* 絵文字の入力候補(編集画面で : と名前を打ったとき) */
+.emopick { position: fixed; z-index: 30; min-width: 14rem; max-width: 22rem; margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .18); font-size: 14px; }
+.emopick li { display: flex; align-items: center; gap: 8px; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emopick li:hover { background: var(--surface-2); }
+.emopick li[aria-selected="true"] { background: var(--accent-soft); }
+.emopick .ec { font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif; font-size: 18px; width: 1.4em; text-align: center; }
+.emopick .en { font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
 /* キーボードショートカットの一覧 */
 .keys input[type=search] { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
 .keys-list { max-height: 48vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }

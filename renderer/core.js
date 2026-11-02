@@ -34,6 +34,147 @@ function textAt(n, k) {
 }
 
 /* ---------- Markdown(簡易版) ---------- */
+/* ---------- 絵文字ショートコード(GitHub と同じ :smile: など) ----------
+   一覧は emoji.js(gemoji。GitHub と同じ名前)。画面では <script> で読み込まれている(window.EVERPAD_EMOJI)。
+   名前の前後が英数字のとき(12:100:3 など)と、一覧に無い名前は、そのまま文字で出す */
+const EMOJI_LIST = typeof EVERPAD_EMOJI !== 'undefined' ? EVERPAD_EMOJI : (typeof require === 'function' ? require('./emoji') : []);
+const EMOJI = new Map();
+for (const [ch, names] of EMOJI_LIST) for (const n of names.split(' ')) if (!EMOJI.has(n)) EMOJI.set(n, ch);
+const EMOJI_RE = /(?<![A-Za-z0-9]):([a-z0-9_+-]+):(?![A-Za-z0-9])/g;
+const emojiHtml = s => s.replace(EMOJI_RE, (m, n) => (EMOJI.has(n) ? '<span class="emoji" title="' + m + '">' + EMOJI.get(n) + '</span>' : m));
+const emojiText = s => s.replace(EMOJI_RE, (m, n) => EMOJI.get(n) || m);
+/* 入力候補: q(: のあとに打った文字)で始まる名前を先に、次に q を途中に含む名前、次にタグが q で始まる絵文字。
+   名前で合うものは短い名前を先に(:hea なら :heart:)、同じ長さは一覧の順(よく使う顔の絵文字が先)。[{ name, ch }] を max 個まで */
+function emojiSuggest(q, max) {
+  q = String(q || '').toLowerCase();
+  max = max || 8;
+  if (!q) return [];
+  const exact = [], pre = [], mid = [], tag = [];
+  for (const [ch, names, tags] of EMOJI_LIST) {
+    let hit = false;
+    for (const n of names.split(' ')) {
+      if (n === q) exact.push({ name: n, ch: ch });
+      else if (n.startsWith(q)) pre.push({ name: n, ch: ch });
+      else if (n.indexOf(q) >= 0) mid.push({ name: n, ch: ch });
+      else continue;
+      hit = true;
+    }
+    if (!hit && tags && tags.split(' ').some(t => t.startsWith(q))) tag.push({ name: names.split(' ')[0], ch: ch });
+  }
+  const byLen = (a, b) => a.name.length - b.name.length;   // sort は安定なので、同じ長さは一覧の順のまま
+  return exact.concat(pre.sort(byLen), mid.sort(byLen), tag).slice(0, max);
+}
+/* pos の直前が、絵文字の入力候補を出す形(: と名前の文字2つ以上)なら { from(: の位置), q }。
+   : の前が英数字・:・/ のとき(12:30、http: など)は出さない。コードブロックの中でも出さない */
+function emojiQueryAt(text, pos) {
+  const before = text.slice(Math.max(0, pos - 64), pos);
+  const m = /(^|[^A-Za-z0-9:/])(:([a-z0-9_+-]{2,}))$/.exec(before);
+  if (!m) return null;
+  const from = pos - m[2].length;
+  if (inFenceAt(text, from)) return null;
+  return { from: from, q: m[3] };
+}
+
+/* ---------- バックスラッシュのエスケープ(CommonMark と同じ) ----------
+   \ のあとの ASCII の記号は、Markdown の記号として読まず、その文字のまま出す(\* → *)。$ は数式のところで扱う */
+const ESCAPE_RE = /\\([!"#%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
+
+/* ---------- URL の自動リンク(GitHub と同じ) ----------
+   本文に書いた https://… / http://… / www.… と、<https://…> をリンクにする。esc() のあとの文字に使う。
+   URL に使える ASCII の文字が続くところまで(日本語の文字や空白の手前で終わる)。最後の . , : ; ! ? * _ ~ と、
+   対になっていない ) は URL に含めない(「https://example.com.」の「.」など) */
+const URL_CH = "(?:&amp;|[!#-%'-;=?-~])";
+const AUTOLINK_RE = new RegExp('\u0007\\d+\u0007[^\u0006]*\u0006|&lt;(https?://' + URL_CH + '+?)&gt;|(?<![A-Za-z0-9/.@:+_-])((?:https?://|www\\.)[A-Za-z0-9]' + URL_CH + '*)', 'gi');
+function trimUrl(u) {
+  for (;;) {
+    if (/[.,:!?*_~']$/.test(u) || (/;$/.test(u) && !/&amp;$/.test(u))) { u = u.slice(0, -1); continue; }
+    if (/\)$/.test(u) && (u.match(/\(/g) || []).length < (u.match(/\)/g) || []).length) { u = u.slice(0, -1); continue; }
+    return u;
+  }
+}
+const aTag = (href, text) => '<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+
+/* ---------- アラート(GitHub と同じ > [!NOTE] など) ----------
+   引用の1行目が [!NOTE] / [!TIP] / [!IMPORTANT] / [!WARNING] / [!CAUTION] だけなら、色と見出しの付いた注意書きにする。
+   見出しの言葉は画面の言語(setMdLang)。AsciiDoc の注記と同じ5種類で、書き出しもそれに合わせる */
+const ALERT_TITLES = {
+  ja: { note: '注記', tip: 'ヒント', important: '重要', warning: '警告', caution: '注意' },
+  en: { note: 'Note', tip: 'Tip', important: 'Important', warning: 'Warning', caution: 'Caution' }
+};
+const ALERT_ICONS = {
+  note: '<circle cx="8" cy="8" r="6.25"/><path d="M8 7.25v4M8 4.9v.1"/>',
+  tip: '<path d="M8 1.75a4.25 4.25 0 0 0-2.5 7.7c.5.4.75.9.75 1.55h3.5c0-.65.25-1.15.75-1.55A4.25 4.25 0 0 0 8 1.75z"/><path d="M6.25 13h3.5M6.75 14.75h2.5"/>',
+  important: '<path d="M2.25 2.75h11.5v8.5h-6.5l-3 2.5v-2.5h-2z"/><path d="M8 5v3M8 9.9v.1"/>',
+  warning: '<path d="M8 1.9 14.75 13.75H1.25z"/><path d="M8 6v3.5M8 11.4v.1"/>',
+  caution: '<path d="M5.3 1.75h5.4l3.55 3.55v5.4l-3.55 3.55H5.3l-3.55-3.55V5.3z"/><path d="M8 4.75v4M8 10.9v.1"/>'
+};
+const ALERT_RE = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i;
+const FN_BACK = { ja: '本文に戻る', en: 'Back to text' };
+let MD_LANG = 'ja';
+function setMdLang(lang) { MD_LANG = ALERT_TITLES[lang] ? lang : 'en'; }
+function alertTitle(kind) {
+  return '<p class="alert-title"><svg class="alert-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + ALERT_ICONS[kind] + '</svg>' + ALERT_TITLES[MD_LANG][kind] + '</p>';
+}
+
+/* ---------- 脚注(GitHub と同じ 本文[^1] と [^1]: 注の文) ----------
+   注の定義は、行の先頭の [^名前]: から。続く行は、字下げした行と、空の行をはさまずに続く普通の文(段落の続き)。
+   空の行のあとでも、字下げした行なら同じ注の続き(複数の段落)。定義の行は本文からは除き(空の行にして行番号は保つ)、
+   最初に参照した順に番号を付けて、メモの最後に注の一覧を出す。参照の無い注は出さない。定義の無い [^名前] はそのまま文字で出す */
+const FN_DEF_RE = /^ {0,3}\[\^([^\]\s]+)\]:[ \t]?(.*)$/;
+const BLOCK_START_RE = /^\s*(?:#{1,6}(?:\s|$)|>|[-*+]\s|\d{1,9}[.)]\s|`{3,}|~{3,}|\$\$|\\\[|([-*_])(?:\s*\1){2,}\s*$)/;
+let FN = null;   // md() の間だけ: { defs: Map(名前 → { lines, n, refs }), order: [注], count }
+function footnoteDefs(lines) {
+  const defs = new Map();
+  let fence = null;
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i];
+    if (fence) { if (fenceCloses(ln, fence)) fence = null; continue; }
+    if (FENCE_OPEN.test(ln)) { fence = ln.match(FENCE_OPEN_RE)[1]; continue; }
+    const m = ln.match(FN_DEF_RE);
+    if (!m) continue;
+    const body = [m[2]];
+    let j = i + 1;
+    while (j < lines.length) {
+      const l = lines[j];
+      if (/^\s*$/.test(l)) {
+        let k = j;
+        while (k < lines.length && /^\s*$/.test(lines[k])) k++;
+        if (k < lines.length && /^(?: {2,}|\t)/.test(lines[k])) { for (; j < k; j++) body.push(''); continue; }
+        break;
+      }
+      if (/^(?: {2,}|\t)/.test(l)) { body.push(l.replace(/^(?: {1,4}|\t)/, '')); j++; continue; }
+      if (body[body.length - 1].trim() !== '' && !FN_DEF_RE.test(l) && !BLOCK_START_RE.test(l)) { body.push(l); j++; continue; }
+      break;
+    }
+    const key = esc(m[1]).toLowerCase();
+    if (!defs.has(key)) defs.set(key, { lines: body, n: 0, refs: 0 });
+    for (let k = i; k < j; k++) lines[k] = '';
+    i = j - 1;
+  }
+  return { defs: defs, order: [], count: 0 };
+}
+/* 文中の [^名前](esc() のあとの文字)。定義があれば上付きの番号のリンク、無ければ null */
+function footnoteRef(label) {
+  const f = FN && FN.defs.get(label.toLowerCase());
+  if (!f) return null;
+  if (!f.n) { f.n = ++FN.count; FN.order.push(f); }
+  f.refs++;
+  return '<sup class="fnref"><a href="#fn-' + f.n + '" id="fnref-' + f.n + (f.refs > 1 ? '-' + f.refs : '') + '" data-fn="' + f.n + '">' + f.n + '</a></sup>';
+}
+function footnotesHtml() {
+  const items = [];
+  // 注の中で別の注を参照すると、一覧が伸びる
+  for (let k = 0; k < FN.order.length; k++) {
+    const f = FN.order[k];
+    const back = '<a href="#fnref-' + f.n + '" class="fnback" data-fnback="' + f.n + '" aria-label="' + FN_BACK[MD_LANG] + '" title="' + FN_BACK[MD_LANG] + '">↩︎</a>';
+    let body = mdBlocks(f.lines.slice(), -1);
+    body = /<\/p>$/.test(body) ? body.replace(/<\/p>$/, ' ' + back + '</p>') : body + '<p>' + back + '</p>';
+    items.push('<li id="fn-' + f.n + '" data-fn="' + f.n + '">' + body + '</li>');
+  }
+  return '\n<section class="footnotes"><ol>' + items.join('') + '</ol></section>';
+}
+
 /* ---------- 数式(KaTeX) ----------
    画面では katex.min.js と mhchem が読み込まれている(window.katex)。読み込まれていないとき(テストなど)は LaTeX をそのまま出す。
    外部を参照するコマンド(\href・\includegraphics など)は trust: false で無効。誤りがあれば、元の LaTeX を赤字で出し、
@@ -129,27 +270,45 @@ function inline(src) {
   s = s.replace(/\\\[(.+?)\\\]/g, (m, t) => keepMath(t, true));
   s = s.replace(/\$\$(.+?)\$\$/g, (m, t) => keepMath(t, true));
   s = inlineDollars(s, keepMath);
+  // \* などのエスケープ: その文字のまま出す。ほかの書式に読まれないよう、最後まで退避する
+  const escs = [];
+  s = s.replace(ESCAPE_RE, (m, c) => { escs.push(c); return '\u0005' + (escs.length - 1) + '\u0005'; });
   s = esc(s);
   // 添付: ![名前](attach:ID) は画像、[名前](attach:ID) はファイルへのリンク。ほかの書式の影響を受けないよう、いったん退避する
   const atts = [];
   const keep = h => { atts.push(h); return '\u0002' + (atts.length - 1) + '\u0002'; };
   s = s.replace(/!\[([^\]]*)\]\(attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)\)/g, (m, alt, id) => keep('<img class="att-img" data-att="' + id + '" alt="' + alt + '" loading="lazy">'));
-  s = s.replace(/\[([^\]]+)\]\(attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)\)/g, (m, t, id) => keep('<a class="att-file" href="#" data-att="' + id + '" title="' + t + '">' + t + '</a>'));
+  s = s.replace(/\[([^\]]+)\]\(attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)\)/g, (m, t, id) => keep('<a class="att-file" href="#" data-att="' + id + '" title="' + t + '">' + emojiHtml(t) + '</a>'));
   // 他のメモへのリンク。参照先の題名や、削除されているかは、画面に出すときに app.js が付ける
-  s = s.replace(NOTE_LINK_RE, (m, t, id) => keep('<a class="note-link" href="#" data-note="' + id + '">' + t + '</a>'));
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + t + '</a>');
+  s = s.replace(NOTE_LINK_RE, (m, t, id) => keep('<a class="note-link" href="#" data-note="' + id + '">' + emojiHtml(t) + '</a>'));
+  // 脚注の参照(定義のあるものだけ)
+  s = s.replace(/\[\^([^\]\s]+)\]/g, (m, label) => { const r = footnoteRef(label); return r ? keep(r) : m; });
+  // https:// のリンク。表示する文字には太字などが効くよう、開きのタグだけ退避し、閉じは \u0006 にしておく(自動リンクはこの間を飛ばす)
+  const opens = [];
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, t, u) => { opens.push('<a href="' + u + '" target="_blank" rel="noopener noreferrer">'); return '\u0007' + (opens.length - 1) + '\u0007' + t + '\u0006'; });
   // それ以外のリンク: GitHub と同じく表示名をリンクの見た目で出す(<a> にはしない)。
   //   #見出し … 同じメモの中の見出しへ移動する(日本語の見出しも使える)
   //   相対パスなど([LICENSE](LICENSE)) … EverPad には開く先が無いので、クリックすると知らせる。
   //     「[重要](後で確認)」のような普通の文章を崩さないよう、行き先が URL やファイル名に使う半角の文字だけのときに限る
-  const other = (t, u) => keep('<span class="link-other" data-target="' + u + '">' + t + '</span>');
+  const other = (t, u) => keep('<span class="link-other" data-target="' + u + '">' + emojiHtml(t) + '</span>');
   s = s.replace(/\[([^\]]+)\]\((#[^\s()]+)\)/g, (m, t, u) => other(t, u));
   s = s.replace(/\[([^\]]+)\]\(([A-Za-z0-9._~:/?#@!$&'*+,;=%-]+)\)/g, (m, t, u) => other(t, u));
+  // 本文に書いた URL(https://…・www.…・<https://…>)
+  s = s.replace(AUTOLINK_RE, (m, angle, bare) => {
+    if (angle) return keep(aTag(angle, angle));
+    if (!bare) return m;
+    const u = trimUrl(bare);
+    if (!/^(?:https?:\/\/|www\.)[A-Za-z0-9]/i.test(u)) return m;
+    return keep(aTag(/^www\./i.test(u) ? 'http://' + u : u, u)) + bare.slice(u.length);
+  });
+  s = s.replace(EMOJI_RE, (m, n) => (EMOJI.has(n) ? keep(emojiHtml(m)) : m));
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
   s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
   s = s.replace(/\u0002(\d+)\u0002/g, (_, i) => atts[+i]);
+  s = s.replace(/\u0007(\d+)\u0007/g, (_, i) => opens[+i]).replace(/\u0006/g, '</a>');
   s = s.replace(/\u0004(\d+)\u0004/g, (_, i) => maths[+i]).replace(/\u0003/g, '$');
+  s = s.replace(/\u0005(\d+)\u0005/g, (_, i) => esc(escs[+i]));
   return s.replace(/\u0001(\d+)\u0001/g, (_, i) => '<code>' + esc(codes[+i]) + '</code>');
 }
 
@@ -519,13 +678,22 @@ function pushRecent(list, id, title, max) {
 const headingSlug = text => String(text).trim().toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
 
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
-/* 題名: 最初の文字のある行。装飾の記号(**・*・~~・`)は、プレビューと同じ読み方で外す(「# **買い物**」は「買い物」) */
-const plainInline = s => s.replace(/(`+)(.+?)\1/g, (m, f, c) => c.trim() || c)
-  .replace(/\*\*([^*]+)\*\*/g, '$1')
-  .replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1$2')
-  .replace(/~~([^~]+)~~/g, '$1');
+/* 題名: 最初の文字のある行。装飾の記号(**・*・~~・`)は、プレビューと同じ読み方で外す(「# **買い物**」は「買い物」)。
+   エスケープ(\*)はその文字に、絵文字ショートコードは絵文字にし、脚注の参照([^1])は除く */
+function plainLine(s) {
+  const kept = [];
+  const put = v => { kept.push(v); return '\u0001' + (kept.length - 1) + '\u0001'; };
+  s = s.replace(/(`+)(.+?)\1/g, (m, f, c) => put(c.trim() || c))
+    .replace(ESCAPE_RE, (m, c) => put(c))
+    .replace(/\[\^[^\]\s]+\]/g, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1$2')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/^[#>\s\-*+]+/, '');
+  return emojiText(s).replace(/\u0001(\d+)\u0001/g, (_, i) => kept[+i]).trim();
+}
 const titleOf = text => {
-  for (const ln of text.split('\n')) { const t = plainInline(ln).replace(/^[#>\s\-*+]+/, '').trim(); if (t) return t.slice(0, 60); }
+  for (const ln of text.split('\n')) { const t = plainLine(ln); if (t) return t.slice(0, 60); }
   return '';
 };
 
@@ -637,7 +805,13 @@ const isDelim = line => line.indexOf('|') >= 0 && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+
    付けるのは、段落・見出し・コード・数式・図・区切り線・リストの項目・表の行だけで、これらの行の範囲は重ならない。
    書き出しや印刷では付けない */
 function md(text, opts) {
-  return mdBlocks(String(text).replace(/\r\n?/g, '\n').split('\n'), opts && opts.lines ? 0 : -1);
+  const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  const prev = FN;
+  FN = footnoteDefs(lines);
+  try {
+    const html = mdBlocks(lines, opts && opts.lines ? 0 : -1);
+    return FN.order.length ? html + footnotesHtml() : html;
+  } finally { FN = prev; }
 }
 const lineAttr = (base, s, e) => (base < 0 ? '' : ' data-line="' + (base + s) + '" data-end="' + (base + e) + '"');
 /* base: lines[0] が元の文の何行目か。負なら行の範囲を付けない */
@@ -688,7 +862,11 @@ function mdBlocks(lines, base) {
       flush();
       const buf = [];
       while (i < lines.length && /^>\s?/.test(lines[i])) { buf.push(lines[i].replace(/^>\s?/, '')); i++; }
-      out.push('<blockquote>' + mdBlocks(buf, base < 0 ? -1 : base + at) + '</blockquote>');
+      const am = buf[0].match(ALERT_RE);
+      if (am) {
+        const k = am[1].toLowerCase();
+        out.push('<blockquote class="alert alert-' + k + '" data-alert="' + k + '">' + alertTitle(k) + mdBlocks(buf.slice(1), base < 0 ? -1 : base + at + 1) + '</blockquote>');
+      } else out.push('<blockquote>' + mdBlocks(buf, base < 0 ? -1 : base + at) + '</blockquote>');
       continue;
     }
     if (/^\s*([-*+]|\d+[.)])\s+/.test(ln)) { flush(); i = mdList(lines, i, out, base); continue; }
@@ -924,5 +1102,5 @@ function replaceAllText(text, re, tpl, regex) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

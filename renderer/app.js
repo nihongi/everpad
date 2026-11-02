@@ -15,6 +15,7 @@
   const EDIT = { autoIndent: query.get('ai') !== '0', autoList: query.get('al') !== '0', indentWidth: query.get('iw') === '2' ? 2 : 4 };
   const T = (key, params) => (IS_MAC ? macKeys(I18N.t(LANG, key, params)) : I18N.t(LANG, key, params));
   document.documentElement.lang = LANG;
+  setMdLang(LANG);   // アラートの見出しなど、Markdown の表示に出す言葉
   document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = T(el.dataset.i18n); });
   document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = T(el.dataset.i18nTitle); });
   document.querySelectorAll('[data-i18n-aria]').forEach(el => { el.setAttribute('aria-label', T(el.dataset.i18nAria)); });
@@ -314,11 +315,114 @@
   $('editor').addEventListener('compositionstart', () => { composing = true; });
   $('editor').addEventListener('compositionend', () => { composing = false; commit(); });
 
+  /* ---------- 絵文字の入力候補 ----------
+     編集画面で : と名前の文字を2つ以上打つと(:sm など)、カーソルの下に候補を出す(core.js の emojiQueryAt・emojiSuggest)。
+     ↑↓ で選び、Enter か Tab で :名前: を入れる(1回の編集。Ctrl+Z で戻せる)。Esc で閉じる。クリックでも入る。
+     日本語入力の変換中・文字を選んでいるとき・コードブロックの中では出さない */
+  const emo = { box: null, items: [], at: 0, from: -1, q: '' };
+  function emoClose() {
+    if (emo.box) { emo.box.remove(); emo.box = null; }
+    emo.items = []; emo.from = -1; emo.q = '';
+    $('editor').removeAttribute('aria-activedescendant');
+  }
+  function emoUpdate() {
+    const ed = $('editor');
+    if (S.mode !== 'edit' || composing || ed.selectionStart !== ed.selectionEnd || document.activeElement !== ed || !$('modal').hidden) { emoClose(); return; }
+    const hit = emojiQueryAt(ed.value, ed.selectionStart);
+    const items = hit ? emojiSuggest(hit.q, 8) : [];
+    if (!items.length) { emoClose(); return; }
+    if (!(emo.box && emo.from === hit.from && emo.q === hit.q)) emo.at = 0;
+    emo.items = items; emo.from = hit.from; emo.q = hit.q;
+    emoPaint();
+    emoPlace();
+  }
+  function emoPaint() {
+    if (!emo.box) {
+      emo.box = document.createElement('ul');
+      emo.box.className = 'emopick';
+      emo.box.setAttribute('role', 'listbox');
+      emo.box.setAttribute('aria-label', T('emojiPick'));
+      // 押してもエディタからフォーカスを外さない
+      emo.box.addEventListener('mousedown', e => { e.preventDefault(); const li = e.target.closest('li'); if (li) emoChoose(+li.dataset.i); });
+      document.body.appendChild(emo.box);
+    }
+    emo.box.textContent = '';
+    emo.items.forEach((it, i) => {
+      const li = document.createElement('li');
+      li.id = 'emopick-' + i; li.dataset.i = i;
+      li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(i === emo.at));
+      const c = document.createElement('span'); c.className = 'ec'; c.textContent = it.ch;
+      const n = document.createElement('span'); n.className = 'en'; n.textContent = ':' + it.name + ':';
+      li.append(c, n);
+      emo.box.appendChild(li);
+    });
+    $('editor').setAttribute('aria-activedescendant', 'emopick-' + emo.at);
+  }
+  /* 文字位置 pos の、画面上の位置(折り返しも、行番号と同じ見えない複製で測る) */
+  function caretRect(pos) {
+    const ta = $('editor'), cs = getComputedStyle(ta);
+    const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0, padT = parseFloat(cs.paddingTop) || 0;
+    mirror.style.font = cs.font; mirror.style.lineHeight = cs.lineHeight; mirror.style.letterSpacing = cs.letterSpacing;
+    mirror.style.tabSize = cs.tabSize; mirror.style.overflowWrap = cs.overflowWrap; mirror.style.wordBreak = cs.wordBreak;
+    mirror.style.width = (ta.clientWidth - padL - padR) + 'px';
+    mirror.textContent = ta.value.slice(0, pos);
+    const mk = document.createElement('span');
+    mk.textContent = '​';
+    mirror.appendChild(mk);
+    const x = mk.offsetLeft + padL, y = mk.offsetTop + padT, h = mk.offsetHeight || parseFloat(cs.lineHeight) || 20;
+    mirror.innerHTML = '';
+    const r = ta.getBoundingClientRect();
+    return { left: r.left + ta.clientLeft + x - ta.scrollLeft, top: r.top + ta.clientTop + y - ta.scrollTop, height: h };
+  }
+  function emoPlace() {
+    if (!emo.box) return;
+    const c = caretRect(emo.from), r = $('editor').getBoundingClientRect();
+    if (c.top + c.height < r.top || c.top > r.bottom) { emoClose(); return; }   // スクロールして見えなくなった
+    const bw = emo.box.offsetWidth, bh = emo.box.offsetHeight;
+    const left = Math.max(8, Math.min(c.left, window.innerWidth - bw - 8));
+    let top = c.top + c.height + 2;
+    if (top + bh > window.innerHeight - 8) top = Math.max(8, c.top - bh - 2);   // 下に入らなければ上に出す
+    emo.box.style.left = left + 'px';
+    emo.box.style.top = top + 'px';
+  }
+  function emoChoose(i) {
+    const it = emo.items[i];
+    if (!it) return;
+    const ed = $('editor'), from = emo.from, to = ed.selectionStart, text = ':' + it.name + ':';
+    emoClose();
+    frInsert(from, to, text);
+    ed.focus();
+    ed.setSelectionRange(from + text.length, from + text.length);
+    queueStatus();
+  }
+  $('editor').addEventListener('input', () => { if (!composing) emoUpdate(); });
+  $('editor').addEventListener('compositionend', () => setTimeout(emoUpdate, 0));
+  // 候補が出ている間の ↑↓・Enter・Tab・Esc は候補の操作にする(自動インデントなど、ほかの処理より先に受け取る)
+  $('editor').addEventListener('keydown', e => {
+    if (!emo.box || e.isComposing || e.keyCode === 229) return;
+    const plain = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && plain) {
+      const n = emo.items.length;
+      emo.at = (emo.at + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+      emoPaint();
+    } else if ((e.key === 'Enter' || e.key === 'Tab') && plain) emoChoose(emo.at);
+    else if (e.key === 'Escape') emoClose();
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+  $('editor').addEventListener('keyup', e => { if (/^(ArrowLeft|ArrowRight|Home|End|PageUp|PageDown)$/.test(e.key)) emoUpdate(); });
+  $('editor').addEventListener('mouseup', () => setTimeout(emoUpdate, 0));
+  $('editor').addEventListener('blur', emoClose);
+  $('editor').addEventListener('scroll', emoPlace);
+  window.addEventListener('resize', emoClose);
+
   /* ---------- 表示の切り替え ---------- */
   /* 表示は「編集」「プレビュー」の2つ。それぞれに、通常表示と履歴表示がある。
      S.mode は実際の画面(edit / preview / history)、S.hbase は履歴表示のときの元の画面(edit=変更箇所を示す文字、preview=整形した表示)。 */
   function setMode(m, focusEditor) {
     stop();
+    emoClose();
     const enteringHistory = m === 'history' && S.mode !== 'history';
     if (m !== 'history') S.hbase = m;
     S.mode = m;
@@ -554,6 +658,7 @@
   }
   function show(id) {
     stop();
+    emoClose();
     S.active = id;
     $('editor').value = cur().text;
     // 履歴の表示のまま別のメモに移ったときは、そのメモの最新の版から見せる(版の番号はメモごとに意味が違う)
@@ -779,6 +884,7 @@
     if (tok !== selTok) return;
     if (!loaded) { toast(T('loadFailed')); return; }
     stop();
+    emoClose();
     S.active = id;
     $('editor').value = loaded.text;
     renderList();
@@ -1169,6 +1275,12 @@
   const LINK_SEL = '#preview a, #hvBody a, #preview .link-other, #hvBody .link-other';
   function linkStatusText(el) {
     if (el.classList.contains('note-link')) return el.dataset.status || '';
+    // 脚注の番号: 注の文を出す。「本文に戻る」はマウスを重ねたときの説明だけ
+    if (el.classList.contains('fnback')) return '';
+    if (el.parentElement && el.parentElement.matches('sup.fnref')) {
+      const li = el.closest('#preview, #hvBody').querySelector('.footnotes li[data-fn="' + el.dataset.fn + '"]');
+      return li ? li.textContent.replace(/↩︎?/g, '').replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+    }
     if (el.classList.contains('att-file')) return T('linkStatusAttach', { name: el.textContent });
     if (el.classList.contains('link-other')) { const t = el.dataset.target || ''; return t[0] === '#' ? t : T('linkStatusOther', { href: t }); }
     return el.getAttribute('href') || '';
@@ -1198,6 +1310,18 @@
       return;
     }
     toast(T('linkUnsupported', { href: target }));
+  });
+  // 脚注: 番号をクリックすると注へ、注の ↩ をクリックすると本文の参照へ移り、少しの間、色を付ける
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('#preview sup.fnref a, #hvBody sup.fnref a, #preview a.fnback, #hvBody a.fnback');
+    if (!a) return;
+    e.preventDefault();
+    const root = a.closest('#preview, #hvBody');
+    const to = a.classList.contains('fnback') ? root.querySelector('sup.fnref a[data-fn="' + a.dataset.fnback + '"]') : root.querySelector('.footnotes li[data-fn="' + a.dataset.fn + '"]');
+    if (!to) return;
+    to.scrollIntoView({ block: 'center' });
+    to.classList.add('fn-flash');
+    setTimeout(() => to.classList.remove('fn-flash'), 1500);
   });
   // メモへのリンク: プレビューと履歴の「Markdown表示」ではクリック、編集画面では Ctrl+クリック(Mac は ⌘+クリック)で移動する
   document.addEventListener('click', e => {
