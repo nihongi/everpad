@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.27.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.28.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -31,7 +31,8 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
 ・他のメモへのリンクを入れて、メモどうしをつなげられます。  
-・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、自動インデントに対応しています。
+・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、自動インデントに対応しています。  
+・キーボードショートカットを、好きなキーに変えられます。
 
 ■ 見返す  
 ・タイムスライダーで、どの時点の版でも表示できます。履歴の再生もできます。  
@@ -52,9 +53,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・編集画面で文字を選んで右クリックすると、太字・斜体・取り消し線・コードにできるようになりました(「編集」→「書式」にもあります)。もう一度選ぶと外れます。ショートカットは、太字 Ctrl+Shift+B、斜体 Ctrl+I、取り消し線 Ctrl+Shift+X、コード Ctrl+E です。  
-・複数行を選んだときは、行ごとに装飾します。箇条書きの記号や「#」「>」は外側に残し、空の行とコードブロックは飛ばし、表はセルごとに装飾します。  
-・右クリックメニューの「引用」「箇条書き」などを、サブメニューに入れずに直接出すようにしました。メモの題名では、太字などの記号を外して表示します。
+・キーボードショートカットを変えられるようになりました。「編集」→「キーボードショートカット…」で、メニューの操作とキーを一覧で見られ、名前やキーで絞り込めます。操作をダブルクリックしてキーを押し、Enter で決めます。  
+・ほかの操作が使っているキーなら、どの操作かを知らせ、Enter で置き換えます。既定でキーの無い操作(HTML へのエクスポートなど)にも割り当てられ、既定に戻すこともできます。  
+・「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ押せないようにしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -74,6 +75,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 14. Mermaid の図(フローチャート・シーケンス図など)
 15. 編集とプレビューを切り替えても、見ていた場所がそのまま
 16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
+17. キーボードショートカットを好きなキーに変えられる
 
 ### 検索キーワード(7 個まで、各 30 文字まで)
 
@@ -116,7 +118,8 @@ WRITE
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax.  
 • Paste screenshots or drop files to attach images and files to a note.  
 • Link notes to each other.  
-• Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers and automatic indentation.
+• Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers and automatic indentation.  
+• Change the keyboard shortcuts to the keys you like.
 
 LOOK BACK  
 • Show the note at any point in its history with the time slider, or play the history back.  
@@ -137,9 +140,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Select text in the editor and right-click to make it bold, italic, struck through or code (also in Edit → Format). Choose it again to remove it. Shortcuts: Bold Ctrl+Shift+B, Italic Ctrl+I, Strikethrough Ctrl+Shift+X, Code Ctrl+E.  
-• When the selection spans several lines, each line is decorated separately. List marks, # and > stay outside, empty lines and code blocks are skipped, and each table cell is decorated separately.  
-• The right-click menu now shows Quote, Bulleted List and the other formats directly instead of in a submenu. Note titles leave out marks such as those for bold.
+• You can now change keyboard shortcuts. Choose Edit → Keyboard Shortcuts… to see the menu commands and their keys, and filter them by name or key. Double-click a command, press the keys you want, then press Enter.  
+• If another command already uses the key, EverPad tells you which one, and Enter moves the key here. Commands without a default key (such as exporting to HTML) can be given one too, and keys can be reset to the defaults.  
+• In the View menu, Edit or Preview is grayed out while that view is shown.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -159,6 +162,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 14. Mermaid diagrams: flowcharts, sequence diagrams and more
 15. Switching between Edit and Preview keeps your place
 16. Bold, italic, strikethrough and code from the right-click menu
+17. Keyboard shortcuts you can change
 
 ### Search terms (up to 7, up to 30 characters each)
 
