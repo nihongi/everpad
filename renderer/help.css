@@ -5,11 +5,11 @@ body { background: var(--surface); }
 .help > h1 { font-family: var(--serif); font-size: 28px; letter-spacing: .03em; margin: 0 0 8px; }
 .help .intro { margin: 0 0 18px; color: var(--fg-2); }
 .help .diffs { background: var(--accent-soft); border-radius: 10px; padding: 12px 18px; margin-bottom: 28px; }
-.help .diffs h2 { font-size: 15px; margin: 0 0 6px; color: var(--accent); }
+.help .diffs > h2 { font-size: 15px; margin: 0 0 6px; color: var(--accent); }
 .help .diffs ul { margin: 0; padding-left: 1.4em; }
 .help .diffs li { margin: .2em 0; }
 .help section { padding: 18px 0 22px; border-top: 1px solid var(--line); }
-.help section h2 { font-size: 18px; margin: 0 0 4px; }
+.help section > h2 { font-size: 18px; margin: 0 0 4px; }
 .help .explain { margin: 0 0 10px; color: var(--fg-2); font-size: 14px; }
 .help .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 .help .pair.single { grid-template-columns: minmax(0, 1fr); }
