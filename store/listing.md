@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.29.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.29.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -54,9 +54,8 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・GitHub と同じ書き方に対応しました。:smile: や :+1: と書くと絵文字になり、編集画面で : に続けて2文字打つと候補が出ます(↑↓ で選んで Enter)。  
-・引用の1行目に [!NOTE] や [!WARNING] と書くと、色と見出しの付いた注意書きになります。本文[^1] と [^1]: 注の文 で脚注も書けます。Word に書き出すと Word の脚注になります。  
-・https:// で始まるアドレスは、そのまま書くだけでリンクになります。記号の前に \ を付けると、記号のまま表示します。
+・プレビューの見た目を GitHub に近づけました。段落・リスト・表・引用・コードの間を広くあけたので、段落の中の改行と段落の切れ目がわかりやすくなりました。  
+・見出し・リスト・コード・表などの大きさと余白も GitHub に合わせ、大見出しは本文と同じゴシック体にして下に線を引きました。履歴の表示・印刷・PDF なども同じ見た目です。色と編集画面は変わっていません。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -143,9 +142,8 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Supports more GitHub Markdown. Write :smile: or :+1: for emoji; in the editor, type : and two letters to see suggestions (choose with ↑ ↓ and press Enter).  
-• A block quote starting with [!NOTE] or [!WARNING] becomes a colored notice with a heading. Footnotes work with text[^1] and [^1]: the note, and become Word footnotes when exported to Word.  
-• Addresses starting with https:// become links as you type them. Put \ before a Markdown mark to show it as it is.
+• The preview looks more like GitHub. There is a wider gap between paragraphs, lists, tables, block quotes and code, so a line break inside a paragraph is easy to tell from a new paragraph.  
+• Headings, lists, code, tables and more use the same sizes and spacing as on GitHub, and the top-level heading uses the same font as the text, with a line under it. The history, printouts, PDF and other exports look the same. The colors and the editor are unchanged.
 
 ### Product features (up to 20, up to 200 characters each)
 
