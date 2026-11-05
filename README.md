@@ -221,7 +221,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 - Choose File → Print… (`Ctrl+P`) to print the current note, or File → Export → PDF… (`Ctrl+Shift+P`) to save it as a PDF.
 - The note is printed with the same formatting as the preview (headings, tables, check boxes and attached images), whichever view you are in. While the history is shown, the version you are viewing is printed.
-- Each page shows the note title and the time of the last edit at the top, and the time it was printed (or the PDF was created) and the page number at the bottom. When a past version is printed, its version number is shown too.
+- Each page shows the note title and the time of the last edit at the top, and the time it was printed (or the PDF was created) and the page number at the bottom. When a past version is printed, the top shows that version's title, the time that version was made, and its version number.
 - Even in dark mode, notes are printed as dark text on white paper. PDFs use A4 paper (Letter in the United States and Canada).
 
 **HTML and MHTML**
@@ -230,7 +230,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Fonts: only the fonts for formulas are put in the file, and only when the note has formulas (they add about 400 KB). All other text uses the fonts installed on the computer that opens the file, the same as in EverPad itself: for the body, Yu Gothic UI on Windows (Segoe UI in English) and Hiragino Sans on macOS (for code on Windows, BIZ UDGothic in Japanese, and Cascadia Mono or Consolas in English). In English, these fonts are used so that a backslash is not shown as ¥. If none of them is installed, the computer's standard font is used, so the page can look slightly different from computer to computer, but the text is always shown. Japanese fonts are not put in the file because they are large (several MB or more each), and the fonts that come with Windows and macOS are generally licensed for use on that computer, not for embedding in files you give to others.
 - HTML (`.html`) opens in any web browser (Edge, Chrome, Firefox, Safari and others) and can be edited with a text editor. The images are stored inside the HTML as text (data: URIs).
 - MHTML (`.mhtml`) opens in Microsoft Edge and Google Chrome (on Windows, double-clicking it usually opens Edge), and Microsoft Word can open it too. Firefox and Safari cannot open MHTML files.
-- The top shows the note title and the time of the last edit (and the version number for a past version), and the bottom shows when the file was created. It always uses light colors.
+- The top shows the note title and the time of the last edit (for a past version, that version's title, the time it was made and its version number), and the bottom shows when the file was exported. It always uses light colors.
 - Web links (`http://`, `https://`) still work. Links that only work inside EverPad (links to other notes, attached files other than images, relative paths) become plain text. Images that cannot be found are shown as "(Image not found)".
 - The files contain no scripts, and they do not load anything from the internet when opened.
 
@@ -676,7 +676,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 - メニューの「ファイル」→「印刷…」(`Ctrl+P`)で、いま開いているメモを印刷します。「ファイル」→「エクスポート」→「PDF…」(`Ctrl+Shift+P`)では PDF として保存します。
 - どの表示から実行しても、プレビューと同じ整形した見た目(見出し、表、チェックボックス、添付画像)で出ます。履歴の表示中は、見ている版を出します。
-- 各ページの上に題名と最後に編集した日時、下に印刷した日時(PDF では作成した日時)とページ番号が入ります。過去の版を出したときは、版の番号も入ります。
+- 各ページの上に題名と最後に編集した日時、下に印刷した日時(PDF では作成した日時)とページ番号が入ります。過去の版を出したときは、上はその版の題名と、その版の日時と版の番号になります。
 - ダークモードで使っていても、白い紙に黒い文字で出ます。PDF の用紙は A4 です(米国とカナダでは Letter)。
 
 **HTML と MHTML**
@@ -685,7 +685,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - フォント: ファイルに入れるのは数式のフォントだけで、数式のあるメモのときだけ入れます(ファイルが約 400 KB 大きくなります)。それ以外の文字は、EverPad の画面と同じく、ファイルを開いたパソコンに入っているフォントで表示します。本文は Windows では Yu Gothic UI(英語なら Segoe UI)、macOS ではヒラギノ角ゴシックです(コードは Windows では、日本語なら BIZ UDゴシック、英語なら Cascadia Mono か Consolas)。英語でこれらのフォントを使うのは、\ が ¥ の形にならないようにするためです。どれも入っていなければそのパソコンの標準のフォントになるので、パソコンによって見た目が少し変わることがありますが、文字は必ず表示されます。日本語のフォントは1つで数 MB 以上と大きく、Windows や macOS に付いているフォントは、そのパソコンで使うためのもので、ほかの人に渡すファイルに入れることは通常認められていないため、入れていません。
 - HTML(`.html`)は、どの Web ブラウザー(Edge・Chrome・Firefox・Safari など)でも開け、テキストエディターで編集もできます。画像は文字にして HTML の中に入れます(data: URI)。
 - MHTML(`.mhtml`)は、Microsoft Edge と Google Chrome で開けます(Windows では、ダブルクリックすると普通は Edge で開きます)。Microsoft Word でも開けます。Firefox と Safari では開けません。
-- 上に題名と最後に編集した日時(過去の版では版の番号も)、下に作成した日時が入ります。配色はいつも明るい配色です。
+- 上に題名と最後に編集した日時(過去の版では、その版の題名と、その版の日時と版の番号)、下に書き出した日時が入ります。配色はいつも明るい配色です。
 - Web のリンク(`http://`・`https://`)はそのまま使えます。EverPad の中でしか開けないリンク(他のメモへのリンク、画像以外の添付ファイル、相対パス)は、ただの文字になります。見つからない画像は「(画像が見つかりません)」と出ます。
 - どちらもスクリプトは入っておらず、開いたときにインターネットから何かを読み込むこともありません。
 
