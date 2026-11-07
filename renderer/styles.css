@@ -186,6 +186,10 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .tgl:hover:not(:disabled) { background: var(--surface-2); }
 .tgl:disabled { opacity: .45; cursor: default; }
 .tgl[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 700; }
+/* 読み取り専用: 状態表示のボタン(鍵の印つき)と、メモ一覧の題名の前の鍵 */
+#roBtn { display: inline-flex; align-items: center; gap: 4px; }
+#roBtn svg, .note .ro { width: 12px; height: 12px; fill: currentColor; flex: none; }
+.note .ro { display: inline-block; vertical-align: -1px; margin-right: 4px; color: var(--fg-2); }
 .status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 7px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 
 /* ---- markdown ---- */

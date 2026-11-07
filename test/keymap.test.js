@@ -138,14 +138,14 @@ test('つなぎ込み: メニューのキーは keymap.js から付け、表示�
   assert.match(menu, /T\('mKeys'\), click: \(\) => send\('keys'\)/);
   assert.match(menu, /T\('mModeEdit'\), accelerator: A\('mode:edit'\), enabled: ui\.base !== 'edit'/);
   assert.match(menu, /T\('mModePreview'\), accelerator: A\('mode:preview'\), enabled: ui\.base !== 'preview'/);
-  assert.match(app, /api\.setUiState\(\{ edit: S\.mode === 'edit', lines: lines, back: back, hist: S\.mode === 'history', base: S\.hbase \}\)/);
+  assert.match(app, /api\.setUiState\(\{ edit: S\.mode === 'edit', lines: lines, back: back, hist: S\.mode === 'history', base: S\.hbase, ro: isRO\(cur\(\)\) \}\)/);
   // 割り当て中は、押したキーを main.js が読む
   assert.match(main, /win\.webContents\.on\('before-input-event', onCaptureInput\)/);
   for (const ch of ['keys:list', 'keys:set', 'keys:resetAll']) assert.ok(preload.includes("ipcRenderer.invoke('" + ch + "'"), ch);
   assert.ok(preload.includes("ipcRenderer.send('keys:capture', id)"));
   // ボタンの説明のキー
-  for (const id of ['side', 'mode:history', 'attach', 'lines']) assert.ok(html.includes('data-key="' + id + '"'), id);
-  for (const k of ['toggleSide', 'historyTitle', 'attachTitle', 'lineNumbersTitle']) for (const l of ['ja', 'en']) {
+  for (const id of ['side', 'mode:history', 'attach', 'lines', 'readonly']) assert.ok(html.includes('data-key="' + id + '"'), id);
+  for (const k of ['toggleSide', 'historyTitle', 'attachTitle', 'lineNumbersTitle', 'roBtnTitle']) for (const l of ['ja', 'en']) {
     assert.ok(I18N.DICT[l][k].includes('{k}'), l + ':' + k);
     assert.ok(!/Ctrl\+/.test(I18N.DICT[l][k]), l + ':' + k);
   }

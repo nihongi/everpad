@@ -193,12 +193,18 @@ ipcMain.handle('memo:confirmTrash', async (e, message) => {
 });
 ipcMain.handle('memo:remove', async (e, id) => {
   if (!fromOurWindow(e)) return false;
+  if (store.isReadOnly(id)) return false;   // 読み取り専用のメモは消さない(画面側でも止める)
   try {
     let where = 'recycle';
     for (const p of store.paths(id)) { if ((await moveToTrash(p)) === 'folder') where = 'folder'; }
     store.forget(id);
     return where;   // 'recycle'(ごみ箱)か 'folder'(保存先の .trash)
   } catch (err) { return false; }
+});
+/* 読み取り専用の付け外し。書き込み待ちの編集は、画面側が先に書き出しておく */
+ipcMain.handle('memo:setReadOnly', (e, id, on) => {
+  if (!fromOurWindow(e)) return false;
+  try { return store.setReadOnly(id, !!on); } catch (err) { return false; }
 });
 ipcMain.handle('memo:openFolder', e => {
   if (!fromOurWindow(e)) return false;
@@ -221,11 +227,13 @@ function saveAttachment(noteId, name, bytes) {
 }
 ipcMain.handle('attach:save', (e, noteId, name, bytes) => {
   if (!fromOurWindow(e)) return { items: [], errors: [T('unavailable')] };
+  if (store.isReadOnly(noteId)) return { items: [], errors: [T('roNote')] };
   try { return { items: [saveAttachment(noteId, name, bytes)], errors: [] }; }
   catch (err) { return { items: [], errors: [errText(err)] }; }
 });
 ipcMain.handle('attach:pick', async (e, noteId) => {
   if (!fromOurWindow(e)) return { items: [], errors: [] };
+  if (store.isReadOnly(noteId)) return { items: [], errors: [T('roNote')] };
   const r = await dialog.showOpenDialog(win, { title: T('pickTitle'), properties: ['openFile', 'multiSelections'] });
   const out = { items: [], errors: [] };
   if (r.canceled) return out;
@@ -249,7 +257,7 @@ ipcMain.handle('attach:open', (e, noteId, fileId) => {
 /* 添付を右クリックしたときのメニュー(画像: コピー・開く・場所を開く・名前をつけて保存、ファイル: 開く・場所を開く)。
    選んだ操作の結果を返す(画面側で知らせる)。x, y は右クリックした位置(画像をコピーできない形式のときに使う) */
 // 左の一覧(と検索結果)でメモを右クリックしたときのメニュー。先頭に対象の題名を出し、選んだ操作の名前を返す(操作は画面側で行う)
-ipcMain.handle('note:menu', (e, title) => {
+ipcMain.handle('note:menu', (e, title, ro) => {
   if (!fromOurWindow(e)) return null;
   return new Promise(resolve => {
     let chosen = false;
@@ -269,8 +277,9 @@ ipcMain.handle('note:menu', (e, title) => {
         { label: T('mExportArchive'), click: pick('exportArchive') }
       ] },
       { type: 'separator' },
+      { label: T('mReadOnly'), type: 'checkbox', checked: !!ro, click: pick('readonly') },
       { label: T('nmProps'), click: pick('props') },
-      { label: T('nmDelete'), click: pick('delete') }
+      { label: T('nmDelete'), enabled: !ro, click: pick('delete') }
     ]);
     menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve(null); }, 300) });
   });
@@ -336,7 +345,7 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y, canTrash) =
 /* 添付をごみ箱に入れる(編集画面で選んだとき)。確認してから、ファイルをごみ箱へ。refs = 本文の中のこの添付へのリンクの数
    (リンクを消すのは画面側で、「元に戻す」で戻せる)。ファイルは中身から名前が決まるので、ごみ箱から戻せばそのまま表示される */
 ipcMain.handle('attach:trash', async (e, noteId, fileId, name, refs) => {
-  if (!fromOurWindow(e)) return { status: 'failed' };
+  if (!fromOurWindow(e) || store.isReadOnly(noteId)) return { status: 'failed' };
   const p = store.attachmentPath(noteId, fileId);
   if (!p) return { status: 'missing' };
   const n = Math.max(0, Math.floor(Number(refs) || 0));
@@ -360,7 +369,7 @@ ipcMain.handle('attach:trash', async (e, noteId, fileId, name, refs) => {
    → 残る版で使っていない添付をごみ箱へ。アーカイブを書き出せなかった・やめたときは、何も削除しない */
 const fmtBytes = b => (b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
 ipcMain.handle('history:prune', async (e, id, k, n, title) => {
-  if (!fromOurWindow(e) || !validId(id)) return { status: 'failed' };
+  if (!fromOurWindow(e) || !validId(id) || store.isReadOnly(id)) return { status: 'failed' };
   let plan;
   try { plan = store.prunePlan(id, k, n); } catch (err) { return { status: 'failed' }; }
   const from = plan.base + 1, to = plan.base + plan.removed;
@@ -394,11 +403,12 @@ ipcMain.handle('history:prune', async (e, id, k, n, title) => {
 /* ---------- 画面の状態に合わせて、実行できないメニューを押せなくする ----------
    edit: 編集画面か(書式・リンクの挿入・添付・検索と置換は編集画面だけ)、lines: 行番号が出る表示か(プレビューでは出ない)、
    back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)、
-   base: いま見ている表示(edit / preview。履歴の表示の中ではその元の表示。「表示」→「編集」「プレビュー」は、いま見ていないほうだけ押せる)。押せない項目はキー操作も効かない */
-let ui = { edit: true, lines: true, back: false, hist: false, base: 'edit' };
+   base: いま見ている表示(edit / preview。履歴の表示の中ではその元の表示。「表示」→「編集」「プレビュー」は、いま見ていないほうだけ押せる)、
+   ro: 今のメモが読み取り専用か(書式・リンクの挿入・添付・置換・古い履歴の削除を押せなくする)。押せない項目はキー操作も効かない */
+let ui = { edit: true, lines: true, back: false, hist: false, base: 'edit', ro: false };
 ipcMain.on('ui:state', (e, st) => {
   if (!fromOurWindow(e) || !st) return;
-  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit' };
+  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit', ro: !!st.ro };
   if (Object.keys(next).every(k => next[k] === ui[k])) return;
   ui = next;
   buildMenu();
@@ -502,7 +512,7 @@ async function importArchive(file, flushOnce) {
       type: 'warning', title: APP_NAME, noLink: true, defaultId: 1, cancelId: 2,
       buttons: [T('arcOverwrite'), T('arcNewId'), T('arcCancel')],
       message: T('arcExistsQ', { title: title }),
-      detail: T('arcExistsDetail')
+      detail: (store.isReadOnly(id) ? T('arcExistsRo') + '\n\n' : '') + T('arcExistsDetail')
     });
     if (r.response === 2) return null;   // 中止(知らせない)
     if (r.response === 0) {
@@ -924,6 +934,7 @@ function buildMenu() {
         ] },
         { label: T('mPrint'), accelerator: A('print'), click: () => send('print') },
         { type: 'separator' },
+        { id: 'readonly', label: T('mReadOnly'), type: 'checkbox', checked: ui.ro, accelerator: A('readonly'), click: () => send('readonly') },
         { id: 'props', label: T('mProps'), accelerator: A('props'), click: () => send('props') },
         { type: 'separator' },
         { label: T('mOpenDir'), accelerator: A('openDir'), click: () => shell.openPath(store.dir) },
@@ -939,10 +950,10 @@ function buildMenu() {
         { role: 'undo', label: T('mUndo') },
         { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
-        { label: T('mAttach'), accelerator: A('attach'), enabled: ui.edit, click: () => send('attach') },
-        { id: 'replace', label: T('mReplace'), accelerator: A('replace'), enabled: ui.edit, click: () => send('replace') },
-        { label: T('mFormat'), enabled: ui.edit, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.edit })) },
-        { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit, click: () => send('link') },
+        { label: T('mAttach'), accelerator: A('attach'), enabled: ui.edit && !ui.ro, click: () => send('attach') },
+        { id: 'replace', label: T('mReplace'), accelerator: A('replace'), enabled: ui.edit && !ui.ro, click: () => send('replace') },
+        { label: T('mFormat'), enabled: ui.edit && !ui.ro, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.edit && !ui.ro })) },
+        { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit && !ui.ro, click: () => send('link') },
         { type: 'separator' },
         { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },
         { label: T('mAutoList'), type: 'checkbox', checked: ep.autoList, click: item => setEditPref('autoList', item.checked) },
@@ -964,7 +975,7 @@ function buildMenu() {
         { label: T('mModeEdit'), accelerator: A('mode:edit'), enabled: ui.base !== 'edit', click: () => send('mode:edit') },
         { label: T('mModePreview'), accelerator: A('mode:preview'), enabled: ui.base !== 'preview', click: () => send('mode:preview') },
         { label: T('mModeHistory'), accelerator: A('mode:history'), click: () => send('mode:history') },
-        { label: T('mPrune'), accelerator: A('prune'), enabled: ui.hist, click: () => send('prune') },
+        { label: T('mPrune'), accelerator: A('prune'), enabled: ui.hist && !ui.ro, click: () => send('prune') },
         { label: T('mSide'), accelerator: A('side'), click: () => send('side') },
         { label: T('mLines'), accelerator: A('lines'), enabled: ui.lines, click: () => send('lines') },
         { type: 'separator' },

@@ -257,3 +257,51 @@ test('loadOne / readLatest', () => {
   assert.equal(s.readLatest('../evil'), null);
   assert.equal(s.loadOne('20260101-000009-zzzz'), null);
 });
+
+test('読み取り専用: ヘッダーに ro を付け外しし、履歴・本文・追記はそのまま', () => {
+  const s = fresh(), id = '20261107-100000-ro01';
+  s.create(id, 1000);
+  s.append(id, [[0, '', 'abc', 1001], [3, '', 'def', 1002]]);
+  s.writeIndex(); s.listMeta();
+  assert.strictEqual(s.isReadOnly(id), false);
+  assert.strictEqual(s.loadOne(id).ro, false);
+  assert.strictEqual(s.setReadOnly(id, true), true);
+  assert.strictEqual(s.isReadOnly(id), true);
+  const n = s.loadOne(id);
+  assert.strictEqual(n.ro, true);
+  assert.strictEqual(n.c, 1000);
+  assert.deepStrictEqual(n.ops, [[0, '', 'abc', 1001], [3, '', 'def', 1002]]);
+  const head = JSON.parse(fs.readFileSync(s.file(id, '.jsonl'), 'utf8').split('\n')[0]);
+  assert.deepStrictEqual(head, { v: 1, id: id, c: 1000, ro: true });
+  // 一覧の情報にも出る(索引を書き直しても、読み直しても)
+  assert.strictEqual(s.listMeta().find(x => x.id === id).ro, true);
+  const s2 = new Store(s.dir); s2.init();
+  assert.strictEqual(s2.listMeta().find(x => x.id === id).ro, true);
+  // 追記はそのまま残る(書き込み待ちの編集が後から届いても失わない)
+  s.append(id, [[6, '', 'g', 1003]]);
+  assert.strictEqual(s.loadOne(id).ops.reduce(applyWire, ''), 'abcdefg');
+  assert.strictEqual(s.loadOne(id).ro, true);
+  // 外す
+  assert.strictEqual(s.setReadOnly(id, false), true);
+  assert.strictEqual(s.isReadOnly(id), false);
+  assert.strictEqual(s.listMeta().find(x => x.id === id).ro, false);
+  assert.ok(!('ro' in JSON.parse(fs.readFileSync(s.file(id, '.jsonl'), 'utf8').split('\n')[0])));
+  assert.strictEqual(s.loadOne(id).ops.length, 3);
+});
+
+test('読み取り専用: 古い履歴の削除・アーカイブの取り込みでも ro を保つ。無いメモや壊れた ID は失敗する', () => {
+  const s = fresh(), id = '20261107-100000-ro02';
+  s.create(id, 1000);
+  s.append(id, [[0, '', 'a', 1001], [1, '', 'b', 1002], [2, '', 'c', 1003]]);
+  s.setReadOnly(id, true);
+  s.prune(id, 2, 3, 5000);
+  assert.strictEqual(s.loadOne(id).ro, true);
+  assert.strictEqual(s.loadOne(id).base, 1);
+  const r = s.loadOne(id), head = JSON.parse(fs.readFileSync(s.file(id, '.jsonl'), 'utf8').split('\n')[0]);
+  s.importNote('20261107-100000-ro03', { head: head, ops: r.ops, files: [] }, 6000);
+  assert.strictEqual(s.loadOne('20261107-100000-ro03').ro, true);
+  assert.throws(() => s.setReadOnly('20261107-100000-none', true), e => e.code === 'noFile');
+  assert.throws(() => s.setReadOnly('../x', true), e => e.code === 'badId');
+  assert.strictEqual(s.isReadOnly('20261107-100000-none'), false);
+  assert.strictEqual(s.isReadOnly('../x'), false);
+});

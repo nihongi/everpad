@@ -22,7 +22,8 @@ contextBridge.exposeInMainWorld('memoApi', {
   // 古い履歴の削除(確認・アーカイブへの書き出し・書き換え・使われなくなった添付をごみ箱へ、まで main.js が行う)
   pruneHistory: (id, k, n, title) => ipcRenderer.invoke('history:prune', id, k, n, title),
   mathMenu: (tex, kind) => ipcRenderer.invoke('math:menu', tex, kind),
-  noteMenu: title => ipcRenderer.invoke('note:menu', title),
+  noteMenu: (title, ro) => ipcRenderer.invoke('note:menu', title, ro),
+  setReadOnly: (id, on) => ipcRenderer.invoke('memo:setReadOnly', id, on),
   // 最近見たメモ(メニューを作り直してもらう)
   setRecent: items => ipcRenderer.send('recent:set', items),
   // 画面の状態(メニューの押せる・押せないに使う)

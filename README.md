@@ -51,10 +51,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.29.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.30.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.29.1.exe
+EverPad 0.30.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -112,6 +112,13 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Restore this version adds the content of that version as a new edit. The existing history is never deleted.
 - **Deleting old history**: to make a long history smaller, go to the oldest version you want to keep and press "Delete Older…" (or View → Delete History Older Than This Version…). All versions before it are deleted from the file. **This cannot be undone**, so a warning is shown first ("Cancel" is selected at first), with a check box (on by default) to export the full history to an EverPad archive before deleting; if the export is cancelled or fails, nothing is deleted. The text does not change, and neither does the number of versions: version numbers stay the same, and the history starts at the version you kept (the left end of the time slider says, for example, "Versions 1–1,000 deleted"). Properties shows the versions you can still view. Attachments that no remaining version uses are moved to the Recycle Bin at the same time (the warning shows how many and their size). This is like Etherpad's `compactPad --keep`, but done from the history view.
 - The note text widens to fit the window. Line numbers count a wrapped line as one line and are also shown in the history. These settings are remembered.
+
+**Read-only notes**
+
+- To protect a note from accidental changes, choose File → Read-Only, right-click the note in the note list and choose Read-Only, or press the Read-only button at the bottom right. Do the same again to make it editable. A read-only note has a lock before its title in the note list, and the Read-only button is highlighted while it is open. No shortcut key is set at first; you can assign one in Edit → Keyboard Shortcuts….
+- A read-only note cannot be changed: typing, pasting, cutting, formatting, replacing, attaching images or files, moving an attachment to the Recycle Bin, Restore this version, deleting old history and deleting the note are all turned off (trying to type shows a message). You can still view it, look through its history, search it, copy from it, print it and export it. Properties shows whether a note is read-only.
+- The setting is saved in the note's history file (`ro` in the header), so it is kept when you copy the data folder or move the note with an EverPad archive. Older versions of EverPad ignore it and let you edit the note.
+- Importing an archive with the same ID as a read-only note still asks what to do, and the question says that the existing note is read-only.
 
 **Search and replace**
 
@@ -221,7 +228,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 - Choose File → Print… (`Ctrl+P`) to print the current note, or File → Export → PDF… (`Ctrl+Shift+P`) to save it as a PDF.
 - The note is printed with the same formatting as the preview (headings, tables, check boxes and attached images), whichever view you are in. While the history is shown, the version you are viewing is printed.
-- Each page shows the note title and the time of the last edit at the top, and the time it was printed (or the PDF was created) and the page number at the bottom. When a past version is printed, the top shows that version's title, the time that version was made, and its version number.
+- Each page shows the note title and the time of the last edit at the top, and the time it was printed (or the PDF was exported) and the page number at the bottom. When a past version is printed, the top shows that version's title, the time that version was made, and its version number.
 - Even in dark mode, notes are printed as dark text on white paper. PDFs use A4 paper (Letter in the United States and Canada).
 
 **HTML and MHTML**
@@ -242,8 +249,8 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Other**
 
-- Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Find and Replace…, Attach Image or File…, Format and Insert Link to Note… work only in the Edit view; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Edit view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Edit or Preview is grayed out while that view is shown (also during the history).
-- Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document or EverPad archive; the latest version), Properties… and Delete…. The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
+- Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Find and Replace…, Attach Image or File…, Format and Insert Link to Note… work only in the Edit view; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Edit view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Edit or Preview is grayed out while that view is shown (also during the history). For a read-only note, Attach Image or File…, Find and Replace…, Format, Insert Link to Note… and Delete History Older Than This Version… are grayed out.
+- Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document or EverPad archive; the latest version), Read-Only, Properties… and Delete… (grayed out for a read-only note). The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
 - Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, the attachment name, or the text of a footnote. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
@@ -355,15 +362,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.29.1.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.30.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.29.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.30.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.29.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.30.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -372,7 +379,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.29.1.AppImage` (x64)
+- Linux: `EverPad-0.30.0.AppImage` (x64)
 
 **macOS**
 
@@ -388,7 +395,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.29.1.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.30.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -506,10 +513,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.29.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.30.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.29.1.exe
+EverPad 0.30.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -567,6 +574,13 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「この版に戻す」を押すと、その版の内容が新しい編集として追加されます。これまでの履歴は消えません。
 - **古い履歴の削除**: 履歴が長くなったときは、残したい最も古い版を表示して「これより前を削除…」(または「表示」→「この版より古い履歴を削除…」)を押すと、それより前の版をファイルから削除できます。**元に戻せない**ので、先に警告が出ます(初めは「キャンセル」が選ばれています)。警告には「削除する前に、すべての履歴をアーカイブ(.everpad)に書き出す」のチェックボックス(初めはオン)があり、書き出しをやめたときや書き出せなかったときは、何も削除しません。本文は変わらず、版数も変わりません。版の番号はそのままで、履歴は残した版から始まります(タイムスライダーの左端に「第1〜1,000版は削除済み」のように出ます)。見られる履歴の範囲は、プロパティに出ます。残る版のどこにも出てこない添付は、同時にごみ箱に入れます(数と大きさは警告に出ます)。Etherpad の `compactPad --keep` に当たる操作を、履歴の表示から行えるようにしたものです。
 - メモの本文はウィンドウの幅に合わせて広がります。行番号は、折り返した行も1行として数え、履歴の表示にも付きます。これらの設定は次回も使われます。
+
+**読み取り専用のメモ**
+
+- うっかり書き換えないように、メモを読み取り専用にできます。「ファイル」→「読み取り専用」を選ぶか、左のメモ一覧でメモを右クリックして「読み取り専用」を選ぶか、右下の「読み取り専用」ボタンを押します。もう一度同じ操作をすると、編集できるように戻ります。読み取り専用のメモは、メモ一覧の題名の前に鍵の印が付き、開いている間は右下の「読み取り専用」ボタンが色付きになります。ショートカットキーは初めは付いていません。「編集」→「キーボードショートカット…」で割り当てられます。
+- 読み取り専用のメモは変えられません。入力・貼り付け・切り取り・書式・置換・画像やファイルの添付・添付をごみ箱に入れる・「この版に戻す」・古い履歴の削除・メモの削除ができなくなります(入力しようとすると、知らせが出ます)。表示・履歴の表示・検索・コピー・印刷・エクスポートは今までどおりできます。読み取り専用かどうかは、プロパティにも出ます。
+- この設定はメモの履歴ファイル(ヘッダーの `ro`)に入るので、保存先フォルダをコピーしても、EverPad アーカイブで移しても、読み取り専用のままです。古いバージョンの EverPad はこの項目を無視するので、そのまま編集できます。
+- 読み取り専用のメモと同じ ID のアーカイブをインポートするときも、今までどおりどうするかを尋ね、いまあるメモが読み取り専用であることも知らせます。
 
 **検索と置換**
 
@@ -676,7 +690,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 - メニューの「ファイル」→「印刷…」(`Ctrl+P`)で、いま開いているメモを印刷します。「ファイル」→「エクスポート」→「PDF…」(`Ctrl+Shift+P`)では PDF として保存します。
 - どの表示から実行しても、プレビューと同じ整形した見た目(見出し、表、チェックボックス、添付画像)で出ます。履歴の表示中は、見ている版を出します。
-- 各ページの上に題名と最後に編集した日時、下に印刷した日時(PDF では作成した日時)とページ番号が入ります。過去の版を出したときは、上はその版の題名と、その版の日時と版の番号になります。
+- 各ページの上に題名と最後に編集した日時、下に印刷した日時(PDF では出力した日時)とページ番号が入ります。過去の版を出したときは、上はその版の題名と、その版の日時と版の番号になります。
 - ダークモードで使っていても、白い紙に黒い文字で出ます。PDF の用紙は A4 です(米国とカナダでは Letter)。
 
 **HTML と MHTML**
@@ -685,7 +699,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - フォント: ファイルに入れるのは数式のフォントだけで、数式のあるメモのときだけ入れます(ファイルが約 400 KB 大きくなります)。それ以外の文字は、EverPad の画面と同じく、ファイルを開いたパソコンに入っているフォントで表示します。本文は Windows では Yu Gothic UI(英語なら Segoe UI)、macOS ではヒラギノ角ゴシックです(コードは Windows では、日本語なら BIZ UDゴシック、英語なら Cascadia Mono か Consolas)。英語でこれらのフォントを使うのは、\ が ¥ の形にならないようにするためです。どれも入っていなければそのパソコンの標準のフォントになるので、パソコンによって見た目が少し変わることがありますが、文字は必ず表示されます。日本語のフォントは1つで数 MB 以上と大きく、Windows や macOS に付いているフォントは、そのパソコンで使うためのもので、ほかの人に渡すファイルに入れることは通常認められていないため、入れていません。
 - HTML(`.html`)は、どの Web ブラウザー(Edge・Chrome・Firefox・Safari など)でも開け、テキストエディターで編集もできます。画像は文字にして HTML の中に入れます(data: URI)。
 - MHTML(`.mhtml`)は、Microsoft Edge と Google Chrome で開けます(Windows では、ダブルクリックすると普通は Edge で開きます)。Microsoft Word でも開けます。Firefox と Safari では開けません。
-- 上に題名と最後に編集した日時(過去の版では、その版の題名と、その版の日時と版の番号)、下に書き出した日時が入ります。配色はいつも明るい配色です。
+- 上に題名と最後に編集した日時(過去の版では、その版の題名と、その版の日時と版の番号)、下に出力した日時が入ります。配色はいつも明るい配色です。
 - Web のリンク(`http://`・`https://`)はそのまま使えます。EverPad の中でしか開けないリンク(他のメモへのリンク、画像以外の添付ファイル、相対パス)は、ただの文字になります。見つからない画像は「(画像が見つかりません)」と出ます。
 - どちらもスクリプトは入っておらず、開いたときにインターネットから何かを読み込むこともありません。
 
@@ -697,8 +711,8 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **その他**
 
-- 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「検索と置換…」「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」は編集画面だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(編集画面と、編集から入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。
-- 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・EverPad アーカイブ。最新の版を書き出します)「プロパティ…」「削除…」です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
+- 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「検索と置換…」「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」は編集画面だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(編集画面と、編集から入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。読み取り専用のメモでは、「画像・ファイルを添付…」「検索と置換…」「書式」「メモへのリンクを挿入…」「この版より古い履歴を削除…」がグレーアウトします。
+- 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・EverPad アーカイブ。最新の版を書き出します)「読み取り専用」「プロパティ…」「削除…」(読み取り専用のメモでは押せません)です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
 - プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前、脚注の文)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
@@ -810,15 +824,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.29.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.30.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.29.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.30.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.29.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.30.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -827,7 +841,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.29.1.AppImage`(x64)
+- Linux: `EverPad-0.30.0.AppImage`(x64)
 
 **macOS**
 
@@ -843,7 +857,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.29.1.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.30.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。

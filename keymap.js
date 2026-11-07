@@ -19,6 +19,7 @@ const COMMANDS = [
   { id: 'docx', group: 'mFile>mExportMenu', label: 'mExportDocx', def: '' },
   { id: 'archive', group: 'mFile>mExportMenu', label: 'mExportArchive', def: '' },
   { id: 'print', group: 'mFile', label: 'mPrint', def: 'CmdOrCtrl+P' },
+  { id: 'readonly', group: 'mFile', label: 'mReadOnly', def: '' },
   { id: 'props', group: 'mFile', label: 'mProps', def: 'Alt+Enter', mac: 'CmdOrCtrl+I' },
   { id: 'openDir', group: 'mFile', label: 'mOpenDir', def: '' },
   { id: 'attach', group: 'mEdit', label: 'mAttach', def: 'CmdOrCtrl+Shift+U' },

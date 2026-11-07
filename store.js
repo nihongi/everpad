@@ -8,6 +8,7 @@
  *               古い履歴を削除したメモは、ヘッダーに base(削除した版の数)と pruned(削除した日時)を持ち、
  *               最初の編集が「残した最も古い版の本文を位置0に入れる」になる。版の番号は base + 編集の個数で、削除しても変わらない。
  *               古い EverPad は base を知らないので読み飛ばし、版数が少なく見えるだけで、そのまま読み書きできる。
+ *               読み取り専用のメモは、ヘッダーに ro: true を持つ(古い EverPad はこの項目を無視するので、普通に編集できる)。
  *   <id>.md     最新の本文。他のアプリから読むための控えで、読み込みには使わない。
  *   <id>.files/ 貼り付けた画像・添付ファイル。<ハッシュ16桁><拡張子> という名前で、同じ内容は1つだけ保存する。
  *               本文から消しても履歴に残っているので、ふだんは削除しない。ごみ箱に入れるのは、メモごと削除するとき、
@@ -21,7 +22,7 @@ function storeError(code, message) { const e = new Error(message); e.code = code
 const path = require('path');
 
 const INDEX_NAME = '.everpad-index.json';
-const INDEX_VERSION = 3;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした
+const INDEX_VERSION = 4;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした 4: ro(読み取り専用)を加えた
 const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_ATTACH = 50 * 1024 * 1024;
 const FILEID_RE = /^[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
@@ -183,7 +184,40 @@ class Store {
         fs.renameSync(tmp, f);
       } catch (e) { /* 読み込みは続ける */ }
     }
-    return { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, base: baseOf(r.head), pruned: Number.isFinite(r.head.pruned) ? r.head.pruned : 0, ops: r.ops };
+    return { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, base: baseOf(r.head), pruned: Number.isFinite(r.head.pruned) ? r.head.pruned : 0, ro: r.head.ro === true, ops: r.ops };
+  }
+
+  /* ---- 読み取り専用 ----
+     ヘッダーの ro を付け外しする。履歴はそのままで、一時ファイルに書いてから置き換える(途中で失敗しても元のファイルは壊れない)。
+     書き込み待ちの編集は、呼ぶ側が先に書き出しておく(このあとに追記しても、追記はそのまま残る) */
+  isReadOnly(id) {
+    if (!validId(id)) return false;
+    let fd;
+    try {
+      fd = fs.openSync(this.file(id, '.jsonl'), 'r');
+      const buf = Buffer.alloc(4096);
+      const len = fs.readSync(fd, buf, 0, buf.length, 0);
+      const line = buf.toString('utf8', 0, len).split('\n')[0];
+      const head = JSON.parse(line);
+      return !!head && head.ro === true;
+    } catch (e) { return false; } finally { if (fd !== undefined) try { fs.closeSync(fd); } catch (e) { /* 無視 */ } }
+  }
+  setReadOnly(id, on) {
+    if (!validId(id)) throw storeError('badId', 'メモの ID が正しくありません');
+    const f = this.file(id, '.jsonl');
+    let raw;
+    try { raw = fs.readFileSync(f, 'utf8'); } catch (e) { throw storeError('noFile', 'メモのファイルが見つかりません'); }
+    const r = parseLog(raw);
+    if (!r.head || r.bad) throw storeError('badOps', '履歴が正しくありません');
+    if ((r.head.ro === true) === !!on) return true;
+    const head = Object.assign({}, r.head);
+    if (on) head.ro = true; else delete head.ro;
+    const tmp = f + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(head) + '\n' + r.ops.map(o => JSON.stringify(o)).join('\n') + (r.ops.length ? '\n' : ''));
+    fs.renameSync(tmp, f);
+    const e = this._entry(id), st = e && this._stat(id);
+    if (e && st) { e.ro = !!on; e.size = st.size; e.mtime = st.mtime; this._dirty(); }
+    return true;
   }
 
   /* ---- 古い履歴の削除 ----
@@ -318,11 +352,11 @@ class Store {
         for (const o of note.ops) text = applyWire(text, o);
         st = this._stat(id) || st;               // 壊れた行を直した場合は、直した後のファイルで記録する
         // 並びの時刻は、最後に編集した時刻と取り込んだ時刻の新しいほう(取り込んだメモを一覧の上に出す)
-        e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, base: note.base, n: note.base + note.ops.length, title: core.titleOf(text), size: st.size, mtime: st.mtime };
+        e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, base: note.base, n: note.base + note.ops.length, title: core.titleOf(text), ro: note.ro, size: st.size, mtime: st.mtime };
         this._dirty();
       }
       seen.add(id);
-      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, base: e.base || 0, n: e.n, title: e.title });
+      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, base: e.base || 0, n: e.n, title: e.title, ro: !!e.ro });
     }
     for (const id of Object.keys(idx)) if (!seen.has(id)) { delete idx[id]; this._dirty(); }
     out.sort((a, b) => a.c - b.c);

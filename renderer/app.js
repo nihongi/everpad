@@ -90,6 +90,7 @@
         n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
         n.imported = r.imported || 0;
         n.base = r.base || 0; n.pruned = r.pruned || 0;
+        n.ro = !!r.ro;
         n._cp = null;
         n.text = textAt(n, n.ops.length);
         n.loaded = true; n.used = ++useSeq;
@@ -177,6 +178,7 @@
   }
 
   /* ---------- 描画 ---------- */
+  const LOCK_ICON = '<svg class="ro" viewBox="0 0 24 24" role="img" aria-label="' + esc(T('roListTitle')) + '"><title>' + esc(T('roListTitle')) + '</title><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>';
   let listTimer = null;
   function renderListSoon() {   // 入力のたびに一覧全体を作り直さない
     if (listTimer) return;
@@ -193,7 +195,7 @@
       b.className = 'note';
       b.dataset.id = n.id;
       if (n.id === S.active) b.setAttribute('aria-current', 'true');
-      b.innerHTML = '<span class="nt">' + esc(shownTitle(n.title)) + '</span><span class="nm">' + fmtShort(n.t) + T('sep') + T('versions', { n: n.n }) + '</span>';
+      b.innerHTML = '<span class="nt">' + (n.ro ? LOCK_ICON : '') + esc(shownTitle(n.title)) + '</span><span class="nm">' + fmtShort(n.t) + T('sep') + T('versions', { n: n.n }) + '</span>';
       b.addEventListener('click', () => { select(n.id); closeSide(); });
       li.appendChild(b);
       ul.appendChild(li);
@@ -303,6 +305,8 @@
   function commit() {
     const n = cur(), v = $('editor').value;
     if (!n || v === n.text) return;
+    // 読み取り専用のメモは変えない(入力は止めているが、万一変わったら元に戻す)
+    if (isRO(n)) { $('editor').value = n.text; roBlocked(); return; }
     n.ops.push(makeOp(n.text, v, Date.now()));
     n.text = v;
     syncMeta(n);
@@ -314,6 +318,65 @@
   $('editor').addEventListener('input', () => { if (!composing) commit(); });
   $('editor').addEventListener('compositionstart', () => { composing = true; });
   $('editor').addEventListener('compositionend', () => { composing = false; commit(); });
+
+  /* ---------- 読み取り専用 ----------
+     メモの履歴ファイルの1行目に ro: true を持つ(store.js)。読み取り専用のメモは、編集・添付・置換・過去の版への復元・
+     古い履歴の削除・メモの削除をしない。見る・検索する・コピーする・印刷とエクスポートは今までどおり。
+     編集欄は readOnly にし、文字を変えるキーや貼り付けを押したときは、読み取り専用であることを知らせる */
+  const isRO = n => !!(n && n.ro);
+  let roToastAt = 0;
+  function roBlocked() {
+    const now = Date.now();
+    if (now - roToastAt > 1500) { roToastAt = now; toast(T('roBlocked')); }
+  }
+  /* 今のメモに合わせて、編集欄・ボタン・状態表示の「読み取り専用」を切り替える */
+  function applyRO() {
+    const ro = isRO(cur());
+    $('editor').readOnly = ro;
+    $('roBtn').setAttribute('aria-pressed', String(ro));
+    $('attBtn').disabled = ro;
+    $('delBtn').disabled = ro;
+    for (const id of ['frRepl', 'frOne', 'frAll']) $(id).disabled = ro;
+    if (ro) emoClose();
+  }
+  // 文字を変えるキー(文字・Enter・Tab・Backspace・Delete、Ctrl+V・X・Z・Y)は、ほかの処理より先に止める
+  $('editor').addEventListener('keydown', e => {
+    if (!isRO(cur()) || e.isComposing) return;
+    const mod = e.ctrlKey || e.metaKey, k = e.key;
+    const edits = !e.altKey && (mod ? /^[vxzy]$/i.test(k) : (k.length === 1 || /^(Enter|Tab|Backspace|Delete)$/.test(k)));
+    if (!edits) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    roBlocked();
+  }, true);
+  for (const type of ['paste', 'cut', 'drop']) {
+    $('editor').addEventListener(type, e => { if (isRO(cur())) { e.preventDefault(); e.stopImmediatePropagation(); roBlocked(); } }, true);
+  }
+  $('roBtn').addEventListener('click', () => { if (S.active) toggleReadOnly(S.active); });
+  /* 読み取り専用を付け外しする。付けるときは先に入力を止め、書き込み待ちの編集を書き出してから、ファイルの1行目を書き換える */
+  let roBusy = false;
+  async function toggleReadOnly(id) {
+    const n = S.notes.find(x => x.id === id);
+    if (!n || roBusy) return;
+    const on = !n.ro;
+    roBusy = true;
+    let ok = false;
+    try {
+      if (on) { n.ro = true; if (n.id === S.active) applyRO(); }
+      await flush();
+      try { ok = await api.setReadOnly(id, on); } catch (e) { ok = false; }
+      n.ro = ok ? on : !on;
+    } finally {
+      roBusy = false;
+      if (n.id === S.active) {
+        applyRO();
+        sendUiState();
+        if (S.mode === 'history') renderHist();   // 「この版に戻す」「これより前を削除…」を押せる・押せないにする
+      }
+      renderList();
+    }
+    toast(ok ? T(on ? 'roOn' : 'roOff', { title: shownTitle(n.loaded ? titleOf(n.text) : n.title) }) : T('roFailed'));
+  }
 
   /* ---------- 絵文字の入力候補 ----------
      編集画面で : と名前の文字を2つ以上打つと(:sm など)、カーソルの下に候補を出す(core.js の emojiQueryAt・emojiSuggest)。
@@ -327,7 +390,7 @@
   }
   function emoUpdate() {
     const ed = $('editor');
-    if (S.mode !== 'edit' || composing || ed.selectionStart !== ed.selectionEnd || document.activeElement !== ed || !$('modal').hidden) { emoClose(); return; }
+    if (S.mode !== 'edit' || composing || ed.readOnly || ed.selectionStart !== ed.selectionEnd || document.activeElement !== ed || !$('modal').hidden) { emoClose(); return; }
     const hit = emojiQueryAt(ed.value, ed.selectionStart);
     const items = hit ? emojiSuggest(hit.q, 8) : [];
     if (!items.length) { emoClose(); return; }
@@ -448,7 +511,7 @@
     // 行番号が出るのは、編集画面と、編集から入った履歴の表示(変更箇所の表示)だけ
     const lines = S.mode === 'edit' || (S.mode === 'history' && S.hbase === 'edit');
     $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
-    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase });
+    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase, ro: isRO(cur()) });
   }
   /* ---------- 「編集」と「プレビュー」を切り替えたときの位置合わせ ----------
      切り替える前の表示で基準の場所(元の文の行と、画面の上からの高さ)を決め、切り替えたあとの表示で、その行を同じ高さに出して一瞬光らせる。
@@ -661,6 +724,7 @@
     emoClose();
     S.active = id;
     $('editor').value = cur().text;
+    applyRO();
     // 履歴の表示のまま別のメモに移ったときは、そのメモの最新の版から見せる(版の番号はメモごとに意味が違う)
     if (S.mode === 'history') S.rev = cur().ops.length;
     renderList();
@@ -737,8 +801,8 @@
     const r = $('range');
     r.value = k;
     r.style.setProperty('--p', (N > lo ? ((k - lo) / (N - lo)) * 100 : 0) + '%');
-    $('restore').disabled = !past;
-    $('pruneBtn').disabled = k < 2 || S.playing;
+    $('restore').disabled = !past || isRO(n);
+    $('pruneBtn').disabled = k < 2 || S.playing || isRO(n);
     $('bFirst').disabled = $('bPrev').disabled = k <= lo;
     $('bLast').disabled = $('bNext').disabled = k === N;
     $('playIcon').innerHTML = S.playing ? '<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>' : '<path d="M7 4.5v15l12-7.5z"/>';
@@ -787,6 +851,7 @@
   async function pruneHistory() {
     const n = cur();
     if (!n) return;
+    if (isRO(n)) { roBlocked(); return; }
     if (S.mode !== 'history') { toast(T('pruneHowTo')); return; }
     stop();
     const k = S.rev;
@@ -814,6 +879,7 @@
   $('speed').addEventListener('change', e => { S.speed = +e.target.value; });
   $('restore').addEventListener('click', () => {
     const n = cur(), k = S.rev;
+    if (isRO(n)) { roBlocked(); return; }
     const text = textAt(n, k);
     if (text !== n.text) { n.ops.push(makeOp(n.text, text, Date.now())); n.text = text; syncMeta(n); queueOp(n, n.ops[n.ops.length - 1]); }
     $('editor').value = n.text;
@@ -1027,6 +1093,7 @@
   async function deleteNote(id) {
     const target = S.notes.find(n => n.id === id);
     if (!target) return;
+    if (isRO(target)) { toast(T('roDelete')); return; }
     let yes = false;
     try { yes = await api.confirmTrash(T('confirmTrash', { title: shownTitle(target.loaded ? titleOf(target.text) : target.title) })); } catch (e) { yes = false; }
     if (!yes || !S.notes.includes(target)) return;
@@ -1139,6 +1206,7 @@
   }
   /* 範囲 s〜e を str に置き換える。元に戻す(Ctrl+Z)が効くよう、エディタへの入力として行う */
   function frInsert(s, e, str) {
+    if (isRO(cur())) { roBlocked(); return; }   // 書式・置換・自動インデント・添付などは、すべてここを通る
     const ed = $('editor'), prev = document.activeElement;
     ed.focus();
     ed.setSelectionRange(s, e);
@@ -1363,7 +1431,7 @@
   });
   async function attachMenu(fileId, name, image, x, y, canTrash) {
     let r = null;
-    try { r = await api.attachMenu(S.active, fileId, name, image, x, y, !!canTrash); } catch (err) { r = null; }
+    try { r = await api.attachMenu(S.active, fileId, name, image, x, y, !!canTrash && !isRO(cur())); } catch (err) { r = null; }
     const st = r && r.status;
     if (st === 'trash') trashAttachment(fileId, name);
     else if (st === 'missing') toast(T('fileMissing'));
@@ -1378,6 +1446,7 @@
   async function trashAttachment(fileId, name) {
     const n = cur();
     if (!n) return;
+    if (isRO(n)) { roBlocked(); return; }
     const refs = removeAttachRefs(n.text, fileId).count;
     let r = null;
     try { r = await api.attachTrash(n.id, fileId, name, refs); } catch (e) { r = { status: 'failed' }; }
@@ -1435,6 +1504,7 @@
   }
   function reportErrors(errors) { if (errors.length) toast(errors[0] + (errors.length > 1 ? T('moreErrors', { n: errors.length - 1 }) : '')); }
   async function ingestFiles(files) {
+    if (isRO(cur())) { roBlocked(); return; }
     if (S.mode !== 'edit') { toast(T('attachEditOnly')); return; }
     const noteId = S.active, items = [], errors = [];
     for (const f of files) {
@@ -1450,6 +1520,7 @@
     reportErrors(errors);
   }
   async function pickAttachments() {
+    if (isRO(cur())) { roBlocked(); return; }
     if (S.mode !== 'edit') setMode('edit', false);
     const noteId = S.active;
     let r;
@@ -1527,6 +1598,7 @@
     else if (name === 'recent:clear') clearRecent();
     else if (name === 'link') pickNoteLink();
     else if (name === 'props') showProps();
+    else if (name === 'readonly') { if (S.active) toggleReadOnly(S.active); }
     else if (name === 'export') exportNote();
     else if (name === 'archive') exportArchive();
     else if (name === 'print') printNote('print');
@@ -1703,6 +1775,7 @@
     row(T('propEdited'), fmtFull(n.ops.length ? n.ops[n.ops.length - 1].t : n.c));
     if (n.imported) row(T('propImported'), fmtFull(n.imported));
     row(T('propVersions'), (baseOf(n) + n.ops.length).toLocaleString('en-US'));
+    row(T('propReadOnly'), T(isRO(n) ? 'propRoOn' : 'propRoOff'));
     // 古い履歴を削除したメモは、見られる履歴の範囲と、削除した日時を出す(版数と、見られる版の数が違うことを示す)
     if (baseOf(n)) row(T('propHistory'), T('propHistoryVal', { from: baseOf(n) + 1, to: baseOf(n) + n.ops.length, b: baseOf(n), when: n.pruned ? fmtFull(n.pruned) : '' }));
     row(T('propChars'), stats.chars.toLocaleString('en-US'));
@@ -1732,13 +1805,14 @@
     document.querySelectorAll('.ctx-target').forEach(x => x.classList.remove('ctx-target'));
     row.classList.add('ctx-target');
     let action = null;
-    try { action = await api.noteMenu(shownTitle(n.loaded ? titleOf(n.text) : n.title)); } catch (err) { action = null; }
+    try { action = await api.noteMenu(shownTitle(n.loaded ? titleOf(n.text) : n.title), isRO(n)); } catch (err) { action = null; }
     row.classList.remove('ctx-target');
     if (action) noteAction(action, id);
   });
   async function noteAction(action, id) {
     if (action === 'open') { openNoteById(id, 'noteDeleted'); return; }
     if (action === 'delete') { deleteNote(id); return; }
+    if (action === 'readonly') { toggleReadOnly(id); return; }
     if (action === 'copyLink') {
       const n = S.notes.find(x => x.id === id);
       if (!n) return;
@@ -1970,13 +2044,14 @@
     let n = S.notes.find(x => x.id === id);
     if (!n) { n = { id: id }; S.notes.push(n); }
     pendingOps.delete(id); textDirty.delete(id);
-    n.c = r.c; n.imported = r.imported || 0; n.base = r.base || 0; n.pruned = r.pruned || 0;
+    n.c = r.c; n.imported = r.imported || 0; n.base = r.base || 0; n.pruned = r.pruned || 0; n.ro = !!r.ro;
     n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
     n._cp = null;
     n.text = textAt(n, n.ops.length);
     n.loaded = true; n.used = ++useSeq;
     syncMeta(n);
     if (n.id === S.active && $('editor').value !== n.text) { $('editor').value = n.text; }   // 同じ本文なら書き換えない(元に戻すの記録を消さない)
+    if (n.id === S.active) { applyRO(); sendUiState(); }
     return n;
   }
   // EverPad アーカイブとしてエクスポート: 書き込み待ちの編集と本文を先に書き出してから、main.js にまとめてもらう
@@ -2065,7 +2140,7 @@
     S.dir = data.dir;
     loadRecent();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
-    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, loaded: false }));
+    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, ro: !!r.ro, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());
     let last = null;
     try { last = localStorage.getItem('everpad:active'); } catch (e) { /* 無くても動く */ }
