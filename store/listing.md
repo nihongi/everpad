@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.30.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.31.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -38,7 +38,8 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ■ 見返す  
 ・タイムスライダーで、どの時点の版でも表示できます。履歴の再生もできます。  
 ・変更のあった場所を表示するので、何をいつ書き換えたかがわかります。  
-・すべてのメモから検索できます。最新の版だけでなく、履歴全体(あとで消した文章も含む)を検索することもできます。
+・すべてのメモから検索できます。最新の版だけでなく、履歴全体(あとで消した文章も含む)を検索することもできます。  
+・履歴の表示で検索すると、その言葉がある版の範囲をタイムスライダーに色の帯で示すので、いつ書いて、いつ消したかがわかります。
 
 ■ 残す・渡す  
 ・メモは、選んだフォルダに普通のファイルとして保存します。バックアップはフォルダをコピーするだけです。  
@@ -55,8 +56,10 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・メモを読み取り専用にできるようになりました。「ファイル」→「読み取り専用」、メモ一覧の右クリック、右下の「読み取り専用」ボタンで切り替えます。読み取り専用のメモは、メモ一覧の題名の前に鍵の印が付き、編集・添付・過去の版への復元・古い履歴の削除・メモの削除ができなくなります。表示・履歴の表示・検索・コピー・印刷・エクスポートは今までどおりできます。  
-・PDF・HTML・MHTML の下の行を「作成:」から「出力:」にしました。プロパティに出る、メモを作った日時と取り違えないようにするためです。
+・「編集」→「検索と置換…」(Ctrl+H)が、プレビューでも検索だけのバーとして使えるようになりました。整形したあとの見えている文字を探し、一致した箇所すべてに色が付きます。読み取り専用のメモでも、検索だけのバーが使えます。  
+・履歴の表示でも検索できるようになりました。タイムスライダーの下に、検索語がある版の範囲が色の帯で出るので、その文をいつ書いて、いつ消したかがわかります。「前の変化」「次の変化」で、書いた版・消した版に移れます。  
+・とても長いメモを、履歴の表示やプレビューで開いたときに、画面が数秒止まらないようにしました。  
+・Electron(Chromium)、KaTeX、Mermaid を新しい版に更新しました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -79,6 +82,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 17. キーボードショートカットを好きなキーに変えられる
 18. GitHub と同じ絵文字ショートコード(入力候補つき)・アラート・脚注
 19. メモを読み取り専用にして、うっかり書き換えを防げる
+20. 検索した言葉をいつ書いて、いつ消したかを、タイムスライダーの色の帯で表示
 
 ### 検索キーワード(7 個まで、各 30 文字まで)
 
@@ -128,7 +132,8 @@ WRITE
 LOOK BACK  
 • Show the note at any point in its history with the time slider, or play the history back.  
 • See where each change was made, so you know what was rewritten and when.  
-• Search all notes: the latest version of each note, or the entire history, including text that was later deleted.
+• Search all notes: the latest version of each note, or the entire history, including text that was later deleted.  
+• Search in the history, and colored bands on the time slider show the versions that contain the text, so you can see when it was written and when it was deleted.
 
 KEEP AND SHARE  
 • Notes are saved as ordinary files in a folder you choose. Backing up is just copying the folder.  
@@ -145,8 +150,10 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Notes can now be made read-only. Switch it with File → Read-Only, by right-clicking the note in the note list, or with the Read-only button at the bottom right. A read-only note has a lock before its title in the note list, and it cannot be edited, given attachments, restored to an earlier version, have its old history deleted, or be deleted. You can still view it, look through its history, search, copy, print and export it.  
-• The line at the bottom of PDF, HTML and MHTML files now says "Exported:" instead of "Created:", so it is not confused with the note's creation time shown in Properties.
+• Edit → Find and Replace… (Ctrl+H) now also works in the Preview view, as a find-only bar. It searches the formatted text as you see it and highlights every match. It also works, as find only, for read-only notes.  
+• You can now search in the history. Colored bands under the time slider show the versions that contain the text, so you can see when it was written and when it was deleted. Previous change / Next change jump to those versions.  
+• Very long notes no longer freeze the window for several seconds in the history or the Preview view.  
+• Updated Electron (Chromium), KaTeX and Mermaid.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -169,6 +176,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 17. Keyboard shortcuts you can change
 18. GitHub emoji shortcodes (with suggestions), alerts and footnotes
 19. Read-only notes that cannot be changed by accident
+20. Colored bands on the time slider show when searched text was written and deleted
 
 ### Search terms (up to 7, up to 30 characters each)
 
