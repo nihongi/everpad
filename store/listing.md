@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.29.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.30.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -43,7 +43,8 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ■ 残す・渡す  
 ・メモは、選んだフォルダに普通のファイルとして保存します。バックアップはフォルダをコピーするだけです。  
 ・印刷、PDF、HTML、MHTML、AsciiDoc、Word 文書(.docx)に書き出せます。Word では見出しのスタイルが付き、数式は Word で編集できる数式になります。  
-・EverPad アーカイブ(.everpad)には、メモの本文・すべての履歴・添付ファイルがまとめて入ります。別のパソコンへの引っ越しや受け渡しに使えます。
+・EverPad アーカイブ(.everpad)には、メモの本文・すべての履歴・添付ファイルがまとめて入ります。別のパソコンへの引っ越しや受け渡しに使えます。  
+・書き終えたメモは読み取り専用にして、うっかり書き換えないように守れます。
 
 ■ 安心して使える  
 ・アカウントは不要です。広告も、利用状況の収集もありません。  
@@ -54,8 +55,8 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューの見た目を GitHub に近づけました。段落・リスト・表・引用・コードの間を広くあけたので、段落の中の改行と段落の切れ目がわかりやすくなりました。  
-・見出し・リスト・コード・表などの大きさと余白も GitHub に合わせ、大見出しは本文と同じゴシック体にして下に線を引きました。履歴の表示・印刷・PDF なども同じ見た目です。色と編集画面は変わっていません。
+・メモを読み取り専用にできるようになりました。「ファイル」→「読み取り専用」、メモ一覧の右クリック、右下の「読み取り専用」ボタンで切り替えます。読み取り専用のメモは、メモ一覧の題名の前に鍵の印が付き、編集・添付・過去の版への復元・古い履歴の削除・メモの削除ができなくなります。表示・履歴の表示・検索・コピー・印刷・エクスポートは今までどおりできます。  
+・PDF・HTML・MHTML の下の行を「作成:」から「出力:」にしました。プロパティに出る、メモを作った日時と取り違えないようにするためです。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -77,6 +78,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
 17. キーボードショートカットを好きなキーに変えられる
 18. GitHub と同じ絵文字ショートコード(入力候補つき)・アラート・脚注
+19. メモを読み取り専用にして、うっかり書き換えを防げる
 
 ### 検索キーワード(7 個まで、各 30 文字まで)
 
@@ -131,7 +133,8 @@ LOOK BACK
 KEEP AND SHARE  
 • Notes are saved as ordinary files in a folder you choose. Backing up is just copying the folder.  
 • Print, or export to PDF, HTML, MHTML, AsciiDoc or Word (.docx). Word documents get heading styles, and formulas become Word equations you can edit.  
-• An EverPad archive (.everpad) holds a note's text, its whole history and its attachments, for moving notes to another PC or sharing them.
+• An EverPad archive (.everpad) holds a note's text, its whole history and its attachments, for moving notes to another PC or sharing them.  
+• Make a finished note read-only so it cannot be changed by accident.
 
 PRIVATE BY DESIGN  
 • No account, no advertising and no usage tracking.  
@@ -142,8 +145,8 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• The preview looks more like GitHub. There is a wider gap between paragraphs, lists, tables, block quotes and code, so a line break inside a paragraph is easy to tell from a new paragraph.  
-• Headings, lists, code, tables and more use the same sizes and spacing as on GitHub, and the top-level heading uses the same font as the text, with a line under it. The history, printouts, PDF and other exports look the same. The colors and the editor are unchanged.
+• Notes can now be made read-only. Switch it with File → Read-Only, by right-clicking the note in the note list, or with the Read-only button at the bottom right. A read-only note has a lock before its title in the note list, and it cannot be edited, given attachments, restored to an earlier version, have its old history deleted, or be deleted. You can still view it, look through its history, search, copy, print and export it.  
+• The line at the bottom of PDF, HTML and MHTML files now says "Exported:" instead of "Created:", so it is not confused with the note's creation time shown in Properties.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -165,6 +168,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 16. Bold, italic, strikethrough and code from the right-click menu
 17. Keyboard shortcuts you can change
 18. GitHub emoji shortcodes (with suggestions), alerts and footnotes
+19. Read-only notes that cannot be changed by accident
 
 ### Search terms (up to 7, up to 30 characters each)
 
