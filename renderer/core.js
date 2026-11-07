@@ -1101,6 +1101,99 @@ function replaceAllText(text, re, tpl, regex) {
   return { text: out, count: all.length, first: all[0].s, last: all[all.length - 1].e };
 }
 
+/* ---------- 履歴の変更箇所の表示を、かたまりに分ける ----------
+   lines は diffLines が返す行ごとの HTML。およそ size 行ずつに分け、[始まり, 終わり) の組の配列を返す。
+   画面側は、かたまりごとに content-visibility: auto を付ける。画面の外のかたまりは描画と、読み上げ用の情報の計算を省くので、
+   何千行もあるメモでも止まらない(行ごとの要素が数千あると、読み上げの仕組みが動いているときに10秒ほど止まることがあった)。
+   かたまりの最後が空の行(または改行で終わる行)だと、折り返しの表示でその行が見えなくなるので、そこでは切らずに次の行まで含める */
+function chunkLines(lines, size) {
+  const out = [];
+  let s = 0;
+  for (let i = 0; i + 1 < lines.length; i++) {
+    if (i + 1 - s < size) continue;
+    const visible = String(lines[i]).replace(/(<[^>]*>)+$/, '');
+    if (visible && !visible.endsWith('\n')) { out.push([s, i + 1]); s = i + 1; }
+  }
+  out.push([s, lines.length]);
+  return out;
+}
+
+/* ---------- 履歴表示の検索: 版ごとの検索語の数 ----------
+   タイムスライダーに、検索語がある版の範囲を帯で示すのに使う。re は buildRe(q, { cs, word }) で作ったもの
+   (正規表現は使わない。一致の長さが検索語と同じ ql なので、編集した箇所の近くだけを調べ直せばよい。searchHistory と同じ考え方)。
+   単語単位では一致のすぐ外の1文字も見るので、編集と接している一致も調べ直し、調べる範囲の外側に1文字ずつ余分に付ける。
+   長い履歴でも画面を止めないよう、counter.step(limit) で limit 個ずつ進める。終わると true を返す。
+   counter.counts[k] が第 k 版(0 は空の版)の数 */
+function historyCounter(ops, re, ql) {
+  const N = ops.length, counts = new Uint32Array(N + 1);
+  let text = '', alive = [], k = 0;
+  const c = { counts, done: N === 0, step };
+  function step(limit) {
+    const end = Math.min(N, k + Math.max(1, limit));
+    while (k < end) {
+      const op = ops[k++], dl = op.d.length, il = op.i.length, delta = il - dl;
+      text = applyOp(text, op);
+      const next = [];
+      for (const m of alive) {
+        if (m.e < op.p) next.push(m);                                          // 編集より前(接していない): そのまま
+        else if (m.s > op.p + dl) { m.s += delta; m.e += delta; next.push(m); } // 編集より後: 位置だけずれる
+      }
+      const lo = Math.max(0, op.p - ql - 1), hi = Math.min(text.length, op.p + il + ql + 1);
+      const seg = text.slice(lo, hi);
+      re.lastIndex = lo > 0 ? 1 : 0;   // 先頭の1文字は、単語単位の判定のために付けただけ
+      let mm;
+      while ((mm = re.exec(seg))) {
+        if (!mm[0].length) { re.lastIndex++; continue; }
+        const s = lo + mm.index, e = s + mm[0].length;
+        if (hi < text.length && e === hi) continue;   // 最後の1文字も同じ
+        if (!next.some(x => x.s < e && x.e > s)) next.push({ s, e });
+      }
+      alive = next;
+      counts[k] = alive.length;
+    }
+    c.done = k >= N;
+    return c.done;
+  }
+  return c;
+}
+
+/* ---------- プレビューの中の検索 ----------
+   プレビューの文字は、たくさんの文字のかたまり(DOM の文字ノード)に分かれている。
+   pieces は [{ text, block }](block は段落・項目などの入れ物。同じ入れ物の文字は続けてつなぐ)、または { br: true }(改行)。
+   入れ物が変わるところと改行には \n を入れて、1つの文字列にする(検索がかたまりをまたいで一致しないように)。
+   at[i] は pieces[i] の文字が text の中で始まる位置(改行は -1) */
+function joinPieces(pieces) {
+  let text = '', prev = null;
+  const at = [];
+  for (const p of pieces) {
+    if (p.br) { text += '\n'; at.push(-1); prev = null; continue; }
+    if (text && prev !== p.block && text[text.length - 1] !== '\n') text += '\n';
+    at.push(text.length);
+    text += p.text;
+    prev = p.block;
+  }
+  return { text, at };
+}
+/* 一致した範囲 hits([{ s, e }]、前から順に並んだもの)が、どのかたまりのどこからどこまでか。
+   1つごとに { a: { i, off }, b: { i, off } }(かたまりの文字に掛からないときは null)。前から1回なぞるだけで求める */
+function pieceSpans(pieces, at, hits) {
+  const idx = [];
+  for (let i = 0; i < pieces.length; i++) if (at[i] >= 0) idx.push(i);
+  const out = [];
+  let k = 0;
+  for (const h of hits) {
+    while (k < idx.length && at[idx[k]] + pieces[idx[k]].text.length <= h.s) k++;
+    let a = null, b = null;
+    for (let j = k; j < idx.length && at[idx[j]] < h.e; j++) {
+      const i = idx[j], st = at[i], len = pieces[i].text.length;
+      if (!a) a = { i, off: Math.max(0, h.s - st) };
+      b = { i, off: Math.min(len, h.e - st) };
+    }
+    out.push(a && b && (a.i < b.i || a.off < b.off) ? { a, b } : null);
+  }
+  return out;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

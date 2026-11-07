@@ -167,6 +167,9 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .frhl { position: absolute; overflow: hidden; pointer-events: none; z-index: 0; }
 .frhl > div { position: relative; }
 .frhl i { position: absolute; background: var(--hit); border-radius: 2px; outline: 1px solid var(--accent); }
+/* プレビューの中の検索: 一致したすべての箇所と、いまの箇所(app.js の pvRefresh・pvGo) */
+::highlight(fr-all) { background-color: var(--hit); color: var(--fg); }
+::highlight(fr-cur) { background-color: var(--accent); color: var(--accent-fg); }
 #editor { position: relative; z-index: 1; }
 .edwrap { flex: 1; min-height: 0; display: flex; }
 #editor { flex: 1 1 0; width: auto; min-width: 0; min-height: 0; border: 0; resize: none; background: transparent; font: 15px/1.4 var(--mono); padding: 10px 24px 22px; outline: none; }
@@ -283,6 +286,11 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .empty { color: var(--fg-2); }
 /* 行番号(履歴の変更箇所): 折り返した行の先頭にだけ番号が付く */
 .diff.lined { white-space: pre-wrap; }
+/* 変更箇所の表示の、50行ほどのかたまり。画面の外のかたまりは描画を省く(長いメモで止まらないように)。高さの見積もりは行数 × 行の高さ */
+.hck { content-visibility: auto; contain-intrinsic-size: auto calc(var(--n, 50) * 1.4em); }
+/* プレビューと、プレビューから入った履歴の表示も、段落・リスト・表などのかたまりごとに、画面の外は描画を省く
+   (かたまりが数千あると、読み上げの仕組みが動いているときに数秒止まることがあった)。高さの見積もりは1行分で、一度描いたら覚える */
+#preview > *, #hvBody > .md > * { content-visibility: auto; contain-intrinsic-size: auto 1.6em; }
 .dl { display: grid; grid-template-columns: var(--ln-w) minmax(0, 1fr); }
 .dl .n { white-space: nowrap; text-align: right; padding-right: 10px; margin-right: 12px; border-right: 1px solid var(--line); color: var(--fg-2); user-select: none; font-variant-numeric: tabular-nums; }
 .dl .t { min-width: 0; }
@@ -314,6 +322,10 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .spd select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
 #pruneBtn { margin-left: auto; }
 .track { position: relative; padding: 6px 0; }
+/* 履歴の表示の検索: 検索語がある版の範囲(スライダーの線のすぐ下の帯。app.js の hbPaint) */
+.fhits { position: absolute; left: 0; right: 0; top: calc(50% + 5px); height: 5px; pointer-events: none; }
+.fhits i { position: absolute; top: 0; bottom: 0; background: var(--hit); outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 2px; }
+.fr-hist { display: inline-flex; gap: 6px; }
 .gaps { position: absolute; left: 0; right: 0; top: 50%; height: 16px; transform: translateY(-50%); pointer-events: none; }
 .gaps i { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--fg-2); opacity: .6; border-radius: 1px; }
 #range { position: relative; -webkit-appearance: none; appearance: none; width: 100%; height: 26px; margin: 0; background: transparent; cursor: pointer; --p: 0%; }

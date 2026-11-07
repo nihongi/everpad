@@ -401,10 +401,11 @@ ipcMain.handle('history:prune', async (e, id, k, n, title) => {
 });
 
 /* ---------- 画面の状態に合わせて、実行できないメニューを押せなくする ----------
-   edit: 編集画面か(書式・リンクの挿入・添付・検索と置換は編集画面だけ)、lines: 行番号が出る表示か(プレビューでは出ない)、
+   edit: 編集画面か(書式・リンクの挿入・添付は編集画面だけ。「検索と置換…」はどの表示でも使え、
+   プレビュー・履歴の表示・読み取り専用のメモでは検索だけのバーになる)、lines: 行番号が出る表示か(プレビューでは出ない)、
    back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)、
    base: いま見ている表示(edit / preview。履歴の表示の中ではその元の表示。「表示」→「編集」「プレビュー」は、いま見ていないほうだけ押せる)、
-   ro: 今のメモが読み取り専用か(書式・リンクの挿入・添付・置換・古い履歴の削除を押せなくする)。押せない項目はキー操作も効かない */
+   ro: 今のメモが読み取り専用か(書式・リンクの挿入・添付・古い履歴の削除を押せなくする)。押せない項目はキー操作も効かない */
 let ui = { edit: true, lines: true, back: false, hist: false, base: 'edit', ro: false };
 ipcMain.on('ui:state', (e, st) => {
   if (!fromOurWindow(e) || !st) return;
@@ -951,7 +952,7 @@ function buildMenu() {
         { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
         { label: T('mAttach'), accelerator: A('attach'), enabled: ui.edit && !ui.ro, click: () => send('attach') },
-        { id: 'replace', label: T('mReplace'), accelerator: A('replace'), enabled: ui.edit && !ui.ro, click: () => send('replace') },
+        { id: 'replace', label: T('mReplace'), accelerator: A('replace'), click: () => send('replace') },
         { label: T('mFormat'), enabled: ui.edit && !ui.ro, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.edit && !ui.ro })) },
         { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit && !ui.ro, click: () => send('link') },
         { type: 'separator' },

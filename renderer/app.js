@@ -338,6 +338,7 @@
     $('delBtn').disabled = ro;
     for (const id of ['frRepl', 'frOne', 'frAll']) $(id).disabled = ro;
     if (ro) emoClose();
+    if (S.frOpen) frShow();   // 読み取り専用にしたら置換の行を隠す(戻したら出す)
   }
   // 文字を変えるキー(文字・Enter・Tab・Backspace・Delete、Ctrl+V・X・Z・Y)は、ほかの処理より先に止める
   $('editor').addEventListener('keydown', e => {
@@ -502,6 +503,7 @@
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
+    if (S.frOpen) frRefresh();   // 表示を作り直したので、一致した箇所も探し直す
     queueStatus();
     sendUiState();
   }
@@ -787,13 +789,16 @@
     } else {
       const ranges = S.q ? matchRanges(text, S.q) : [];
       const lines = diffLines(text, op, ranges);
+      // 50行ほどのかたまり(.hck)に分け、画面の外のかたまりは描画を省く(core.js の chunkLines)
+      const chunks = render => chunkLines(lines, 50).map(([a, b]) => '<div class="hck" style="--n:' + (b - a) + '">' + render(a, b) + '</div>').join('');
       if (S.lines) {
         const digits = Math.max(2, String(lines.length).length);
-        body.innerHTML = '<div class="diff lined" style="--ln-w: calc(' + digits + 'ch + 36px)">' +
-          lines.map((h, i) => '<div class="dl' + (/<(ins|del)\b/.test(h) ? ' chg' : '') + '"' + lineAttr(0, i, i + 1) + '><span class="n">' + (i + 1) + '</span><span class="t">' + (h || '&#8203;') + '</span></div>').join('') + '</div>';
+        body.innerHTML = '<div class="diff lined" style="--ln-w: calc(' + digits + 'ch + 36px)">' + chunks((a, b) =>
+          lines.slice(a, b).map((h, k) => { const i = a + k; return '<div class="dl' + (/<(ins|del)\b/.test(h) ? ' chg' : '') + '"' + lineAttr(0, i, i + 1) + '><span class="n">' + (i + 1) + '</span><span class="t">' + (h || '&#8203;') + '</span></div>'; }).join('')) + '</div>';
       } else {
-        // 行ごとに span で囲んで行の範囲を付ける(編集とプレビューを切り替えたときの位置合わせに使う)
-        body.innerHTML = '<pre class="diff">' + lines.map((h, i) => '<span' + lineAttr(0, i, i + 1) + '>' + h + '</span>').join('\n') + '</pre>';
+        // 行ごとに span で囲んで行の範囲を付ける(編集とプレビューを切り替えたときの位置合わせに使う)。
+        // かたまりの中は改行でつなぎ、かたまりの境目は、かたまり(ブロック)の切れ目が改行になる
+        body.innerHTML = '<div class="diff">' + chunks((a, b) => lines.slice(a, b).map((h, k) => '<span' + lineAttr(0, a + k, a + k + 1) + '>' + h + '</span>').join('\n')) + '</div>';
       }
       const target = body.querySelector('ins, del') || body.querySelector('mark');
       if (target) target.scrollIntoView({ block: 'nearest' });
@@ -809,6 +814,8 @@
     $('bPlay').title = S.playing ? T('pause') : T('play');
     $('bPlay').setAttribute('aria-label', S.playing ? T('pause') : T('play'));
     $('bPlay').disabled = N === 0;
+    // 検索のバーを開いていれば、この版の中の一致に色を付け直し、「前の変化」「次の変化」を押せるかを合わせる
+    if (S.frOpen && S.mode === 'history') { pvRefresh(frRegex()); hbButtons(); }
   }
 
   let timer = null;
@@ -965,6 +972,8 @@
       setMode('history');
       S.rev = opt.rev;
       renderHist();
+      // 同じ検索語で検索のバーを開き、タイムスライダーに、その語がある版の範囲を示す
+      if (S.q) { $('frFind').value = S.q; S.frOpen = true; frShow(); frRefresh(); }
     } else {
       setMode('edit');
       const ed = $('editor');
@@ -1130,16 +1139,35 @@
     toast(T(ok === 'folder' ? 'deletedToFolder' : 'deleted'));
   }
 
-  /* ---------- 検索と置換(編集画面の上に出すバー) ---------- */
+  /* ---------- 検索と置換(編集画面・プレビューの上に出すバー) ----------
+     プレビュー・履歴の表示・読み取り専用のメモでは、何も書き換えられないので、検索だけにする(置換の行を出さない)。
+     履歴の表示では、正規表現は使わない(タイムスライダーの帯を、編集した箇所の近くだけを調べ直して数えるため) */
   const FR = { cs: false, word: false, re: false };
   try { Object.assign(FR, JSON.parse(localStorage.getItem('everpad:fr') || '{}')); } catch (e) { /* 無くても動く */ }
   const frBtns = { cs: 'frCase', word: 'frWord', re: 'frRe' };
-  const frRegex = () => buildRe($('frFind').value, FR);
-  function frShow() { $('frbar').hidden = !(S.frOpen && S.mode === 'edit'); queueGutter(); frPaintSoon(); }
+  const frRegex = () => buildRe($('frFind').value, S.mode === 'history' ? { cs: FR.cs, word: FR.word } : FR);
+  const frCanReplace = () => S.mode === 'edit' && !isRO(cur());
+  function frShow() {
+    const on = S.frOpen, repl = frCanReplace(), hist = S.mode === 'history';
+    $('frbar').hidden = !on;
+    $('frReplRow').hidden = !repl;
+    $('frHistNav').hidden = !hist;
+    $('frRe').disabled = hist;
+    $('frRe').title = T(hist ? 'frReHistTitle' : 'frReTitle');
+    for (const [id, k] of [['frbar', 'frAria'], ['frClose', 'frCloseAria']]) {
+      $(id).dataset.i18nAria = repl ? k : k + 'Find';
+      $(id).setAttribute('aria-label', T($(id).dataset.i18nAria));
+    }
+    if (!on || S.mode === 'edit') pvClear();
+    if (!on || !hist) hbClear();
+    queueGutter(); frPaintSoon();
+  }
   function frLabel(text, bad) { const c = $('frCount'); c.textContent = text; c.classList.toggle('bad', !!bad); }
   function frRefresh() {
     for (const k in frBtns) $(frBtns[k]).setAttribute('aria-pressed', String(!!FR[k]));
     const re = frRegex();
+    if (S.mode === 'history') { hbRefresh(); return pvRefresh(re); }
+    if (S.mode === 'preview') return pvRefresh(re);
     if (!re) return frLabel('');
     if (re.error) return frLabel(T('badRegex'), true);
     const ed = $('editor'), all = findAll(ed.value, re);
@@ -1194,6 +1222,139 @@
   $('editor').addEventListener('focus', frPaintSoon);
   $('editor').addEventListener('blur', frPaintSoon);
   if (window.ResizeObserver) new ResizeObserver(frPaintSoon).observe($('editor'));
+
+  /* プレビューと履歴の表示の中の検索。見えている文字を探す(数式と図の中は探さない。
+     変更箇所の表示では、この版で消した文字と改行の印も探さない)。
+     一致した箇所には色を重ねるだけで、表示の中身は書き換えない(CSS Custom Highlight)。
+     pv = { hits: [Range], cur: いまの箇所の番号(まだ無ければ -1) } */
+  let pv = null;
+  const PV_BLOCK = 'p, li, h1, h2, h3, h4, h5, h6, td, th, pre, blockquote, dt, dd, summary, figcaption, caption, div, article';
+  const PV_SKIP = '.math, .diagram, a.fnback, script, style, svg, .diff del, .diff .nl, .diff .n';
+  const pvRoot = () => (S.mode === 'history' ? $('hvBody') : $('preview'));
+  function pvClear() {
+    pv = null;
+    if (window.CSS && CSS.highlights) { CSS.highlights.delete('fr-all'); CSS.highlights.delete('fr-cur'); }
+  }
+  function pvRefresh(re) {
+    pvClear();
+    if (!re) return frLabel('');
+    if (re.error) return frLabel(T('badRegex'), true);
+    const pieces = [], nodes = [];
+    const w = document.createTreeWalker(pvRoot(), NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, { acceptNode: n => {
+      if (n.nodeType !== 1) return NodeFilter.FILTER_ACCEPT;
+      if (n.matches(PV_SKIP)) return NodeFilter.FILTER_REJECT;
+      return n.tagName === 'BR' ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    } });
+    while (w.nextNode()) {
+      const n = w.currentNode;
+      if (n.nodeType === 1) { pieces.push({ br: true }); nodes.push(null); }
+      else { pieces.push({ text: n.nodeValue, block: n.parentElement.closest(PV_BLOCK) }); nodes.push(n); }
+    }
+    const j = joinPieces(pieces), hits = [];
+    for (const sp of pieceSpans(pieces, j.at, findAll(j.text, re))) {
+      if (!sp) continue;
+      const r = document.createRange();
+      r.setStart(nodes[sp.a.i], sp.a.off);
+      r.setEnd(nodes[sp.b.i], sp.b.off);
+      hits.push(r);
+    }
+    pv = { hits, cur: -1 };
+    if (!hits.length) return frLabel(T('noMatch'), true);
+    if (window.CSS && CSS.highlights) { const h = new Highlight(); hits.forEach(r => h.add(r)); CSS.highlights.set('fr-all', h); }
+    frLabel(T('matchTotal', { n: hits.length }));
+  }
+  function pvGo(dir) {
+    if (!pv) pvRefresh(frRegex());
+    if (!pv || !pv.hits.length) return null;
+    const root = pvRoot(), rr = root.getBoundingClientRect(), n = pv.hits.length;
+    let k, wrapped = false;
+    if (pv.cur >= 0) {
+      k = pv.cur + (dir >= 0 ? 1 : -1);
+      if (k >= n || k < 0) { k = (k + n) % n; wrapped = true; }
+    } else if (dir >= 0) {   // まだ選んでいなければ、いま見えているところから探す
+      k = pv.hits.findIndex(r => r.getBoundingClientRect().top >= rr.top);
+      if (k < 0) { k = 0; wrapped = true; }
+    } else {
+      k = -1;
+      for (let i = n - 1; i >= 0; i--) if (pv.hits[i].getBoundingClientRect().bottom <= rr.bottom) { k = i; break; }
+      if (k < 0) { k = n - 1; wrapped = true; }
+    }
+    pv.cur = k;
+    if (window.CSS && CSS.highlights) { const h = new Highlight(pv.hits[k]); h.priority = 1; CSS.highlights.set('fr-cur', h); }
+    const r = pv.hits[k].getBoundingClientRect();
+    if (r.top < rr.top || r.bottom > rr.bottom) root.scrollTop += r.top - rr.top - root.clientHeight / 3;
+    frLabel(T('matchAt', { at: k + 1, n }) + (wrapped ? T('wrapped') : ''));
+    return k;
+  }
+
+  /* 履歴の表示: タイムスライダーの下に、検索語がある版の範囲を帯で示す(数えるのは core.js の historyCounter。
+     メモの元の文字で数える)。「前の変化」「次の変化」で、検索語の数が変わった版(書いた版・消した版)へ移る。
+     hb = { key, counts: 版ごとの数, done: 数え終わったか } */
+  let hb = null, hbTok = 0;
+  function hbClear() {
+    hbTok++;
+    hb = null;
+    $('fhits').innerHTML = '';
+    $('tlNote').textContent = T('gapNote');
+    hbButtons();
+  }
+  async function hbRefresh() {
+    const n = cur(), q = $('frFind').value;
+    if (!S.frOpen || S.mode !== 'history' || !n || !q) { hbClear(); return; }
+    const key = [n.id, n.ops.length, FR.cs, FR.word, q].join('\n');
+    if (hb && hb.key === key) { if (hb.done) hbPaint(); return; }
+    const tok = ++hbTok, c = historyCounter(n.ops, frRegex(), q.length);
+    hb = { key, counts: c.counts, done: false };
+    $('fhits').innerHTML = '';
+    $('tlNote').textContent = T('tlHitsBusy');
+    hbButtons();
+    while (!c.step(4000)) { await yieldUi(); if (tok !== hbTok) return; }   // 長い履歴でも画面を止めない
+    hb.done = true;
+    hbPaint();
+  }
+  function hbPaint() {
+    const n = cur(), N = n.ops.length, lo = histLo(n), span = N - lo, cn = hb.counts, g = $('fhits');
+    const x = k => (span > 0 ? (k - lo) / span : 0), half = span > 0 ? 0.5 / span : 0.5;
+    const frag = document.createDocumentFragment();
+    let a = -1, bands = 0;
+    for (let k = lo; k <= N + 1; k++) {
+      const on = k <= N && cn[k] > 0;
+      if (on && a < 0) a = k;
+      else if (!on && a >= 0) {
+        const left = Math.max(0, x(a) - half), right = Math.min(1, x(k - 1) + half);
+        const i = document.createElement('i');
+        i.style.left = 'calc(10px + (100% - 20px) * ' + left + ')';
+        i.style.width = 'max(3px, calc((100% - 20px) * ' + (right - left) + '))';
+        frag.appendChild(i);
+        bands++;
+        a = -1;
+      }
+    }
+    g.innerHTML = '';
+    g.appendChild(frag);
+    $('tlNote').textContent = T(bands ? 'tlHits' : 'tlHitsNone', { q: $('frFind').value });
+    hbButtons();
+  }
+  // 版 k の前後で、検索語の数が変わった次の版(dir=1)・前の版(dir=-1)。無ければ -1
+  function hbNextChange(dir) {
+    if (!hb || !hb.done || S.mode !== 'history') return -1;
+    const n = cur(), N = n.ops.length, lo = Math.max(1, histLo(n)), cn = hb.counts;
+    for (let k = S.rev + dir; k >= lo && k <= N; k += dir) if (cn[k] !== cn[k - 1]) return k;
+    return -1;
+  }
+  function hbButtons() {
+    $('frPrevChg').disabled = hbNextChange(-1) < 0;
+    $('frNextChg').disabled = hbNextChange(1) < 0;
+  }
+  function hbGo(dir) {
+    const k = hbNextChange(dir);
+    if (k < 0) return;
+    go(k);
+    const n = cur(), d = hb.counts[k] - hb.counts[k - 1];
+    toast(T(d > 0 ? 'chgAdded' : 'chgRemoved', { k: baseOf(n) + k, n: Math.abs(d) }));
+  }
+  $('frPrevChg').addEventListener('click', () => hbGo(-1));
+  $('frNextChg').addEventListener('click', () => hbGo(1));
 
   /* 検索ボックスにいたまま、エディタの文字を選んで画面内に出す */
   function frSelect(s, e) {
@@ -1257,6 +1418,7 @@
     queueStatus();
   });
   function frGo(dir) {
+    if (S.mode !== 'edit') return pvGo(dir);   // プレビュー・履歴の表示
     const re = frRegex();
     if (!re || re.error) { frRefresh(); return null; }
     const ed = $('editor');
@@ -1267,6 +1429,7 @@
     return r;
   }
   function frReplaceOne() {
+    if (!frCanReplace()) return;
     const re = frRegex();
     if (!re || re.error) { frRefresh(); return; }
     const ed = $('editor'), s = ed.selectionStart, e = ed.selectionEnd;
@@ -1275,6 +1438,7 @@
     frGo(1);
   }
   function frReplaceAll() {
+    if (!frCanReplace()) return;
     const re = frRegex();
     if (!re || re.error) { frRefresh(); return; }
     const ed = $('editor'), t = ed.value;
@@ -1285,9 +1449,10 @@
     toast(T('replaced', { n: r.count }));
   }
   function frOpen() {
-    if (S.mode !== 'edit') setMode('edit', false);
     S.frOpen = true;
-    const ed = $('editor'), sel = ed.value.slice(ed.selectionStart, ed.selectionEnd);
+    let sel = '';
+    if (S.mode === 'edit') { const ed = $('editor'); sel = ed.value.slice(ed.selectionStart, ed.selectionEnd); }
+    else { const ws = window.getSelection(); if (ws.rangeCount && pvRoot().contains(ws.anchorNode)) sel = ws.toString(); }
     if (sel && sel.length < 200 && sel.indexOf('\n') < 0) $('frFind').value = sel;
     frShow(); frRefresh();
     $('frFind').focus(); $('frFind').select();
@@ -1309,7 +1474,7 @@
   $('frClose').addEventListener('click', frClose);
   $('editor').addEventListener('input', () => { if (S.frOpen) setTimeout(() => { frRefresh(); frPaint(); }, 0); });
   document.addEventListener('keydown', e => {
-    if (e.key === 'F3' && S.frOpen && S.mode === 'edit') { e.preventDefault(); frGo(e.shiftKey ? -1 : 1); }
+    if (e.key === 'F3' && S.frOpen) { e.preventDefault(); frGo(e.shiftKey ? -1 : 1); }
   });
 
   /* ---------- 画像・添付ファイル ----------
@@ -2118,7 +2283,7 @@
       S.rev = +v.rev || 0;
       renderHist();
     } else setMode(modes.includes(v.mode) ? v.mode : 'edit');
-    if (v.frOpen && S.mode === 'edit') { S.frOpen = true; frShow(); frRefresh(); }
+    if (v.frOpen) { S.frOpen = true; frShow(); frRefresh(); }
     if (v.q) { $('q').value = v.q; runSearch(); }
     // スクロールとフォーカスは、表示が組み上がってから戻す(描画が止まっていても動くよう setTimeout で)
     setTimeout(() => {

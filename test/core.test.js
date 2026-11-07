@@ -216,6 +216,73 @@ test('置換: すべて置換(通常・正規表現の $1 / \\n / \\t / $$)と�
   const t = 'ああ foo いい foo うう', rr = L.replaceAllText(t, L.buildRe('foo', {}), 'BAR', false);
   assert.strictEqual(t.slice(0, rr.first) + rr.text.slice(rr.first, rr.text.length - (t.length - rr.last)) + t.slice(rr.last), rr.text);
 });
+test('プレビューの検索: 文字のかたまりをつなぎ、一致をかたまりの位置に戻す', () => {
+  const p1 = {}, p2 = {};   // 段落などの入れ物の代わり
+  const pieces = [{ text: 'foo ', block: p1 }, { text: 'bar', block: p1 }, { text: 'baz', block: p2 }, { br: true }, { text: 'qux', block: p2 }, { text: '', block: p2 }];
+  const j = L.joinPieces(pieces);
+  assert.strictEqual(j.text, 'foo bar\nbaz\nqux', '同じ入れ物はそのままつなぎ、入れ物が変わるところと改行に \\n');
+  assert.deepStrictEqual(j.at, [0, 4, 8, -1, 12, 15]);
+  const spans = hits => L.pieceSpans(pieces, j.at, hits);
+  // かたまりをまたぐ一致('o bar')、1つのかたまりの中('az')、改行だけ(かたまりに掛からない)
+  const all = L.findAll(j.text, L.buildRe('o bar|az|\\n', { re: true }));
+  assert.deepStrictEqual(all.map(x => j.text.slice(x.s, x.e)), ['o bar', '\n', 'az', '\n']);
+  assert.deepStrictEqual(spans(all), [
+    { a: { i: 0, off: 2 }, b: { i: 1, off: 3 } },
+    null,
+    { a: { i: 2, off: 1 }, b: { i: 2, off: 3 } },
+    null
+  ]);
+  // 入れ物をまたぐ文字は、つながっていないので一致しない
+  assert.strictEqual(L.findAll(j.text, L.buildRe('barbaz', {})).length, 0);
+  assert.deepStrictEqual(spans(L.findAll(j.text, L.buildRe('qux', {}))), [{ a: { i: 4, off: 0 }, b: { i: 4, off: 3 } }]);
+  assert.deepStrictEqual(L.joinPieces([]), { text: '', at: [] });
+});
+test('履歴の変更箇所の表示: かたまりに分ける(最後が空の行・改行で終わる行では切らない)', () => {
+  const ranges = (lines, n) => L.chunkLines(lines, n);
+  assert.deepStrictEqual(ranges([], 3), [[0, 0]]);
+  assert.deepStrictEqual(ranges(['a', 'b'], 3), [[0, 2]]);
+  assert.deepStrictEqual(ranges(['a', 'b', 'c', 'd', 'e', 'f', 'g'], 3), [[0, 3], [3, 6], [6, 7]]);
+  // 3行目が空なので、4行目まで含める。4行目が改行で終わる(消した改行の表示)ので、5行目まで含める
+  assert.deepStrictEqual(ranges(['a', 'b', '', 'x<del>y↵\n</del>', 'e', 'f', 'g', 'h'], 3), [[0, 5], [5, 8]]);
+  // タグだけの行も空として扱う
+  assert.deepStrictEqual(ranges(['a', 'b', '<mark></mark>', 'd', 'e'], 3), [[0, 4], [4, 5]]);
+  // どのかたまりにも、すべての行がちょうど1回ずつ入る
+  const many = Array.from({ length: 1234 }, (_, i) => (i % 7 === 0 ? '' : 'line ' + i));
+  const r = ranges(many, 50);
+  assert.strictEqual(r[0][0], 0);
+  assert.strictEqual(r[r.length - 1][1], many.length);
+  for (let k = 1; k < r.length; k++) assert.strictEqual(r[k][0], r[k - 1][1]);
+  for (const [a, b] of r.slice(0, -1)) assert(many[b - 1] !== '' && b - a >= 50);
+});
+test('履歴表示の検索: 版ごとの数は、版ごとに全文を探した数と同じ(ランダムな編集)', () => {
+  let seed = 7;
+  const rnd = n => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const chars = ['a', 'b', 'x', ' ', 'A', 'B', '\n', 'り', 'ん'];
+  const word = () => Array.from({ length: 1 + rnd(4) }, () => chars[rnd(chars.length)]).join('');
+  for (let round = 0; round < 40; round++) {
+    const ops = [];
+    let text = '';
+    const texts = [''];
+    for (let k = 0; k < 120; k++) {
+      const p = rnd(text.length + 1), dl = rnd(Math.min(4, text.length - p) + 1);
+      const op = { p, d: text.slice(p, p + dl), i: rnd(4) ? word() : '', t: k };
+      if (!op.d && !op.i) op.i = word();
+      text = L.applyOp(text, op);
+      ops.push(op);
+      texts.push(text);
+    }
+    // 自分自身と重ならない検索語(重なる語は、数え方が全文の検索と違うことがある)
+    for (const [q, opts] of [['ab', {}], ['ab', { cs: true }], ['ab', { word: true }], ['りん', { word: true }], ['x a', {}], ['b\na', {}]]) {
+      const re = L.buildRe(q, opts), c = L.historyCounter(ops, re, q.length);
+      let steps = 0;
+      while (!c.step(17)) steps++;
+      assert(steps > 0, '少しずつ進む');
+      texts.forEach((t, k) => assert.strictEqual(c.counts[k], L.findAll(t, L.buildRe(q, opts)).length, 'round ' + round + ' q=' + JSON.stringify(q) + ' ' + JSON.stringify(opts) + ' 第' + k + '版 ' + JSON.stringify(t)));
+    }
+  }
+  const empty = L.historyCounter([], L.buildRe('a', {}), 1);
+  assert(empty.done && empty.step(10) && empty.counts.length === 1);
+});
 test('置換: 次へ・前へは端で反対側に回り込む', () => {
   const re = L.buildRe('a', {}), t = 'a_a_a';
   assert.strictEqual(L.findFrom(t, re, 1, 1).s, 2);

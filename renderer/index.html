@@ -58,9 +58,13 @@
           <button class="btn" id="frPrev" type="button" data-i18n="frPrev" data-i18n-title="frPrevTitle" title="前を検索 (Shift+Enter / Shift+F3)">↑ 前へ</button>
           <button class="btn" id="frNext" type="button" data-i18n="frNext" data-i18n-title="frNextTitle" title="次を検索 (Enter / F3)">↓ 次へ</button>
           <span class="fr-count" id="frCount" aria-live="polite"></span>
+          <span class="fr-hist" id="frHistNav" hidden>
+            <button class="btn" id="frPrevChg" type="button" data-i18n="frPrevChg" data-i18n-title="frPrevChgTitle" title="検索語を書いた・消した、前の版へ">← 前の変化</button>
+            <button class="btn" id="frNextChg" type="button" data-i18n="frNextChg" data-i18n-title="frNextChgTitle" title="検索語を書いた・消した、次の版へ">次の変化 →</button>
+          </span>
           <button class="btn ibtn fr-close" id="frClose" type="button" data-i18n-title="frCloseTitle" data-i18n-aria="frCloseAria" title="閉じる (Esc)" aria-label="検索と置換を閉じる"><svg viewBox="0 0 24 24"><path d="M6.4 5L12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z"/></svg></button>
         </div>
-        <div class="fr-row">
+        <div class="fr-row" id="frReplRow">
           <input id="frRepl" type="text" placeholder="置換後の文字列" aria-label="置換後の文字列" data-i18n-ph="frRepl" data-i18n-aria="frRepl" autocomplete="off" spellcheck="false">
           <button class="btn" id="frOne" type="button" data-i18n="frOne" data-i18n-title="frOneTitle" title="いま選んでいる箇所を置換して、次へ進む (Enter)">置換</button>
           <button class="btn" id="frAll" type="button" data-i18n="frAll" data-i18n-title="frAllTitle" title="すべてを1回の編集として置換">すべて置換</button>
@@ -107,8 +111,9 @@
       <div class="track">
         <div class="gaps" id="gaps"></div>
         <input type="range" id="range" min="0" max="0" value="0" step="1" aria-label="履歴の位置" data-i18n-aria="rangeAria">
+        <div class="fhits" id="fhits" aria-hidden="true"></div>
       </div>
-      <div class="ends"><span id="tStart"></span><span data-i18n="gapNote">縦線は30分以上あいた箇所</span><span id="tEnd"></span></div>
+      <div class="ends"><span id="tStart"></span><span id="tlNote" data-i18n="gapNote">縦線は30分以上あいた箇所</span><span id="tEnd"></span></div>
     </div>
 
     <div class="link-status" id="linkStatus" hidden></div>

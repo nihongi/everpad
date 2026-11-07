@@ -139,6 +139,8 @@ test('つなぎ込み: メニューのキーは keymap.js から付け、表示�
   assert.match(menu, /T\('mModeEdit'\), accelerator: A\('mode:edit'\), enabled: ui\.base !== 'edit'/);
   assert.match(menu, /T\('mModePreview'\), accelerator: A\('mode:preview'\), enabled: ui\.base !== 'preview'/);
   assert.match(app, /api\.setUiState\(\{ edit: S\.mode === 'edit', lines: lines, back: back, hist: S\.mode === 'history', base: S\.hbase, ro: isRO\(cur\(\)\) \}\)/);
+  // 「検索と置換…」はどの表示でも押せる(プレビュー・履歴の表示・読み取り専用のメモでは、検索だけ)
+  assert.match(menu, /T\('mReplace'\), accelerator: A\('replace'\), click:/);
   // 割り当て中は、押したキーを main.js が読む
   assert.match(main, /win\.webContents\.on\('before-input-event', onCaptureInput\)/);
   for (const ch of ['keys:list', 'keys:set', 'keys:resetAll']) assert.ok(preload.includes("ipcRenderer.invoke('" + ch + "'"), ch);
