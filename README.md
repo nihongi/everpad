@@ -326,6 +326,7 @@ node tools/import-etherpad.js <dump file> <output folder>
 - Headings become `#`, bullets and indents `-`, numbered lists `1.`, bold, italic and strikethrough `**` `*` `~~`, and tables (ep_tables2) Markdown tables. Underline, colors, authors, chat and saved revisions (bookmarks) are not imported.
 - The sample text that Etherpad puts in new pads ("Welcome to Etherpad!") is not imported.
 - The pad name is added as plain text on the first line of each note, so it becomes the note's title (EverPad uses the first line as the title). Use `--no-title-line` to not add it, or `--as-is=<pad name>` to skip it for a specific pad. A table of pad names and note IDs is written to `etherpad-import-map.csv`.
+- Use `--read-only` to import every note as read-only (see "Read-only notes"), or `--read-only=<pad name>` to make only that pad read-only (repeat it for several pads). The last column of `etherpad-import-map.csv` shows which notes are read-only. A pad name given with `--read-only=` that is not among the converted pads is reported, so you notice typos. An unknown option stops the script with the usage message.
 
 ### Building it yourself
 
@@ -788,6 +789,7 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 - 見出しは `#`、箇条書き・インデントは `-`、番号付きは `1.`、太字・斜体・取り消し線は `**` `*` `~~`、表(ep_tables2)は Markdown の表にします。下線・色、作者、チャット、保存した版(しおり)は取り込みません。
 - 新規パッドに自動で入る見本の文章(Welcome to Etherpad!)は取り込みません。
 - 各メモの1行目に、パッド名を普通の文字として足します。EverPad では最初の行が題名になるので、パッド名が題名になります。足したくないときは `--no-title-line`、特定のパッドだけ足したくないときは `--as-is=パッド名` を付けます。パッド名とメモの ID の対応表は `etherpad-import-map.csv` に出力します。
+- `--read-only` を付けると、すべてのメモを読み取り専用で取り込みます(「読み取り専用のメモ」を参照)。`--read-only=パッド名` は、そのパッドだけを読み取り専用にします(複数のパッドは、繰り返して指定します)。どのメモが読み取り専用かは、`etherpad-import-map.csv` の最後の列に出ます。`--read-only=` で指定したパッド名が、変換したパッドの中に無いときは、綴りの間違いに気づけるようにメッセージを出します。知らないオプションを付けたときは、使い方を出して止まります。
 
 ### 自分でビルドする
 

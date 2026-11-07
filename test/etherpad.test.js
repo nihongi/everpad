@@ -50,3 +50,37 @@ test('MySQLダンプの読み取り(エスケープ・引用符・複数行)', (
   const sql = "INSERT INTO `store` VALUES ('a:1','x\\ny\\'z'),('b','it''s \\\\ ok');\nINSERT INTO `store` VALUES ('c','3');";
   assert.deepEqual([...parseDump(sql)], [['a:1', "x\ny'z"], ['b', "it's \\ ok"], ['c', '3']]);
 });
+
+test('--read-only: すべて、または指定したパッドだけを読み取り専用で取り込む', () => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const { importDump } = require('../tools/import-etherpad');
+  const { Store } = require('../store');
+  const sqlStr = v => "'" + JSON.stringify(v).replace(/\\/g, '\\\\') + "'";   // ダンプでは \ を \\ にする
+  const padRow = (name, text, ts) => "('pad:" + name + "'," + sqlStr({ head: 0, pool: { numToAttrib: {} }, atext: { text: text + '\n' } }) + '),'
+    + "('pad:" + name + ":revs:0'," + sqlStr({ changeset: 'Z:1>' + text.length.toString(36) + '+' + text.length.toString(36) + '$' + text, meta: { timestamp: ts } }) + ')';
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'everpad-ep-'));
+  const dump = path.join(dir, 'dump.sql');
+  fs.writeFileSync(dump, 'INSERT INTO `store` VALUES ' + padRow('alpha', 'aaa', 1700000000000) + ',' + padRow('beta', 'bbb', 1700000001000) + ';\n');
+  const heads = out => fs.readdirSync(out).filter(f => f.endsWith('.jsonl')).map(f => JSON.parse(fs.readFileSync(path.join(out, f), 'utf8').split('\n')[0]));
+  // 付けないとき: ro は入らない
+  const o0 = path.join(dir, 'o0');
+  assert.equal(importDump(dump, o0).readOnly, 0);
+  assert.ok(heads(o0).every(h => !('ro' in h)));
+  // すべて
+  const o1 = path.join(dir, 'o1');
+  const r1 = importDump(dump, o1, null, { readOnly: true });
+  assert.equal(r1.converted, 2);
+  assert.equal(r1.readOnly, 2);
+  assert.ok(heads(o1).every(h => h.ro === true));
+  const s = new Store(o1); s.init();
+  assert.ok(s.listMeta().every(m => m.ro === true));
+  assert.match(fs.readFileSync(path.join(o1, 'etherpad-import-map.csv'), 'utf8'), /,読み取り専用\n.*,はい\n.*,はい\n$/);
+  // 指定したパッドだけ。無い名前は問題として知らせる
+  const o2 = path.join(dir, 'o2');
+  const r2 = importDump(dump, o2, null, { readOnly: ['beta', 'gamma'] });
+  assert.equal(r2.readOnly, 1);
+  const byName = Object.fromEntries(r2.report.map(x => [x.name, heads(o2).find(h => h.id === x.id)]));
+  assert.equal(byName.alpha.ro, undefined);
+  assert.equal(byName.beta.ro, true);
+  assert.deepEqual(r2.problems, ['gamma: --read-only で指定したパッドが、変換したパッドの中にありません']);
+});

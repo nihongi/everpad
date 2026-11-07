@@ -4,6 +4,7 @@
    使い方:  node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
    - パッドごとに <ID>.jsonl(全履歴)と <ID>.md(最新の本文)を作る。出力フォルダを EverPad の保存先に置けば読める。
    - 各メモの1行目に、パッド名を普通の文字で足す(--no-title-line で足さない。--as-is=パッド名 で、そのパッドだけ足さない)。
+   - --read-only で、すべてのメモを読み取り専用にする(ヘッダーに ro: true)。--read-only=パッド名 で、そのパッドだけ読み取り専用にする(何度でも書ける)。
    - Etherpad の「変更」を1版ずつ再生して本文を作り直す。装飾はMarkdownにする:
        見出し→# 、箇条書き→- 、番号付き→1. 、太字→**、斜体→*、取り消し線→~~、表(ep_tables2のJSON行)→Markdownの表
    - 下線・色などMarkdownで表せないもの、作者、チャット、保存した版(しおり)は取り込まない。 */
@@ -235,6 +236,9 @@ function importDump(dumpPath, outDir, log, opts) {
   log = log || (() => {});
   opts = opts || {};
   const asIs = new Set(opts.asIs || []);               // パッド名を足さずに前回のまま変換するパッド
+  // 読み取り専用にするパッド: readOnly が true ならすべて、パッド名の配列ならそのパッドだけ
+  const roSet = new Set(Array.isArray(opts.readOnly) ? opts.readOnly : []);
+  const isRo = name => opts.readOnly === true || roSet.has(name);
   const sql = fs.readFileSync(dumpPath, 'utf8');
   const pads = new Map(), revs = new Map();
   for (const [key, value] of parseDump(sql)) {
@@ -265,21 +269,23 @@ function importDump(dumpPath, outDir, log, opts) {
     let id = jstStamp(created) + '-' + suffix(name);
     while (used.has(id)) id += 'x';
     used.add(id);
-    const lines = [JSON.stringify({ v: 1, id, c: created })];
+    const lines = [JSON.stringify(isRo(name) ? { v: 1, id, c: created, ro: true } : { v: 1, id, c: created })];
     for (const o of res.ops) lines.push(JSON.stringify([o.p, o.d, o.i, o.t]));
     const jf = path.join(outDir, id + '.jsonl'), mf = path.join(outDir, id + '.md');
     fs.writeFileSync(jf, lines.join('\n') + '\n');
     fs.writeFileSync(mf, res.text);
     const last = res.ops.length ? res.ops[res.ops.length - 1].t : created;
     fs.utimesSync(jf, new Date(last), new Date(last)); fs.utimesSync(mf, new Date(last), new Date(last));
-    report.push({ name, id, versions: res.ops.length, etherpadRevisions: pad.head + 1, created, last });
+    report.push({ name, id, versions: res.ops.length, etherpadRevisions: pad.head + 1, created, last, readOnly: isRo(name) });
     n++;
     if (n % 50 === 0) log(n + ' 件変換しました');
   }
-  const csv = ['EverPadのID,Etherpadのパッド名,EverPadの版数,Etherpadの版数,作成,最終更新'].concat(
-    report.filter(r => r.id).map(r => [r.id, '"' + r.name.replace(/"/g, '""') + '"', r.versions, r.etherpadRevisions, new Date(r.created).toISOString(), new Date(r.last).toISOString()].join(','))).join('\n');
+  const csv = ['EverPadのID,Etherpadのパッド名,EverPadの版数,Etherpadの版数,作成,最終更新,読み取り専用'].concat(
+    report.filter(r => r.id).map(r => [r.id, '"' + r.name.replace(/"/g, '""') + '"', r.versions, r.etherpadRevisions, new Date(r.created).toISOString(), new Date(r.last).toISOString(), r.readOnly ? 'はい' : ''].join(','))).join('\n');
   fs.writeFileSync(path.join(outDir, 'etherpad-import-map.csv'), '﻿' + csv + '\n');
-  return { converted: n, skippedEmpty: report.filter(r => r.skipped).length, problems, report };
+  // 指定した名前のパッドが無いときは知らせる(綴りの間違いに気づけるように)
+  for (const name of roSet) if (!report.some(r => r.name === name && r.id)) problems.push(name + ': --read-only で指定したパッドが、変換したパッドの中にありません');
+  return { converted: n, readOnly: report.filter(r => r.readOnly).length, skippedEmpty: report.filter(r => r.skipped).length, problems, report };
 }
 
 module.exports = { parseDump, applyChangeset, emptyDoc, render, convertPad, importDump };
@@ -287,11 +293,14 @@ module.exports = { parseDump, applyChangeset, emptyDoc, render, convertPad, impo
 if (require.main === module) {
   const args = process.argv.slice(2);
   const asIs = args.filter(a => a.startsWith('--as-is=')).map(a => a.slice(8));
+  const roNames = args.filter(a => a.startsWith('--read-only=')).map(a => a.slice(12));
   const rest = args.filter(a => !a.startsWith('--'));
   const noTitle = args.includes('--no-title-line');
+  const readOnly = args.includes('--read-only') ? true : roNames;
+  const known = a => !a.startsWith('--') || a === '--no-title-line' || a === '--read-only' || a.startsWith('--as-is=') || a.startsWith('--read-only=');
   const [dump, out] = rest;
-  if (!dump || !out) { console.error('使い方: node tools/import-etherpad.js <ダンプファイル> <出力フォルダ> [--no-title-line] [--as-is=パッド名 ...]'); process.exit(1); }
-  const r = importDump(dump, out, console.log, { titleLine: !noTitle, asIs });
-  console.log('変換: ' + r.converted + '件 / 空のため除外: ' + r.skippedEmpty + '件 / 問題: ' + r.problems.length + '件');
+  if (!dump || !out || !args.every(known)) { console.error('使い方: node tools/import-etherpad.js <ダンプファイル> <出力フォルダ> [--no-title-line] [--as-is=パッド名 ...] [--read-only | --read-only=パッド名 ...]'); process.exit(1); }
+  const r = importDump(dump, out, console.log, { titleLine: !noTitle, asIs, readOnly });
+  console.log('変換: ' + r.converted + '件(うち読み取り専用: ' + r.readOnly + '件) / 空のため除外: ' + r.skippedEmpty + '件 / 問題: ' + r.problems.length + '件');
   r.problems.forEach(p => console.log('  ' + p));
 }
