@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.31.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.32.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -56,10 +56,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・「編集」→「検索と置換…」(Ctrl+H)が、プレビューでも検索だけのバーとして使えるようになりました。整形したあとの見えている文字を探し、一致した箇所すべてに色が付きます。読み取り専用のメモでも、検索だけのバーが使えます。  
-・履歴の表示でも検索できるようになりました。タイムスライダーの下に、検索語がある版の範囲が色の帯で出るので、その文をいつ書いて、いつ消したかがわかります。「前の変化」「次の変化」で、書いた版・消した版に移れます。  
-・とても長いメモを、履歴の表示やプレビューで開いたときに、画面が数秒止まらないようにしました。  
-・Electron(Chromium)、KaTeX、Mermaid を新しい版に更新しました。
+・メモを LaTeX(.tex)に書き出せるようになりました。「ファイル」→「エクスポート」→「LaTeX…」か、メモ一覧の右クリックの「エクスポート」から使えます。数式と化学式は書いた LaTeX のまま入るので、論文やレポートの原稿として続きを書けます。見出し、リスト、表、コード、脚注、アラート、リンクを変換し、添付の画像と図はファイルの隣のフォルダに置きます。LuaLaTeX でコンパイルしてください(Overleaf では、コンパイラーに LuaLaTeX を選んでください)。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -150,10 +147,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Edit → Find and Replace… (Ctrl+H) now also works in the Preview view, as a find-only bar. It searches the formatted text as you see it and highlights every match. It also works, as find only, for read-only notes.  
-• You can now search in the history. Colored bands under the time slider show the versions that contain the text, so you can see when it was written and when it was deleted. Previous change / Next change jump to those versions.  
-• Very long notes no longer freeze the window for several seconds in the history or the Preview view.  
-• Updated Electron (Chromium), KaTeX and Mermaid.
+• Notes can now be exported to LaTeX (.tex): choose File → Export → LaTeX…, or Export when you right-click a note in the note list. Formulas and chemical formulas keep the LaTeX you wrote, so you can continue a note as a paper or a report. Headings, lists, tables, code, footnotes, alerts and links are converted, and attached images and diagrams are put in a folder next to the file. Compile it with LuaLaTeX (on Overleaf, choose LuaLaTeX as the compiler).
 
 ### Product features (up to 20, up to 200 characters each)
 
