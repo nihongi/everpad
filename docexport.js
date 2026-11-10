@@ -1,13 +1,14 @@
 'use strict';
-/* 文書の形式で書き出す: AsciiDoc(.adoc)と Word(.docx)。
+/* 文書の形式で書き出す: AsciiDoc(.adoc)、Word(.docx)、LaTeX(.tex)。
    本文は画面側(renderer)で整形した HTML を受け取る(HTML・MHTML の書き出しと同じもの。ただし数式は中身を空にして、
    data-tex に LaTeX、data-mml に KaTeX の MathML を持たせ、画像は data-att にファイル ID、data-w・data-h に大きさを持たせる。
-   Mermaid の図は中身を空にして、data-src に元の文、Word のときは data-png に図の PNG(base64)と data-w・data-h を持たせる)。
+   Mermaid の図は中身を空にして、data-src に元の文、Word と LaTeX のときは data-png に図の PNG(base64)と data-w・data-h を持たせる)。
    それを見出し・段落・リストなどの構造(ブロックと文中の要素の木)にしてから、それぞれの形式に書く。
    - AsciiDoc: テキストなので、画像はファイルの外(同じ場所のフォルダー)に置いて参照する。数式は latexmath で LaTeX のまま入れる。
      図は [mermaid] のブロックで元の文のまま入れる(Asciidoctor Diagram があれば図になる)
    - Word: ZIP に XML をまとめる(ziplite.js)。数式は MathML を Word の数式(OMML)に変換し、Word で編集できるようにする。
      図は PNG の画像にする(PNG が無いときは元の文をコードとして入れる)
+   - LaTeX: LuaLaTeX でコンパイルする .tex。数式は LaTeX のまま入れる。画像と図の PNG は、同じ場所のフォルダーに置いて参照する
    Electron なしでテストできるよう、ファイルの読み書きはしない(main.js が行う)。 */
 const { writeZip } = require('./ziplite');
 
@@ -364,6 +365,324 @@ function toAsciiDoc(blocks, o) {
   }
   const text = adocBlocks(body, ctx);
   return head.join('\n') + '\n' + (text ? '\n' + text + '\n' : '');
+}
+
+/* ---------- LaTeX ----------
+   LuaLaTeX でコンパイルする .tex にする(日本語を含むときは ltjsarticle、含まないときは article)。
+   数式は LaTeX のまま入れる。KaTeX にだけある書き方(\R など)は、使っているものだけ前置きで定義する。
+   画像と図(PNG)は、同じ場所のフォルダーに置いて \graphicspath で参照する(ファイルは main.js が書く)。
+   前置きには、使っている機能のパッケージだけを入れる。 */
+const TEX_ESC = { '\\': '\\textbackslash{}', '{': '\\{', '}': '\\}', '$': '\\$', '&': '\\&', '%': '\\%', '#': '\\#', '_': '\\_', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}', '`': '\\textasciigrave{}', '\u00a0': '~' };
+const TEX_CTRL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\uFFFE\uFFFF]/g;
+/* 本文の文字。-- や '' などが合字(– や ”)にならないよう、同じ文字の間に \kern0pt を入れる */
+const texEsc = v => String(v).replace(TEX_CTRL, '').replace(/[\\{}$&%#_~^`\u00a0]/g, c => TEX_ESC[c]).replace(/([-'<>,])(?=\1)/g, '$1\\kern0pt ');
+/* コードの文字。引用符は曲げず、2つ以上続く空白はそのまま残す */
+const texCode = v => texEsc(String(v).replace(/\r?\n/g, ' ')).replace(/'/g, '\\textquotesingle{}').replace(/"/g, '\\textquotedbl{}').replace(/ {2,}/g, m => '\\ '.repeat(m.length));
+/* URL(\href・\url の中)。# と % はエスケープし、中で困る文字は %XX にする(脚注などの引数の中でも使えるように) */
+const texUrl = u => String(u).replace(/[\\{}~^|"<>\s`]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')).replace(/[#%]/g, '\\$&');
+/* KaTeX にだけある命令 → LaTeX での定義(引数の数、中身)。数式で使っているものだけを前置きに書く */
+const TEX_MACROS = {
+  N: [0, '\\mathbb{N}'], R: [0, '\\mathbb{R}'], Z: [0, '\\mathbb{Z}'], natnums: [0, '\\mathbb{N}'], reals: [0, '\\mathbb{R}'], Reals: [0, '\\mathbb{R}'],
+  cnums: [0, '\\mathbb{C}'], Complex: [0, '\\mathbb{C}'], alef: [0, '\\aleph'], alefsym: [0, '\\aleph'], bull: [0, '\\bullet'], clubs: [0, '\\clubsuit'],
+  diamonds: [0, '\\diamondsuit'], hearts: [0, '\\heartsuit'], spades: [0, '\\spadesuit'], Dagger: [0, '\\ddagger'], exist: [0, '\\exists'], image: [0, '\\Im'],
+  real: [0, '\\Re'], infin: [0, '\\infty'], isin: [0, '\\in'], plusmn: [0, '\\pm'], sdot: [0, '\\cdot'], sect: [0, '\\S'], weierp: [0, '\\wp'], thetasym: [0, '\\vartheta'],
+  sub: [0, '\\subset'], sube: [0, '\\subseteq'], supe: [0, '\\supseteq'], lang: [0, '\\langle'], rang: [0, '\\rangle'],
+  harr: [0, '\\leftrightarrow'], hArr: [0, '\\Leftrightarrow'], Harr: [0, '\\Leftrightarrow'], lrarr: [0, '\\leftrightarrow'], lrArr: [0, '\\Leftrightarrow'], Lrarr: [0, '\\Leftrightarrow'],
+  larr: [0, '\\leftarrow'], lArr: [0, '\\Leftarrow'], Larr: [0, '\\Leftarrow'], rarr: [0, '\\rightarrow'], rArr: [0, '\\Rightarrow'], Rarr: [0, '\\Rightarrow'],
+  uarr: [0, '\\uparrow'], uArr: [0, '\\Uparrow'], Uarr: [0, '\\Uparrow'], darr: [0, '\\downarrow'], dArr: [0, '\\Downarrow'], Darr: [0, '\\Downarrow'],
+  Alpha: [0, '\\mathrm{A}'], Beta: [0, '\\mathrm{B}'], Epsilon: [0, '\\mathrm{E}'], Zeta: [0, '\\mathrm{Z}'], Eta: [0, '\\mathrm{H}'], Iota: [0, '\\mathrm{I}'],
+  Kappa: [0, '\\mathrm{K}'], Mu: [0, '\\mathrm{M}'], Nu: [0, '\\mathrm{N}'], Omicron: [0, '\\mathrm{O}'], Rho: [0, '\\mathrm{P}'], Tau: [0, '\\mathrm{T}'], Chi: [0, '\\mathrm{X}'],
+  omicron: [0, 'o'], notni: [0, '\\not\\ni'], gt: [0, '>'], lt: [0, '<'], lparen: [0, '('], rparen: [0, ')'],
+  argmin: [0, '\\operatorname*{arg\\,min}'], argmax: [0, '\\operatorname*{arg\\,max}'], plim: [0, '\\operatorname*{plim}'],
+  bold: [1, '\\mathbf{#1}'], Bbb: [1, '\\mathbb{#1}'],
+  blue: [1, '\\textcolor[HTML]{6495ED}{#1}'], orange: [1, '\\textcolor[HTML]{FFA500}{#1}'], pink: [1, '\\textcolor[HTML]{FF00AF}{#1}'], red: [1, '\\textcolor[HTML]{DF0030}{#1}'],
+  green: [1, '\\textcolor[HTML]{28AE7B}{#1}'], gray: [1, '\\textcolor{gray}{#1}'], purple: [1, '\\textcolor[HTML]{9D38BD}{#1}']
+};
+/* 数式で使っていれば読み込むパッケージ */
+const TEX_MATH_PKGS = [
+  ['[version=4]{mhchem}', /\\(?:ce|pu)(?![A-Za-z])/], ['{cancel}', /\\(?:b|x)?cancel(?:to)?(?![A-Za-z])/], ['{bm}', /\\bm(?![A-Za-z])/],
+  ['{mathrsfs}', /\\mathscr(?![A-Za-z])/], ['{braket}', /\\(?:bra|ket|braket|Bra|Ket|Braket|set|Set)(?![A-Za-z])/],
+  ['{stmaryrd}', /\\(?:llbracket|rrbracket|mapsfrom)(?![A-Za-z])/], ['{amscd}', /\\begin\{CD\}/]
+];
+const TEX_ALERT_COLORS = { note: '0969DA', tip: '1A7F37', important: '8250DF', warning: '9A6700', caution: 'CF222E' };
+const TEX_HEADS = ['section', 'subsection', 'subsubsection', 'paragraph', 'subparagraph'];
+const TEX_DISPLAY_ENV = /^\s*\\begin\{(equation|align|alignat|gather|multline|flalign)(\*?)\}[\s\S]*\\end\{\1\2\}\s*$/;
+const CJK = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+/* 数式に直接書いたギリシャ文字や記号(KaTeX では使える)→ LaTeX の命令。LaTeX の数式のフォントには無いので */
+const TEX_UNI = (() => {
+  const m = {};
+  // α〜ω(U+03B1〜)。φ・ε は LaTeX では \varphi・\varepsilon の形
+  'alpha beta gamma delta varepsilon zeta eta theta iota kappa lambda mu nu xi o pi rho varsigma sigma tau upsilon varphi chi psi omega'.split(' ')
+    .forEach((n, k) => { m[String.fromCharCode(0x3b1 + k)] = n === 'o' ? 'o' : '\\' + n; });
+  // Α〜Ω(U+0391〜)。ラテン文字と同じ形のものは \mathrm{…}
+  'A B Gamma Delta E Z H Theta I K Lambda M N Xi O Pi P - Sigma T Upsilon Phi X Psi Omega'.split(' ')
+    .forEach((n, k) => { if (n !== '-') m[String.fromCharCode(0x391 + k)] = n.length > 1 ? '\\' + n : '\\mathrm{' + n + '}'; });
+  Object.assign(m, {
+    'ϑ': '\\vartheta', 'ϕ': '\\phi', 'ϵ': '\\epsilon', 'ϖ': '\\varpi', 'ϱ': '\\varrho',
+    '≤': '\\leq', '≥': '\\geq', '≦': '\\leqq', '≧': '\\geqq', '≠': '\\neq', '±': '\\pm', '∓': '\\mp', '×': '\\times', '÷': '\\div', '·': '\\cdot', '⋅': '\\cdot', '∘': '\\circ',
+    '∞': '\\infty', '→': '\\to', '←': '\\leftarrow', '↔': '\\leftrightarrow', '⇒': '\\Rightarrow', '⇐': '\\Leftarrow', '⇔': '\\Leftrightarrow', '↦': '\\mapsto',
+    '∈': '\\in', '∉': '\\notin', '∋': '\\ni', '⊂': '\\subset', '⊃': '\\supset', '⊆': '\\subseteq', '⊇': '\\supseteq', '∪': '\\cup', '∩': '\\cap', '∅': '\\emptyset',
+    '∑': '\\sum', '∏': '\\prod', '∫': '\\int', '∮': '\\oint', '∂': '\\partial', '∇': '\\nabla', '√': '\\surd', '∀': '\\forall', '∃': '\\exists', '¬': '\\neg', '∧': '\\wedge', '∨': '\\vee',
+    '≈': '\\approx', '≡': '\\equiv', '∼': '\\sim', '≃': '\\simeq', '≅': '\\cong', '∝': '\\propto', '⊥': '\\perp', '∥': '\\parallel', '∠': '\\angle', '⊕': '\\oplus', '⊗': '\\otimes',
+    '…': '\\ldots', '⋯': '\\cdots', '′': "'", '″': "''", '−': '-', '∗': '\\ast', 'ℓ': '\\ell', 'ℏ': '\\hbar', '°': '^{\\circ}',
+    'ℝ': '\\mathbb{R}', 'ℕ': '\\mathbb{N}', 'ℤ': '\\mathbb{Z}', 'ℚ': '\\mathbb{Q}', 'ℂ': '\\mathbb{C}'
+  });
+  return m;
+})();
+/* 文字の部分(\text{…} など)と化学式(\ce{…})の中はそのままにして、それ以外の TEX_UNI の文字を命令にする */
+function texMathUni(t) {
+  let out = '', keep = 0, i = 0;
+  const stack = [];
+  while (i < t.length) {
+    const ch = t[i];
+    if (ch === '\\') {
+      const m = /^\\([A-Za-z]+|.)/.exec(t.slice(i)) || ['\\'];
+      out += m[0]; i += m[0].length;
+      if (/^\\(?:text(?:rm|bf|it|sf|tt|normal|up)?|mbox|hbox|ce|pu)$/.test(m[0]) && t[i] === '{') { stack.push(true); keep++; out += '{'; i++; }
+      continue;
+    }
+    if (ch === '{') stack.push(false);
+    else if (ch === '}' && stack.length && stack.pop()) keep--;
+    const cmd = keep ? null : TEX_UNI[ch];
+    out += cmd == null ? ch : /^\\[A-Za-z]+$/.test(cmd) && /[A-Za-z]/.test(t[i + 1] || '') ? cmd + ' ' : cmd;
+    i++;
+  }
+  return out;
+}
+/* 数式の中身。KaTeX の \empty は ∅ だが、LaTeX の \empty は「空」なので \emptyset にする。数式の中の空行は取る(LaTeX では誤りになる) */
+function texMath(tex, X) {
+  let t = texMathUni(String(tex).replace(TEX_CTRL, '').replace(/\\empty(?![A-Za-z])/g, '\\emptyset').replace(/\n[ \t]*(?=\n)/g, '').replace(/\n{2,}/g, '\n'));
+  X.math.push(t);
+  // % で始まるコメントがあれば、閉じる記号がコメントにならないよう改行する
+  if (/(^|[^\\])(\\\\)*%/.test(t)) t += '\n';
+  return t;
+}
+function texInlineMath(x, ctx, X) {
+  if (x.error) return '\\texttt{' + texCode('$' + x.tex + '$') + '}';
+  const m = '\\(' + (x.display ? '\\displaystyle ' : '') + texMath(x.tex, X) + '\\)';
+  return ctx.heading ? '\\texorpdfstring{' + m + '}{' + texEsc(x.tex) + '}' : m;
+}
+function texImage(file, w, X) {
+  const name = X.images[file];
+  if (!name) return null;
+  X.img = true;
+  return '\\EPimage{' + (w > 0 ? Math.round(w * 0.75) + 'bp' : '\\linewidth') + '}{' + name + '}';
+}
+function texInline(nodes, ctx, X) {
+  let s = '';
+  for (const x of nodes) {
+    if (x.t === 'text') s += texEsc(x.v);
+    else if (x.t === 'br') s += ctx.oneLine ? ' ' : '\\newline\n';
+    else if (x.t === 'b' || x.t === 'i' || x.t === 's') {
+      const v = texInline(x.c, ctx, X);
+      if (!v) continue;
+      if (x.t === 's') X.strike = true;
+      s += (x.t === 'b' ? '\\textbf{' : x.t === 'i' ? '\\textit{' : '\\strikeThrough{') + v + '}';
+    } else if (x.t === 'code') { if (x.v) s += '\\texttt{' + texCode(x.v) + '}'; }
+    else if (x.t === 'a') {
+      const inner = texInline(x.c, Object.assign({}, ctx, { oneLine: true }), X);
+      // URL をそのまま見せるリンクは \url(長くても折り返せる)。ただし %XX にした文字があると、それが見えてしまうので \href
+      const plain = !inner || (x.c.length === 1 && x.c[0].t === 'text' && x.c[0].v === x.href);
+      const url = texUrl(x.href);
+      s += plain && !/[\\{}~^|"<>\s`]/.test(x.href) ? '\\url{' + url + '}' : '\\href{' + url + '}{' + (plain ? texEsc(x.href) : inner) + '}';
+    } else if (x.t === 'img') s += texImage(x.file, x.w, X) || texEsc('[' + (x.alt || x.file) + ']');
+    else if (x.t === 'math') s += texInlineMath(x, ctx, X);
+    else if (x.t === 'fn') s += texFootnote(x.n, ctx, X);
+    else if (x.t === 'check') { X.symbols = true; s += x.on ? '\\(\\boxtimes\\)' : '\\(\\square\\)'; }
+  }
+  return s;
+}
+/* 脚注: 本文での最初の参照の場所に \footnote{注の文} を書き、2回目からは \footref(番号は LaTeX が付ける)。
+   題名の中の参照は \thanks。注の中の参照は、その注が本文でも参照されていれば \footref、そうでなければ注の文を ( ) で入れる */
+function texFootnote(n, ctx, X) {
+  const f = X.notes.get(n);
+  if (!f) return '';
+  const sub = { inArg: true, inNote: true, nested: true, shift: ctx.shift, depth: ctx.depth };
+  const text = () => { f.open = true; const v = texBlocks(f.c, sub, X); f.open = false; return v; };
+  if (ctx.title) return f.open ? '' : '\\thanks{' + text() + '}';
+  if (ctx.inNote) return f.main ? '\\footref{EPfn' + n + '}' : f.open ? '' : ' (' + text() + ')';
+  if (f.used++) return '\\footref{EPfn' + n + '}';
+  return '\\footnote{' + (f.main + f.nested > 1 ? '\\label{EPfn' + n + '}' : '') + text() + '}';
+}
+/* 引数の中(脚注・表のセル)では verbatim が使えないので、コードは1行ずつ \texttt にする(空白はすべて残す) */
+const texArgCode = text => '\\noindent' + text.replace(/\n$/, '').split('\n').map(l => '\\texttt{' + texCode(l.replace(/ /g, '')).replace(//g, '\\ ') + '}').join('\\newline\n');
+function texCodeBlock(text, ctx, X) {
+  text = String(text).replace(TEX_CTRL, '').replace(/\n$/, '');
+  if (ctx.inArg || /\\end\{EPcode\}/.test(text)) return texArgCode(text);
+  X.code = true;
+  return '\\begin{EPcode}\n' + text + '\n\\end{EPcode}';
+}
+function texBlocks(blocks, ctx, X) {
+  return blocks.map(b => texBlock(b, ctx, X)).filter(s => s !== '').join('\n\n');
+}
+function texBlock(b, ctx, X) {
+  if (b.t === 'p') {
+    const only = b.c.filter(x => !(x.t === 'text' && !x.v.trim()));
+    if (only.length === 1 && only[0].t === 'img' && !ctx.inItem) {
+      const im = texImage(only[0].file, only[0].w, X);
+      if (im) return ctx.inArg ? im : '\\begin{center}\n' + im + '\n\\end{center}';
+    }
+    return texInline(b.c, ctx, X);
+  }
+  if (b.t === 'h') {
+    const hctx = Object.assign({}, ctx, { oneLine: true, heading: true });
+    const text = texInline(b.c, hctx, X);
+    if (ctx.inArg) return text ? '\\textbf{' + text + '}' : '';
+    const cmd = TEX_HEADS[Math.min(TEX_HEADS.length, Math.max(1, b.level + ctx.shift - 1)) - 1];
+    // 脚注のある見出しは、目次としおり用に脚注を除いた見出しを [ ] に書く
+    const short = b.c.some(x => x.t === 'fn') ? '[{' + texInline(b.c.filter(x => x.t !== 'fn'), hctx, X) + '}]' : '';
+    return '\\' + cmd + short + '{' + text + '}';
+  }
+  if (b.t === 'pre') return texCodeBlock(b.text, ctx, X);
+  if (b.t === 'math') {
+    if (b.error) return texCodeBlock('$$\n' + b.tex + '\n$$', ctx, X);
+    const t = texMath(b.tex, X);
+    return TEX_DISPLAY_ENV.test(t) ? t.trim() : '\\[\n' + t.trim() + '\n\\]';
+  }
+  if (b.t === 'diagram') {
+    const im = b.texFile && texImage(b.texFile, b.w, X);
+    if (im) return ctx.inArg ? im : '\\begin{center}\n' + im + '\n\\end{center}';
+    return texCodeBlock(b.src, ctx, X);
+  }
+  if (b.t === 'hr') return '\\noindent\\rule{\\linewidth}{0.4pt}';
+  if (b.t === 'quote') { const v = texBlocks(b.c, Object.assign({}, ctx, { inItem: false, nested: true }), X); return v ? '\\begin{quote}\n' + v + '\n\\end{quote}' : ''; }
+  if (b.t === 'alert') {
+    X.alerts.add(b.kind);
+    const title = texInline(b.title, Object.assign({}, ctx, { oneLine: true }), X);
+    return '\\begin{EPalert}{EP' + b.kind + '}{' + title + '}\n' + (texBlocks(b.c, Object.assign({}, ctx, { inItem: false, nested: true }), X) || '\\mbox{}') + '\n\\end{EPalert}';
+  }
+  if (b.t === 'list') return texList(b, ctx, X);
+  if (b.t === 'table') return texTable(b, ctx, X);
+  return '';
+}
+function texList(b, ctx, X) {
+  const depth = (ctx.depth || 0) + 1;
+  X.depth = Math.max(X.depth, depth);
+  const sub = Object.assign({}, ctx, { depth: depth, inItem: true, nested: true });
+  const env = b.ordered ? 'enumerate' : 'itemize';
+  let opt = '';
+  if (b.ordered && b.start !== 1) { X.enumitem = true; opt = '[start=' + b.start + ']'; }
+  const items = b.items.map(it => {
+    let body = texBlocks(it.c, sub, X);
+    if (it.check != null) X.symbols = true;
+    const mark = it.check === true ? '[\\(\\boxtimes\\)]' : it.check === false ? '[\\(\\square\\)]' : '';
+    // \item の後ろが [ で始まると、印の指定として読まれるので {} を挟む
+    if (!mark && body[0] === '[') body = '{}' + body;
+    return '\\item' + mark + (body ? ' ' + body : '');
+  });
+  if (!items.length) return '';
+  return '\\begin{' + env + '}' + opt + '\n' + items.join('\n') + '\n\\end{' + env + '}';
+}
+/* 文字の幅のおおよそ(全角は2) */
+const texWidth = s => { let n = 0; for (const ch of s) n += CJK.test(ch) ? 2 : 1; return n; };
+const inlineText = c => c.map(x => (x.t === 'text' ? x.v : x.t === 'code' ? x.v : x.t === 'math' ? x.tex : x.c ? inlineText(x.c) : x.t === 'img' ? 'xxxxxxxxxx' : x.t === 'br' ? '\n' : '')).join('');
+/* 表: 文が長い列や、セルの中に改行がある表は、幅を決めた列(p)にして折り返す。
+   本文の表は longtable(ページをまたげる)、リスト・引用などの中の表は tabular */
+function texTable(b, ctx, X) {
+  const n = b.align.length;
+  if (!n) return '';
+  X.table = true;
+  const all = [b.head].concat(b.rows);
+  const longest = all.reduce((m, r) => m.map((w, j) => Math.max(w, ...inlineText(r[j] || []).split('\n').map(texWidth))), b.align.map(() => 0));
+  const wrap = all.some(r => r.some(c => c.some(x => x.t === 'br'))) || longest.reduce((a, w) => a + w + 3, 0) > 80;
+  const total = longest.reduce((a, w) => a + Math.max(4, w), 0);
+  const spec = b.align.map((a, j) => {
+    if (!wrap) return a === 'c' ? 'c' : a === 'r' ? 'r' : 'l';
+    const share = (Math.max(4, longest[j]) / total).toFixed(3);
+    return '>{' + (a === 'c' ? '\\centering' : a === 'r' ? '\\raggedleft' : '\\raggedright') + '\\arraybackslash}p{\\dimexpr' + share + '\\linewidth-2\\tabcolsep\\relax}';
+  }).join('');
+  const cctx = Object.assign({}, ctx, { inArg: true, inItem: true, oneLine: !wrap });
+  const row = (r, head) => r.map(c => { const v = texInline(c, cctx, X); return head && v ? '\\textbf{' + v + '}' : v; }).join(' & ') + ' \\tabularnewline';
+  const long = !ctx.nested;
+  const env = long ? 'longtable' : 'tabular';
+  const lines = ['\\begin{' + env + '}{' + spec + '}', '\\toprule', row(b.head, true), '\\midrule'];
+  if (long) lines.push('\\endhead');
+  for (const r of b.rows) lines.push(row(r, false));
+  lines.push('\\bottomrule', '\\end{' + env + '}');
+  return long ? lines.join('\n') : '\\begin{center}\n' + lines.join('\n') + '\n\\end{center}';
+}
+/* 図に、書き出す PNG のファイル名を付ける(図の順に everpad-diagram-1.png …)。名前と PNG の一覧を返す(main.js が書く) */
+function texDiagrams(blocks) {
+  const out = [];
+  const visit = x => {
+    if (Array.isArray(x)) { x.forEach(visit); return; }
+    if (!x || typeof x !== 'object') return;
+    if (x.t === 'diagram' && x.png) { x.texFile = 'everpad-diagram-' + (out.length + 1) + '.png'; out.push({ file: x.texFile, png: x.png }); }
+    for (const k of ['c', 'items']) if (x[k]) visit(x[k]);
+  };
+  visit(blocks);
+  return out;
+}
+/* 画像のフォルダーの名前(LaTeX で困る文字は _ にする) */
+const texImagesDir = base => String(base).replace(/[^\p{L}\p{N}._-]/gu, '_') + '_images';
+/* LuaLaTeX がそのまま読める画像(これ以外は PNG にしてから置く) */
+const texImageOk = f => /\.(png|jpe?g|pdf)$/i.test(f);
+/* o: { title, imagesDir, images: { 添付のファイル名: フォルダーの中の名前 }, paper: 'A4'|'Letter', lang, generator } */
+function toLatex(blocks, o) {
+  o = o || {};
+  const diagrams = texDiagrams(blocks);
+  const images = Object.assign({}, o.images || {});
+  for (const d of diagrams) images[d.file] = d.file;
+  const X = { images: o.imagesDir ? images : {}, notes: new Map(), math: [], alerts: new Set(), depth: 0 };
+  // 大見出し(#)が先頭に1つだけなら、それを文書の題名にして、## を \section にする
+  let body = blocks.slice(), shift = 1, head = null;
+  const h1 = body.filter(b => b.t === 'h' && b.level === 1);
+  if (h1.length === 1 && body[0] === h1[0]) { head = body.shift(); shift = 0; }
+  // 脚注ごとに、本文からの参照(main)と、ほかの注からの参照(nested)を数える
+  const list = blocks.find(b => b.t === 'footnotes');
+  if (list) {
+    for (const it of list.items) X.notes.set(it.n, { c: it.c, main: 0, nested: 0, used: 0, open: false });
+    const count = key => {
+      const visit = x => {
+        if (Array.isArray(x)) { x.forEach(visit); return; }
+        if (!x || typeof x !== 'object' || x.t === 'footnotes') return;
+        if (x.t === 'fn' && X.notes.has(x.n)) X.notes.get(x.n)[key]++;
+        for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
+      };
+      return visit;
+    };
+    count('main')(body);
+    list.items.forEach(it => count('nested')(it.c));
+  }
+  const title = head ? texInline(head.c, { oneLine: true, heading: true, title: true }, X) : texEsc(String(o.title || '').replace(/[\r\n]+/g, ' '));
+  const text = texBlocks(body, { shift: shift, depth: 0 }, X);
+
+  const ja = CJK.test(JSON.stringify(blocks, (k, v) => (k === 'png' ? undefined : v)) + (o.title || ''));
+  const jaComment = o.lang === 'ja';
+  const pre = [
+    '% !TEX program = lualatex',
+    jaComment ? '% ' + (o.generator || 'EverPad') + ' で書き出しました。LuaLaTeX でコンパイルしてください(例: lualatex ファイル名.tex)。'
+      : '% Exported from ' + (o.generator || 'EverPad') + '. Compile with LuaLaTeX (for example: lualatex file.tex).',
+    '\\documentclass[' + (o.paper === 'Letter' ? 'letterpaper' : 'a4paper') + ']{' + (ja ? 'ltjsarticle' : 'article') + '}'
+  ];
+  const math = X.math.join('\n');
+  if (X.math.length) pre.push('\\usepackage{mathtools}');
+  if (X.math.length || X.symbols) pre.push('\\usepackage{amssymb}');
+  for (const [pkg, re] of TEX_MATH_PKGS) if (re.test(math)) pre.push('\\usepackage' + pkg);
+  if (X.alerts.size || /\\(?:color|textcolor|colorbox|fcolorbox|blue|orange|pink|red|green|gray|purple)(?![A-Za-z])/.test(math)) pre.push('\\usepackage{xcolor}');
+  if (X.strike) pre.push('\\usepackage{lua-ul}');
+  if (X.img) pre.push('\\usepackage{graphicx}', '\\graphicspath{{' + o.imagesDir + '/}}', '\\newlength{\\EPw}',
+    jaComment ? '% 画像: 元の大きさ(1px = 0.75bp)で、本文の幅とページの高さに収める' : '% Images: original size (1px = 0.75bp), fitted to the text width and page height',
+    '\\newcommand{\\EPimage}[2]{\\setlength{\\EPw}{#1}\\ifdim\\EPw>\\linewidth\\setlength{\\EPw}{\\linewidth}\\fi\\includegraphics[width=\\EPw,height=0.9\\textheight,keepaspectratio]{#2}}');
+  if (X.code) pre.push('\\usepackage{fvextra}', '\\DefineVerbatimEnvironment{EPcode}{Verbatim}{breaklines,breakanywhere,tabsize=4}');
+  if (X.alerts.size) {
+    pre.push('\\usepackage{tcolorbox}', '\\tcbuselibrary{skins,breakable}');
+    for (const k of ALERT_KINDS) if (X.alerts.has(k)) pre.push('\\definecolor{EP' + k + '}{HTML}{' + TEX_ALERT_COLORS[k] + '}');
+    pre.push('\\newtcolorbox{EPalert}[2]{breakable,enhanced,sharp corners,boxrule=0pt,leftrule=3pt,colframe=#1,colback=white,before upper={{\\color{#1}\\bfseries #2}\\par}}');
+  }
+  if (X.table) pre.push('\\usepackage{array,longtable,booktabs}');
+  if (X.enumitem || X.depth > 4) pre.push('\\usepackage{enumitem}');
+  if (X.depth > 4) pre.push('\\setlistdepth{9}', '\\renewlist{itemize}{itemize}{9}', '\\setlist[itemize]{label=\\textbullet}', '\\renewlist{enumerate}{enumerate}{9}', '\\setlist[enumerate]{label=\\arabic*.}');
+  const macros = Object.keys(TEX_MACROS).filter(k => new RegExp('\\\\' + k + '(?![A-Za-z])').test(math));
+  for (const k of macros) pre.push('\\providecommand{\\' + k + '}' + (TEX_MACROS[k][0] ? '[' + TEX_MACROS[k][0] + ']' : '') + '{' + TEX_MACROS[k][1] + '}');
+  pre.push('\\usepackage[colorlinks,linkcolor=black,urlcolor=blue]{hyperref}');
+  pre.push('\\setcounter{secnumdepth}{0}');
+  if (title) pre.push('\\title{' + title + '}', '\\author{}', '\\date{}');
+  const doc = ['\\begin{document}'];
+  if (title) doc.push('\\maketitle');
+  if (text) doc.push('', text, '');
+  doc.push('\\end{document}');
+  return pre.join('\n') + '\n\n' + doc.join('\n') + '\n';
 }
 
 /* ---------- MathML → Word の数式(OMML) ---------- */
@@ -896,4 +1215,4 @@ function docxImageExt(fileId) {
   return e === 'jpg' || e === 'jpeg' ? 'jpeg' : e === 'png' || e === 'gif' || e === 'bmp' ? e : null;
 }
 
-module.exports = { parseMarkup, bodyTree, treeImages, treeHasMath, toAsciiDoc, mathmlToOmml, toDocx, docxImageExt, colorHex };
+module.exports = { parseMarkup, bodyTree, treeImages, treeHasMath, toAsciiDoc, toLatex, texDiagrams, texImagesDir, texImageOk, mathmlToOmml, toDocx, docxImageExt, colorHex };

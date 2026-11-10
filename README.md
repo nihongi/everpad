@@ -21,7 +21,7 @@ This program was created with the help of Claude Code.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
 - **Find and replace**: with case sensitivity, whole-word and regular-expression options.
 - **Images and attachments**: paste screenshots or drop files into a note.
-- **Print and export**: print a note, or save it as a PDF or as one web page file (HTML or MHTML) with the images included, with the same formatting as the preview. A note can also be saved as AsciiDoc or as a Word document (`.docx`), keeping its headings, lists, tables, images and formulas.
+- **Print and export**: print a note, or save it as a PDF or as one web page file (HTML or MHTML) with the images included, with the same formatting as the preview. A note can also be saved as AsciiDoc, as a Word document (`.docx`) or as LaTeX (`.tex`), keeping its headings, lists, tables, images and formulas.
 - **Keyboard shortcuts you can change**: assign the keys you like from Edit → Keyboard Shortcuts….
 - **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
@@ -51,10 +51,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.31.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.32.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.31.0.exe
+EverPad 0.32.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -133,13 +133,13 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - File → Back to Previous Note (`Alt+←`) opens the note you viewed before the current one. Pressing it again switches back, so you can go back and forth between two notes, for example after following a link.
 - Write `[text to show](note:note ID)` to link to another note. You do not need to type the ID: choose Edit → Insert Link to Note… (`Ctrl+K`) and pick a note from the list (type to filter by title), or click Copy Link to This Note in the target note's Properties and paste it.
 - Click a link in the preview or the history's Markdown view, or `Ctrl`+click it in the editor, to open that note. Hover over it to see the target's current title. Links point to the note, not to a position in it, and are not broken when the target's title or text changes. If the target is deleted, the link is shown struck through in gray, and clicking it shows a message.
-- To find notes that link to a note, search all notes for `note:` followed by its ID (shown in Properties). In printouts, PDFs and exported text, links stay as written. In HTML, MHTML, AsciiDoc and Word files, links to other notes become plain text.
+- To find notes that link to a note, search all notes for `note:` followed by its ID (shown in Properties). In printouts, PDFs and exported text, links stay as written. In HTML, MHTML, AsciiDoc, Word and LaTeX files, links to other notes become plain text.
 
 **Math**
 
 - Write LaTeX between `$` for math inside text (`$E = mc^2$`), or between lines containing only `$$` for a formula on its own line. `\( … \)`, `\[ … \]` and ```` ```math ```` code blocks also work. Chemical formulas can be written with `\ce{…}` (mhchem), for example `$\ce{H2O}$`.
 - Math inside text shows fractions and similar parts smaller, to keep the line spacing even (as LaTeX does). To show them full size, put the formula on its own line between `$$` lines, or, inside text, write `\dfrac` instead of `\frac` (`$\dfrac{1}{3}$`).
-- Formulas are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become Word equations that can be edited in Word, and AsciiDoc files keep the LaTeX. The editor and search keep the LaTeX as text.
+- Formulas are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become Word equations that can be edited in Word, and AsciiDoc and LaTeX files keep the LaTeX. The editor and search keep the LaTeX as text.
 - To keep prices such as "$5 and $10" from becoming math, the same rule as Pandoc and GitHub is used: there must be no space just inside the `$`, and the closing `$` must not be followed by a digit. Write `\$` for a literal dollar sign.
 - In a table, `|` inside a formula is taken as a cell separator; write `\vert` instead.
 - A formula with an error is shown as its LaTeX in red; hover over it to see the error. Right-click a formula and choose Copy LaTeX to copy its source.
@@ -148,7 +148,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **Diagrams (Mermaid)**
 
 - Write [Mermaid](https://mermaid.js.org/) syntax in a ```` ```mermaid ```` code block to draw a diagram: flowcharts, sequence diagrams, class diagrams, state diagrams, Gantt charts, pie charts, mind maps and more. See the Mermaid documentation for the syntax.
-- Diagrams are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become pictures, and AsciiDoc files keep the source in a `[mermaid]` block (drawn as a diagram where Asciidoctor Diagram is installed). The editor and search keep the source as text.
+- Diagrams are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents and LaTeX files they become pictures, and AsciiDoc files keep the source in a `[mermaid]` block (drawn as a diagram where Asciidoctor Diagram is installed). The editor and search keep the source as text.
 - The colors follow dark mode. Printouts and exported files always use light colors.
 - A diagram with an error is shown as its source in red; hover over it to see the error. Right-click a diagram and choose Copy Diagram Source to copy its source.
 - Diagrams are drawn with Mermaid, which is bundled with the app (no internet connection is used). It is loaded the first time a note with a diagram is shown, so the first diagram can take about a second to appear. Clicks and links in diagrams are disabled.
@@ -160,7 +160,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - **Writing marks as text**: put `\` before an ASCII punctuation character to show it as it is: `\*` shows `*` instead of starting italics, and `\#`, `\-`, `1\.` or `\>` at the start of a line do not make a heading, list or quote. Two backslashes show one, so a path written as `\\server\share` is shown as `\server\share` in the preview (the editor keeps what you typed; put it in `` ` `` to show it unchanged). Code and math are not affected (`\$` is still a literal dollar sign).
 - **Alerts**: a block quote whose first line is only `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` is shown as a colored notice with an icon and the heading Note, Tip, Important, Warning or Caution (注記・ヒント・重要・警告・注意 in Japanese).
 - **Footnotes**: write `[^name]` in the text and `[^name]: the note` at the start of a line (anywhere in the note). Notes are numbered in the order they are first referred to and listed at the end of the note; notes that are never referred to are not shown, and `[^name]` without a note stays as text. To continue a note on more lines or paragraphs, indent them by two spaces. Click a number to go to its note and ↩ to go back; pointing at a number shows the note at the bottom left.
-- These are kept in printouts, PDFs, HTML and MHTML files. Word documents get Word footnotes and alerts as block quotes with a colored line and heading; AsciiDoc files get `footnote:[…]` and admonition blocks (`[NOTE]` and so on, with the Japanese headings set when the interface is in Japanese).
+- These are kept in printouts, PDFs, HTML and MHTML files. Word documents get Word footnotes and alerts as block quotes with a colored line and heading; AsciiDoc files get `footnote:[…]` and admonition blocks (`[NOTE]` and so on, with the Japanese headings set when the interface is in Japanese); LaTeX files get `\footnote` and boxes with a colored line and heading.
 - The emoji list comes from [gemoji](https://github.com/wooorm/gemoji), the list GitHub uses; it is part of the app, so no internet connection is used.
 
 **Bold, italic, strikethrough and code**
@@ -199,7 +199,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **Importing and exporting**
 
 - File → Import… (`Ctrl+O`) imports EverPad archives (`.everpad`) and text files. EverPad tells them apart by their contents, so you can choose several files of both kinds at once.
-- File → Export has seven formats: Text File… (`Ctrl+Shift+E`), PDF… (`Ctrl+Shift+P`, see "Printing and PDF"), HTML… and MHTML… (see "HTML and MHTML"), AsciiDoc… and Word Document… (see "AsciiDoc and Word") and EverPad Archive…. Printing (File → Print…) is a separate command because it does not create a file.
+- File → Export has eight formats: Text File… (`Ctrl+Shift+E`), PDF… (`Ctrl+Shift+P`, see "Printing and PDF"), HTML… and MHTML… (see "HTML and MHTML"), AsciiDoc…, Word Document… and LaTeX… (see "AsciiDoc, Word and LaTeX") and EverPad Archive…. Printing (File → Print…) is a separate command because it does not create a file.
 - The file dialogs open in the folder you used last time, remembered separately for importing and exporting (all export formats and Save Image As… share one folder) and kept after EverPad is closed. The first time, or if that folder no longer exists, importing opens the data folder and exporting opens Documents.
 
 **EverPad archives**
@@ -243,16 +243,17 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Web links (`http://`, `https://`) still work. Links that only work inside EverPad (links to other notes, attached files other than images, relative paths) become plain text. Images that cannot be found are shown as "(Image not found)".
 - The files contain no scripts, and they do not load anything from the internet when opened.
 
-**AsciiDoc and Word**
+**AsciiDoc, Word and LaTeX**
 
-- File → Export → AsciiDoc… or Word Document… saves the current note in a form other programs can edit. While the history is shown, the version being viewed is saved. Headings, paragraphs and line breaks, bold, italic, strikethrough, code, lists, check boxes, block quotes, alerts, code blocks, tables, horizontal rules, web links, images, formulas, emoji and footnotes are converted. As in HTML files, links that only work inside EverPad become plain text.
+- File → Export → AsciiDoc…, Word Document… or LaTeX… saves the current note in a form other programs can edit. While the history is shown, the version being viewed is saved. Headings, paragraphs and line breaks, bold, italic, strikethrough, code, lists, check boxes, block quotes, alerts, code blocks, tables, horizontal rules, web links, images, formulas, emoji and footnotes are converted. As in HTML files, links that only work inside EverPad become plain text.
 - AsciiDoc (`.adoc`) is a text format. Attached images are copied to a folder named after the file with `_images` added (for `Notes.adoc`, the folder `Notes_images` next to it), and the `.adoc` file refers to them, so move the folder together with the file. Formulas keep their LaTeX (`latexmath`), so Asciidoctor shows them as formulas. If the note starts with its only top-level heading (`#`), that heading becomes the document title; otherwise the note title is used.
 - Word (`.docx`) opens in Microsoft Word and in other programs that read Word documents. Attached images are inside the file (WebP and AVIF images are converted to PNG, because older versions of Word cannot read them), and images wider than the page are shrunk to fit. Headings use Word's Heading 1–6 styles, so the Navigation pane and tables of contents work. Formulas become Word equations that can be edited in Word; a formula with an error is put in as its LaTeX. The body text uses Yu Mincho and the headings Yu Gothic (the fonts Word uses for Japanese documents), and no fonts are put in the file. The paper size is A4 (Letter in the United States and Canada).
+- LaTeX (`.tex`) is a text file to be compiled with LuaLaTeX (for example `lualatex Notes.tex`; TeX Live and MiKTeX include it, and on Overleaf choose LuaLaTeX as the compiler). Formulas keep their LaTeX; the few commands that only KaTeX has (such as `\R`) are defined at the top of the file, and Greek letters and symbols typed directly in a formula (such as `α` and `≤`) become LaTeX commands. Attached images and diagrams are put in a folder named after the file with `_images` added, as for AsciiDoc (images LuaLaTeX cannot read, such as WebP, are converted to PNG, and diagrams become PNG pictures). A note with Japanese text uses the `ltjsarticle` class, and other notes use `article`; only the packages the note needs are loaded. Headings are not numbered (delete the line `\setcounter{secnumdepth}{0}` to number them). Footnotes become `\footnote`, alerts become boxes with a colored line, and tables become `longtable` tables that can continue on the next page (long text in a column wraps). The title is set as for AsciiDoc. Characters missing from the fonts, such as emoji, are left out of the PDF.
 
 **Other**
 
 - Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Attach Image or File…, Format and Insert Link to Note… work only in the Edit view; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Edit view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Edit or Preview is grayed out while that view is shown (also during the history). For a read-only note, Attach Image or File…, Format, Insert Link to Note… and Delete History Older Than This Version… are grayed out (Find and Replace… still works, as find only).
-- Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document or EverPad archive; the latest version), Read-Only, Properties… and Delete… (grayed out for a read-only note). The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
+- Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document, LaTeX or EverPad archive; the latest version), Read-Only, Properties… and Delete… (grayed out for a read-only note). The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
 - Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, the attachment name, or the text of a footnote. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
@@ -365,15 +366,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.31.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.32.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.31.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.32.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.31.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.32.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -382,7 +383,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.31.0.AppImage` (x64)
+- Linux: `EverPad-0.32.0.AppImage` (x64)
 
 **macOS**
 
@@ -398,7 +399,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.31.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.32.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -419,7 +420,7 @@ macmenu.js       The macOS menu layout (testable without Electron)
 keymap.js        Keyboard shortcuts: the default keys (Windows and macOS), checking and saving the keys you set (testable without Electron)
 updatecheck.js   Checking GitHub for a newer version (testable without Electron)
 pageexport.js    Building HTML and MHTML files for File → Export (testable without Electron)
-docexport.js     Building AsciiDoc and Word files for File → Export (testable without Electron)
+docexport.js     Building AsciiDoc, Word and LaTeX files for File → Export (testable without Electron)
 datalock.js      The lock that keeps two EverPads from opening the same data folder (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
 archive.js       EverPad archives: building, checking and reading (testable without Electron)
@@ -486,7 +487,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
 - **検索と置換**: 大文字/小文字の区別、単語単位、正規表現を選べます。
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
-- **印刷・エクスポート**: メモを、プレビューと同じ整形した見た目で印刷したり、PDF や、画像も入った1つの Web ページのファイル(HTML・MHTML)として保存したりできます。見出し・リスト・表・画像・数式を保ったまま、AsciiDoc や Word 文書(`.docx`)としても保存できます。
+- **印刷・エクスポート**: メモを、プレビューと同じ整形した見た目で印刷したり、PDF や、画像も入った1つの Web ページのファイル(HTML・MHTML)として保存したりできます。見出し・リスト・表・画像・数式を保ったまま、AsciiDoc、Word 文書(`.docx`)、LaTeX(`.tex`)としても保存できます。
 - **キーボードショートカットを変えられる**: 「編集」→「キーボードショートカット…」で、好きなキーを割り当てられます。
 - **日本語と英語**: 画面の言語をメニューから切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
@@ -516,10 +517,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.31.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.32.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.31.0.exe
+EverPad 0.32.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -598,13 +599,13 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「ファイル」→「前に見たメモに戻る」(`Alt+←`)で、今のメモの前に見ていたメモを開きます。続けて押すと元に戻るので、リンクで移動した後などに、2つのメモを行き来できます。
 - `[表示する文字](note:メモID)` と書くと、他のメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(`Ctrl+K`)で一覧から選ぶ(題名で絞り込めます)か、参照先のメモのプロパティで「このメモへのリンクをコピー」を押して貼り付けます。
 - プレビューや履歴の「Markdown表示」ではクリック、編集画面では `Ctrl`+クリックで、そのメモに移動します。マウスを重ねると、参照先の今の題名が出ます。リンクはメモそのものを指し(メモの中の位置は指しません)、参照先の題名や中身が変わっても切れません。参照先を削除すると、リンクは灰色の取り消し線で表示され、クリックするとお知らせが出ます。
-- あるメモを参照しているメモを探すには、全メモの検索で `note:` に続けてそのメモID(プロパティに表示されます)を探します。印刷・PDF・テキストへの書き出しでは、リンクは書いたまま出ます。HTML・MHTML・AsciiDoc・Word では、他のメモへのリンクはただの文字になります。
+- あるメモを参照しているメモを探すには、全メモの検索で `note:` に続けてそのメモID(プロパティに表示されます)を探します。印刷・PDF・テキストへの書き出しでは、リンクは書いたまま出ます。HTML・MHTML・AsciiDoc・Word・LaTeX では、他のメモへのリンクはただの文字になります。
 
 **数式**
 
 - LaTeX の数式を `$` で囲むと文中の数式(`$E = mc^2$`)、`$$` だけの行で前後を囲むと独立した行の数式になります。`\( … \)`・`\[ … \]`・```` ```math ```` のコードブロックも使えます。化学式は `\ce{…}`(mhchem)で書けます(例: `$\ce{H2O}$`)。
 - 文中の数式は、行の間隔をそろえるため、分数などを小さく表示します(LaTeX と同じです)。大きく表示するには、`$$` だけの行で前後を囲んで独立した行の数式にするか、文中のまま `\frac` の代わりに `\dfrac` と書きます(`$\dfrac{1}{3}$`)。
-- 数式は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書では Word で編集できる数式になり、AsciiDoc では LaTeX のまま入ります。編集画面と検索では、LaTeX の文字のまま扱います。
+- 数式は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書では Word で編集できる数式になり、AsciiDoc と LaTeX では LaTeX のまま入ります。編集画面と検索では、LaTeX の文字のまま扱います。
 - 「$5 と $10」のような金額が数式にならないよう、Pandoc や GitHub と同じ規則にしています。`$` の内側のすぐ隣に空白を入れないでください。また、閉じの `$` の直後が数字のときは数式になりません。`$` を文字として書くときは `\$` にします。
 - 表の中の数式で `|` を使うと、セルの区切りと見なされます。`\vert` と書いてください。
 - 誤りのある数式は、元の LaTeX を赤字で表示します。マウスを重ねると誤りの内容が出ます。数式を右クリックして「数式の LaTeX をコピー」を選ぶと、元の LaTeX をコピーできます。
@@ -613,7 +614,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 **図(Mermaid)**
 
 - ```` ```mermaid ```` のコードブロックに [Mermaid](https://mermaid.js.org/) の書き方で書くと、図になります。フローチャート、シーケンス図、クラス図、状態遷移図、ガントチャート、円グラフ、マインドマップなどが書けます。書き方は Mermaid の説明を見てください。
-- 図は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書では画像になり、AsciiDoc では `[mermaid]` のブロックに元の文のまま入ります(Asciidoctor Diagram が入っていれば図になります)。編集画面と検索では、元の文のまま扱います。
+- 図は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書と LaTeX では画像になり、AsciiDoc では `[mermaid]` のブロックに元の文のまま入ります(Asciidoctor Diagram が入っていれば図になります)。編集画面と検索では、元の文のまま扱います。
 - 図の配色はダークモードに合わせます。印刷と書き出したファイルは、いつも明るい配色です。
 - 書き方に誤りのある図は、元の文を赤く表示します。マウスを重ねると誤りの内容が出ます。図を右クリックして「図の元の文をコピー」を選ぶと、元の文をコピーできます。
 - 図の表示には、アプリに同梱した Mermaid を使います(インターネットには接続しません)。図のあるメモを初めて表示したときに読み込むので、最初の図が出るまで1秒ほどかかることがあります。図の中のクリックやリンクは使えません。
@@ -625,7 +626,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - **記号をそのまま書く**: ASCII の記号の前に `\` を付けると、その記号をそのまま出します。`\*` は斜体にならずに `*` と出て、行の先頭の `\#`・`\-`・`1\.`・`\>` は、見出し・箇条書き・引用になりません。`\` を2つ重ねると1つになるので、`\\server\share` と書いたパスは、プレビューでは `\server\share` と出ます(編集画面は書いたままです。そのまま出すには `` ` `` で囲みます)。コードと数式の中は変わりません(`\$` は今までどおり $ の文字です)。
 - **アラート**: 引用の1行目が `[!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` だけなら、色とアイコンと見出し(注記・ヒント・重要・警告・注意。英語の画面では Note などの英語)の付いた注意書きになります。
 - **脚注**: 本文に `[^名前]` と書き、行の先頭に `[^名前]: 注の文` と書きます(メモのどこに書いてもかまいません)。番号は本文で最初に参照した順に付き、注はメモの最後にまとめて表示されます。参照の無い注は表示せず、注の無い `[^名前]` はそのまま文字で出します。注を2行以上や複数の段落にするときは、空白2つで字下げします。番号をクリックすると注へ、↩ をクリックすると本文に戻ります。番号にマウスを重ねると、左下に注の文が出ます。
-- 印刷・PDF・HTML・MHTML にもそのまま出ます。Word 文書では、脚注は Word の脚注に、アラートは色の付いた線と見出しの引用になります。AsciiDoc では、`footnote:[…]` と注記のブロック(`[NOTE]` など。日本語の画面では見出しを日本語にする設定も入れます)になります。
+- 印刷・PDF・HTML・MHTML にもそのまま出ます。Word 文書では、脚注は Word の脚注に、アラートは色の付いた線と見出しの引用になります。AsciiDoc では、`footnote:[…]` と注記のブロック(`[NOTE]` など。日本語の画面では見出しを日本語にする設定も入れます)になります。LaTeX では、`\footnote` と、色の付いた線と見出しの枠になります。
 - 絵文字の一覧は、GitHub が使っている一覧の [gemoji](https://github.com/wooorm/gemoji) から作り、アプリに入れています(インターネットには接続しません)。
 
 **太字・斜体・取り消し線・コード**
@@ -664,7 +665,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 **インポートとエクスポート**
 
 - 「ファイル」→「インポート…」(`Ctrl+O`)で、EverPad アーカイブ(`.everpad`)とテキストファイルを取り込みます。中身で見分けるので、両方の種類をまとめて選べます。
-- 「ファイル」→「エクスポート」には、「テキストファイル…」(`Ctrl+Shift+E`)、「PDF…」(`Ctrl+Shift+P`。「印刷と PDF」を参照)、「HTML…」と「MHTML…」(「HTML と MHTML」を参照)、「AsciiDoc…」と「Word 文書…」(「AsciiDoc と Word」を参照)、「EverPad アーカイブ…」の7つの形式があります。印刷(「ファイル」→「印刷…」)はファイルを作らないので、別の項目にしています。
+- 「ファイル」→「エクスポート」には、「テキストファイル…」(`Ctrl+Shift+E`)、「PDF…」(`Ctrl+Shift+P`。「印刷と PDF」を参照)、「HTML…」と「MHTML…」(「HTML と MHTML」を参照)、「AsciiDoc…」「Word 文書…」「LaTeX…」(「AsciiDoc・Word・LaTeX」を参照)、「EverPad アーカイブ…」の8つの形式があります。印刷(「ファイル」→「印刷…」)はファイルを作らないので、別の項目にしています。
 - ファイルを選ぶ窓は、前回使ったフォルダを開きます。インポートとエクスポートで別々に覚え(エクスポートは、どの形式も「名前をつけて画像を保存…」も同じフォルダを共有します)、EverPad を終了しても引き継ぎます。初めてのときや、そのフォルダが無くなったときは、インポートは保存先フォルダ、エクスポートはドキュメントを開きます。
 
 **EverPad アーカイブ**
@@ -708,16 +709,17 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - Web のリンク(`http://`・`https://`)はそのまま使えます。EverPad の中でしか開けないリンク(他のメモへのリンク、画像以外の添付ファイル、相対パス)は、ただの文字になります。見つからない画像は「(画像が見つかりません)」と出ます。
 - どちらもスクリプトは入っておらず、開いたときにインターネットから何かを読み込むこともありません。
 
-**AsciiDoc と Word**
+**AsciiDoc・Word・LaTeX**
 
-- 「ファイル」→「エクスポート」→「AsciiDoc…」か「Word 文書…」で、今のメモを、ほかのソフトで編集できる形で保存します。履歴の表示中は、見ている版を保存します。見出し、段落と改行、太字・斜体・取り消し線・コード、リスト、チェックボックス、引用、アラート、コードブロック、表、区切り線、Web のリンク、画像、数式、絵文字、脚注を変換します。HTML と同じく、EverPad の中でしか開けないリンクは、ただの文字になります。
+- 「ファイル」→「エクスポート」→「AsciiDoc…」「Word 文書…」「LaTeX…」で、今のメモを、ほかのソフトで編集できる形で保存します。履歴の表示中は、見ている版を保存します。見出し、段落と改行、太字・斜体・取り消し線・コード、リスト、チェックボックス、引用、アラート、コードブロック、表、区切り線、Web のリンク、画像、数式、絵文字、脚注を変換します。HTML と同じく、EverPad の中でしか開けないリンクは、ただの文字になります。
 - AsciiDoc(`.adoc`)はテキストの形式です。添付の画像は、ファイル名に `_images` を付けたフォルダー(`メモ.adoc` なら、隣の `メモ_images`)に写して、`.adoc` から参照します。ファイルを移すときは、フォルダーも一緒に移してください。数式は LaTeX のまま(`latexmath`)入るので、Asciidoctor で数式として表示されます。メモの先頭が、ただ1つの大見出し(`#`)なら、それを文書の題名にします。そうでなければ、メモの題名を題名にします。
 - Word(`.docx`)は、Microsoft Word や、Word の文書を読めるほかのソフトで開けます。添付の画像はファイルの中に入れます(WebP と AVIF の画像は、古い Word では読めないので PNG にします)。ページの幅より大きい画像は、幅に収まるよう縮めます。見出しは Word の「見出し 1〜6」のスタイルにするので、ナビゲーションウィンドウや目次がそのまま使えます。数式は Word の数式になり、Word で編集できます。誤りのある数式は、LaTeX の文字のまま入れます。本文は游明朝、見出しは游ゴシック(Word で日本語の文書を作るときと同じフォント)にし、フォントはファイルに入れません。用紙は A4 です(米国とカナダでは Letter)。
+- LaTeX(`.tex`)は、LuaLaTeX でコンパイルするテキストのファイルです(例: `lualatex メモ.tex`。TeX Live や MiKTeX に入っています。Overleaf ではコンパイラーに LuaLaTeX を選んでください)。数式は LaTeX のまま入ります。KaTeX にだけある少しの命令(`\R` など)はファイルの先頭で定義し、数式に直接書いたギリシャ文字や記号(`α`、`≤` など)は LaTeX の命令にします。添付の画像と図は、AsciiDoc と同じく、ファイル名に `_images` を付けたフォルダーに置きます(WebP など LuaLaTeX が読めない画像は PNG にし、図は PNG の画像にします)。日本語を含むメモは `ltjsarticle`、そうでないメモは `article` のクラスにし、パッケージはメモで使う分だけ読み込みます。見出しに番号は付けません(付けるときは `\setcounter{secnumdepth}{0}` の行を消してください)。脚注は `\footnote` に、アラートは色の付いた線の枠に、表はページをまたげる `longtable` の表(長い文の列は折り返します)になります。題名の決め方は AsciiDoc と同じです。絵文字など、フォントに無い文字は PDF には出ません。
 
 **その他**
 
 - 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」は編集画面だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(編集画面と、編集から入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。読み取り専用のメモでは、「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」「この版より古い履歴を削除…」がグレーアウトします(「検索と置換…」は、検索だけとして使えます)。
-- 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・EverPad アーカイブ。最新の版を書き出します)「読み取り専用」「プロパティ…」「削除…」(読み取り専用のメモでは押せません)です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
+- 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・LaTeX・EverPad アーカイブ。最新の版を書き出します)「読み取り専用」「プロパティ…」「削除…」(読み取り専用のメモでは押せません)です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
 - プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前、脚注の文)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
@@ -830,15 +832,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.31.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.32.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.31.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.32.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.31.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.32.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -847,7 +849,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.31.0.AppImage`(x64)
+- Linux: `EverPad-0.32.0.AppImage`(x64)
 
 **macOS**
 
@@ -863,7 +865,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.31.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.32.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -884,7 +886,7 @@ macmenu.js       macOS のメニューの形(Electron なしでテストでき�
 keymap.js        キーボードショートカット: 既定のキー(Windows と macOS)、割り当てたキーの判定と保存(Electron なしでテストできる)
 updatecheck.js   GitHub に新しいバージョンがあるかの確認(Electron なしでテストできる)
 pageexport.js    「エクスポート」の HTML と MHTML のファイルの組み立て(Electron なしでテストできる)
-docexport.js     「エクスポート」の AsciiDoc と Word のファイルの組み立て(Electron なしでテストできる)
+docexport.js     「エクスポート」の AsciiDoc・Word・LaTeX のファイルの組み立て(Electron なしでテストできる)
 datalock.js      同じ保存先を2つの EverPad で開かないための印(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
 archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)

@@ -260,21 +260,27 @@ test('Word: 大きい画像はページの幅に収め、用紙は Letter も選
   assert.strictEqual(D.docxImageExt('0123456789abcdef.webp'), null);
 });
 
-test('AsciiDoc・Word: メニュー・画面・main.js へのつなぎ込み', () => {
+test('AsciiDoc・Word・LaTeX: メニュー・画面・main.js へのつなぎ込み', () => {
   const main = read('main.js'), app = read('renderer/app.js');
   assert.match(main, /require\('\.\/docexport'\)/);
-  for (const [label, kind] of [['mExportAdoc', 'adoc'], ['mExportDocx', 'docx']]) {
+  for (const [label, kind] of [['mExportAdoc', 'adoc'], ['mExportDocx', 'docx'], ['mExportTex', 'tex']]) {
     assert.match(main, new RegExp("T\\('" + label + "'\\), accelerator: A\\('" + kind + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
     assert.match(main, new RegExp("T\\('" + label + "'\\), click: pick\\('export" + kind[0].toUpperCase() + kind.slice(1) + "'\\)"));
   }
   assert.match(app, /action === 'exportAdoc'\) exportPage\('adoc', n\)/);
   assert.match(app, /action === 'exportDocx'\) exportPage\('docx', n\)/);
+  assert.match(app, /action === 'exportTex'\) exportPage\('tex', n\)/);
   const h = main.slice(main.indexOf("ipcMain.handle('export:page'"));
-  assert.match(h.slice(0, h.indexOf('\n});')), /kind === 'adoc' \|\| kind === 'docx'\) \{\n\s+try \{\n\s+await writeDocFile\(id, title, p\.bodyHtml, kind, r\.filePath\)/);
+  assert.match(h.slice(0, h.indexOf('\n});')), /kind === 'adoc' \|\| kind === 'docx' \|\| kind === 'tex'\) \{\n\s+try \{\n\s+await writeDocFile\(id, title, p\.bodyHtml, kind, r\.filePath\)/);
   // 画像は、そのメモの添付からだけ読む
   const w = main.slice(main.indexOf('async function writeDocFile'), main.indexOf('async function imagesToPng'));
   assert.match(w, /filter\(f => store\.attachmentPath\(id, f\)\)/);
   assert.match(w, /docexport\.toDocx\(tree, \{ title: title, lang: lang, paper: paperSize\(\)/);
+  // LaTeX: 画像と図は「(ファイル名)_images」に置き、読めない形式の画像は PNG にする
+  assert.match(w, /if \(kind === 'tex'\) \{\n\s+const dirName = docexport\.texImagesDir\(path\.basename\(filePath, path\.extname\(filePath\)\)\)/);
+  assert.match(w, /if \(docexport\.texImageOk\(f\)\)[^\n]*\n\s+else convert\.push/);
+  assert.match(w, /for \(const d of docexport\.texDiagrams\(tree\)\) out\.push/);
+  assert.match(w, /docexport\.toLatex\(tree, \{ title: title, imagesDir: out\.length \? dirName : '', images: names, paper: paperSize\(\), lang: lang/);
   const conv = main.slice(main.indexOf('async function imagesToPng'), main.indexOf('/* 画面にまだ書き出していない'));
   assert.match(conv, /show: false, webPreferences: \{ sandbox: true, contextIsolation: true, nodeIntegration: false \}/);
   assert.match(conv, /finally \{ w\.destroy\(\); \}/);
@@ -283,13 +289,15 @@ test('AsciiDoc・Word: メニュー・画面・main.js へのつなぎ込み', (
   assert.match(fn, /img\.dataset\.w = img\.naturalWidth; img\.dataset\.h = img\.naturalHeight/);
   assert.match(fn, /output: 'mathml'/);
   assert.match(fn, /el\.textContent = ''/);
+  assert.match(fn, /const p = \(kind === 'docx' \|\| kind === 'tex'\) && svg \? await Diagrams\.toPng\(svg\) : null;/);
+  assert.match(fn, /const doc = kind === 'adoc' \|\| kind === 'docx' \|\| kind === 'tex';/);
   const pkg = JSON.parse(read('package.json'));
   assert.ok(pkg.build.files.includes('docexport.js') && pkg.build.files.includes('ziplite.js'));
 });
 
-test('AsciiDoc・Word: 表示の言葉(日本語・英語)と、ヘルプの分数の説明', () => {
+test('AsciiDoc・Word・LaTeX: 表示の言葉(日本語・英語)と、ヘルプの分数の説明', () => {
   const I = require('../renderer/i18n');
-  for (const l of ['ja', 'en']) for (const k of ['mExportAdoc', 'adocSaveTitle', 'adocSaved', 'adocFailed', 'mExportDocx', 'docxSaveTitle', 'docxSaved', 'docxFailed']) {
+  for (const l of ['ja', 'en']) for (const k of ['mExportAdoc', 'adocSaveTitle', 'adocSaved', 'adocFailed', 'mExportDocx', 'docxSaveTitle', 'docxSaved', 'docxFailed', 'mExportTex', 'texSaveTitle', 'texSaved', 'texFailed']) {
     const v = I.t(l, k, { path: 'X' });
     assert.ok(v && v !== k, l + ':' + k);
   }

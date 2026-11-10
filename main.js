@@ -274,6 +274,7 @@ ipcMain.handle('note:menu', (e, title, ro) => {
         { label: T('mExportMhtml'), click: pick('exportMhtml') },
         { label: T('mExportAdoc'), click: pick('exportAdoc') },
         { label: T('mExportDocx'), click: pick('exportDocx') },
+        { label: T('mExportTex'), click: pick('exportTex') },
         { label: T('mExportArchive'), click: pick('exportArchive') }
       ] },
       { type: 'separator' },
@@ -662,7 +663,8 @@ const PAGE_KINDS = {
   html: { ext: 'html', title: 'htmlSaveTitle', filter: { name: 'HTML', extensions: ['html', 'htm'] } },
   mhtml: { ext: 'mhtml', title: 'mhtmlSaveTitle', filter: { name: 'MHTML', extensions: ['mhtml', 'mht'] } },
   adoc: { ext: 'adoc', title: 'adocSaveTitle', filter: { name: 'AsciiDoc', extensions: ['adoc', 'asciidoc'] } },
-  docx: { ext: 'docx', title: 'docxSaveTitle', filter: { name: 'Word', extensions: ['docx'] } }
+  docx: { ext: 'docx', title: 'docxSaveTitle', filter: { name: 'Word', extensions: ['docx'] } },
+  tex: { ext: 'tex', title: 'texSaveTitle', filter: { name: 'LaTeX', extensions: ['tex'] } }
 };
 ipcMain.handle('export:page', async (e, id, p, kind) => {
   const k = Object.prototype.hasOwnProperty.call(PAGE_KINDS, kind) ? PAGE_KINDS[kind] : null;
@@ -675,7 +677,7 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
     filters: [k.filter]
   });
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
-  if (kind === 'adoc' || kind === 'docx') {
+  if (kind === 'adoc' || kind === 'docx' || kind === 'tex') {
     try {
       await writeDocFile(id, title, p.bodyHtml, kind, r.filePath);
       rememberDir('export', r.filePath);
@@ -707,9 +709,11 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
   } catch (err) { return { status: 'failed' }; }
 });
 
-/* AsciiDoc・Word として書き出す(本文の HTML の決まりは docexport.js を参照)。
+/* AsciiDoc・Word・LaTeX として書き出す(本文の HTML の決まりは docexport.js を参照)。
    AsciiDoc: 画像は「(ファイル名)_images」フォルダーに写して、.adoc から参照する。
-   Word: 画像はファイルの中に入れる。Word が読めない WebP・AVIF は PNG にして入れる */
+   Word: 画像はファイルの中に入れる。Word が読めない WebP・AVIF は PNG にして入れる。
+   LaTeX: 画像と図の PNG は「(ファイル名)_images」フォルダーに置く(LaTeX で困る文字は _ にする)。LuaLaTeX が読めない形式の画像は PNG にする。
+   PNG にできなかった画像は、.tex では [画像の説明] の文字になる */
 async function writeDocFile(id, title, bodyHtml, kind, filePath) {
   const tree = docexport.bodyTree(bodyHtml);
   const files = docexport.treeImages(tree).filter(f => store.attachmentPath(id, f));
@@ -720,6 +724,27 @@ async function writeDocFile(id, title, bodyHtml, kind, filePath) {
       const dir = path.join(path.dirname(filePath), dirName);
       fs.mkdirSync(dir, { recursive: true });
       for (const f of files) fs.copyFileSync(store.attachmentPath(id, f), path.join(dir, f));
+    }
+    fs.writeFileSync(filePath, text);
+    return;
+  }
+  if (kind === 'tex') {
+    const dirName = docexport.texImagesDir(path.basename(filePath, path.extname(filePath)));
+    const out = [], names = {}, convert = [];
+    for (const f of files) {
+      if (docexport.texImageOk(f)) { names[f] = f; out.push({ name: f, from: store.attachmentPath(id, f) }); }
+      else convert.push({ f: f, data: fs.readFileSync(store.attachmentPath(id, f)), type: pageexport.imageType(f) });
+    }
+    if (convert.length) {
+      const pngs = await imagesToPng(convert);
+      convert.forEach((c, k) => { if (pngs[k]) { const name = c.f.replace('.', '-') + '.png'; names[c.f] = name; out.push({ name: name, data: pngs[k] }); } });
+    }
+    for (const d of docexport.texDiagrams(tree)) out.push({ name: d.file, data: Buffer.from(d.png, 'base64') });
+    const text = docexport.toLatex(tree, { title: title, imagesDir: out.length ? dirName : '', images: names, paper: paperSize(), lang: lang, generator: APP_NAME + ' ' + app.getVersion() });
+    if (out.length) {
+      const dir = path.join(path.dirname(filePath), dirName);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const o of out) { if (o.from) fs.copyFileSync(o.from, path.join(dir, o.name)); else fs.writeFileSync(path.join(dir, o.name), o.data); }
     }
     fs.writeFileSync(filePath, text);
     return;
@@ -931,6 +956,7 @@ function buildMenu() {
           { label: T('mExportMhtml'), accelerator: A('mhtml'), click: () => send('mhtml') },
           { label: T('mExportAdoc'), accelerator: A('adoc'), click: () => send('adoc') },
           { label: T('mExportDocx'), accelerator: A('docx'), click: () => send('docx') },
+          { label: T('mExportTex'), accelerator: A('tex'), click: () => send('tex') },
           { label: T('mExportArchive'), accelerator: A('archive'), click: () => send('archive') }
         ] },
         { label: T('mPrint'), accelerator: A('print'), click: () => send('print') },

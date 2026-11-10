@@ -1768,7 +1768,7 @@
     else if (name === 'archive') exportArchive();
     else if (name === 'print') printNote('print');
     else if (name === 'pdf') printNote('pdf');
-    else if (name === 'html' || name === 'mhtml' || name === 'adoc' || name === 'docx') exportPage(name);
+    else if (name === 'html' || name === 'mhtml' || name === 'adoc' || name === 'docx' || name === 'tex') exportPage(name);
     else if (name.indexOf('mode:') === 0) switchBase(name.slice(5));
   });
   /* ---------- 印刷・PDF ----------
@@ -1817,11 +1817,12 @@
       printing = false;
     }
   }
-  /* ---------- HTML・MHTML・AsciiDoc・Word ----------
+  /* ---------- HTML・MHTML・AsciiDoc・Word・LaTeX ----------
      PDF と同じく、整形した本文(履歴表示中は見ている版)を書き出す。HTML・MHTML は、上に題名と最終編集の日時、下に作成の日時。
-     kind: 'html'(画像を埋め込んだ HTML)、'mhtml'、'adoc'(AsciiDoc)、'docx'(Word)。
+     kind: 'html'(画像を埋め込んだ HTML)、'mhtml'、'adoc'(AsciiDoc)、'docx'(Word)、'tex'(LaTeX)。
      HTML・MHTML: 画像は読み込めたものだけ cid:<ファイルID>@everpad にして、main.js がファイルの中に入れる。
-     AsciiDoc・Word: 画像はファイル ID と大きさ(data-w・data-h)を持たせる。数式は中身を空にして、Word には MathML(data-mml)も付ける
+     AsciiDoc・Word・LaTeX: 画像はファイル ID と大きさ(data-w・data-h)を持たせる。数式は中身を空にして、Word には MathML(data-mml)も付ける。
+     図は、Word と LaTeX には PNG(data-png)にして持たせる
      (main.js の docexport.js が、本文を見出し・段落などの構造にしてから書き出す)。
      EverPad の外では開けないリンク(他のメモ・添付ファイル・相対パスなど)は、ただの文字にする */
   let pageBusy = false;
@@ -1838,9 +1839,9 @@
       await Diagrams.render(box, { light: true });
       for (const el of box.querySelectorAll('.diagram[data-src]')) {
         el.removeAttribute('data-theme');
-        if (!(kind === 'adoc' || kind === 'docx')) continue;
+        if (!(kind === 'adoc' || kind === 'docx' || kind === 'tex')) continue;
         const svg = el.querySelector('svg');
-        const p = kind === 'docx' && svg ? await Diagrams.toPng(svg) : null;
+        const p = (kind === 'docx' || kind === 'tex') && svg ? await Diagrams.toPng(svg) : null;
         if (p) { el.dataset.png = p.png; el.dataset.w = p.w; el.dataset.h = p.h; }
         el.textContent = '';
       }
@@ -1858,7 +1859,7 @@
         }))),
         new Promise(r => setTimeout(r, 3000))
       ]);
-      const doc = kind === 'adoc' || kind === 'docx';
+      const doc = kind === 'adoc' || kind === 'docx' || kind === 'tex';
       box.querySelectorAll('img[data-att]').forEach(img => {
         if (!img.complete || !img.naturalWidth) { img.replaceWith(missingEl(img.alt)); return; }
         if (doc) { img.dataset.w = img.naturalWidth; img.dataset.h = img.naturalHeight; img.removeAttribute('src'); return; }
@@ -1994,6 +1995,7 @@
     else if (action === 'exportMhtml') exportPage('mhtml', n);
     else if (action === 'exportAdoc') exportPage('adoc', n);
     else if (action === 'exportDocx') exportPage('docx', n);
+    else if (action === 'exportTex') exportPage('tex', n);
     else if (action === 'exportArchive') exportArchive(n);
   }
 

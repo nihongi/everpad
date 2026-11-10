@@ -17,6 +17,7 @@ const COMMANDS = [
   { id: 'mhtml', group: 'mFile>mExportMenu', label: 'mExportMhtml', def: '' },
   { id: 'adoc', group: 'mFile>mExportMenu', label: 'mExportAdoc', def: '' },
   { id: 'docx', group: 'mFile>mExportMenu', label: 'mExportDocx', def: '' },
+  { id: 'tex', group: 'mFile>mExportMenu', label: 'mExportTex', def: '' },
   { id: 'archive', group: 'mFile>mExportMenu', label: 'mExportArchive', def: '' },
   { id: 'print', group: 'mFile', label: 'mPrint', def: 'CmdOrCtrl+P' },
   { id: 'readonly', group: 'mFile', label: 'mReadOnly', def: '' },

@@ -43,7 +43,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 
 ■ 残す・渡す  
 ・メモは、選んだフォルダに普通のファイルとして保存します。バックアップはフォルダをコピーするだけです。  
-・印刷、PDF、HTML、MHTML、AsciiDoc、Word 文書(.docx)に書き出せます。Word では見出しのスタイルが付き、数式は Word で編集できる数式になります。  
+・印刷、PDF、HTML、MHTML、AsciiDoc、Word 文書(.docx)、LaTeX(.tex)に書き出せます。Word では見出しのスタイルが付き、数式は Word で編集できる数式になります。LaTeX では数式を書いたまま渡せるので、論文やレポートの原稿にそのまま使えます。  
 ・EverPad アーカイブ(.everpad)には、メモの本文・すべての履歴・添付ファイルがまとめて入ります。別のパソコンへの引っ越しや受け渡しに使えます。  
 ・書き終えたメモは読み取り専用にして、うっかり書き換えないように守れます。
 
@@ -71,7 +71,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 6. 検索と置換(正規表現にも対応)
 7. 画像の貼り付けとファイルの添付
 8. 他のメモへのリンク
-9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word への書き出し
+9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word・LaTeX への書き出し
 10. 履歴と添付ファイルごと移せる EverPad アーカイブ
 11. メモは選んだフォルダに普通のファイルとして保存
 12. アカウント不要、インターネットに接続しない
@@ -137,7 +137,7 @@ LOOK BACK
 
 KEEP AND SHARE  
 • Notes are saved as ordinary files in a folder you choose. Backing up is just copying the folder.  
-• Print, or export to PDF, HTML, MHTML, AsciiDoc or Word (.docx). Word documents get heading styles, and formulas become Word equations you can edit.  
+• Print, or export to PDF, HTML, MHTML, AsciiDoc, Word (.docx) or LaTeX (.tex). Word documents get heading styles, and formulas become Word equations you can edit. LaTeX files keep formulas exactly as written, ready for papers and reports.  
 • An EverPad archive (.everpad) holds a note's text, its whole history and its attachments, for moving notes to another PC or sharing them.  
 • Make a finished note read-only so it cannot be changed by accident.
 
@@ -165,7 +165,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 6. Find and replace, with regular expressions
 7. Paste images and attach files
 8. Links between notes
-9. Print, and export to PDF, HTML, MHTML, AsciiDoc and Word
+9. Print, and export to PDF, HTML, MHTML, AsciiDoc, Word and LaTeX
 10. EverPad archives that move a note with its history and attachments
 11. Notes saved as ordinary files in a folder you choose
 12. No account, and no internet connection
