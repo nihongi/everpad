@@ -81,7 +81,7 @@ EverPad Data\
 | Text / Preview | `Ctrl+1` / `Ctrl+2` |
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
 | Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
-| Find and replace (a bar appears above the editor; in the Preview view and the history, find only) | `Ctrl+H` |
+| Find and replace (a bar appears above the note; in the Preview view and the history, find only) | `Ctrl+H` |
 | Insert a link to another note | `Ctrl+K` |
 | Insert or edit a formula | `Ctrl+Shift+M` |
 | Bold / italic / strikethrough / code for the selected text | `Ctrl+Shift+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
@@ -142,14 +142,14 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - File → Recently Viewed Notes lists the ten notes you opened most recently (excluding the current one), newest first. Deleted notes stay in the list marked "(deleted)"; choosing one shows a message. A note restored from the Recycle Bin opens again. The list is kept per data folder; Clear List empties it. (Recently updated notes are already at the top of the note list on the left.)
 - File → Back to Previous Note (`Alt+←`) opens the note you viewed before the current one. Pressing it again switches back, so you can go back and forth between two notes, for example after following a link.
 - Write `[text to show](note:note ID)` to link to another note. You do not need to type the ID: choose Edit → Insert Link to Note… (`Ctrl+K`) and pick a note from the list (type to filter by title), or click Copy Link to This Note in the target note's Properties and paste it.
-- Click a link in the preview or the history's Markdown view, or `Ctrl`+click it in the editor, to open that note. Hover over it to see the target's current title. Links point to the note, not to a position in it, and are not broken when the target's title or text changes. If the target is deleted, the link is shown struck through in gray, and clicking it shows a message.
+- Click a link in the preview or the history's Markdown view, or `Ctrl`+click it in the Text view, to open that note. Hover over it to see the target's current title. Links point to the note, not to a position in it, and are not broken when the target's title or text changes. If the target is deleted, the link is shown struck through in gray, and clicking it shows a message.
 - To find notes that link to a note, search all notes for `note:` followed by its ID (shown in Properties). In printouts, PDFs and exported text, links stay as written. In HTML, MHTML, AsciiDoc, Word and LaTeX files, links to other notes become plain text.
 
 **Math**
 
 - Write LaTeX between `$` for math inside text (`$E = mc^2$`), or between lines containing only `$$` for a formula on its own line. `\( … \)`, `\[ … \]` and ```` ```math ```` code blocks also work. Chemical formulas can be written with `\ce{…}` (mhchem), for example `$\ce{H2O}$`.
 - Math inside text shows fractions and similar parts smaller, to keep the line spacing even (as LaTeX does). To show them full size, put the formula on its own line between `$$` lines, or, inside text, write `\dfrac` instead of `\frac` (`$\dfrac{1}{3}$`).
-- Formulas are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become Word equations that can be edited in Word, and AsciiDoc and LaTeX files keep the LaTeX. The editor and search keep the LaTeX as text.
+- Formulas are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become Word equations that can be edited in Word, and AsciiDoc and LaTeX files keep the LaTeX. The Text view and search keep the LaTeX as text.
 - To keep prices such as "$5 and $10" from becoming math, the same rule as Pandoc and GitHub is used: there must be no space just inside the `$`, and the closing `$` must not be followed by a digit. Write `\$` for a literal dollar sign.
 - In a table, `|` inside a formula is taken as a cell separator; write `\vert` instead.
 - **Formula editor**: Edit → Insert Formula… (`Ctrl+Shift+M`, also in the right-click menu of the Text view) opens a window with a palette on the left, the LaTeX on the upper right and a live preview below it. The Templates tab lists about 45 typical formulas (quadratic formula, limits, integrals, sums, matrices, cases, statistics, trigonometry, chemical equations and more); choose one and change it as you like. The other tabs (Structures, Greek, Relations, Arrows, Symbols, Fonts and colors, Chemistry) insert a symbol at the cursor. Empty `{}` are slots: the cursor goes to the first one, and Tab / Shift+Tab move to the next or previous one. If the LaTeX has an error, the error is shown and Insert is grayed out. Choose On its own line (`$$…$$`) or In the text (`$…$`), and press Insert (or `Ctrl+Enter`).
@@ -160,16 +160,16 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **Diagrams (Mermaid)**
 
 - Write [Mermaid](https://mermaid.js.org/) syntax in a ```` ```mermaid ```` code block to draw a diagram: flowcharts, sequence diagrams, class diagrams, state diagrams, Gantt charts, pie charts, mind maps and more. See the Mermaid documentation for the syntax.
-- Diagrams are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents and LaTeX files they become pictures, and AsciiDoc files keep the source in a `[mermaid]` block (drawn as a diagram where Asciidoctor Diagram is installed). The editor and search keep the source as text.
+- Diagrams are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents and LaTeX files they become pictures, and AsciiDoc files keep the source in a `[mermaid]` block (drawn as a diagram where Asciidoctor Diagram is installed). The Text view and search keep the source as text.
 - The colors follow dark mode. Printouts and exported files always use light colors.
 - A diagram with an error is shown as its source in red; hover over it to see the error. Right-click a diagram and choose Copy Diagram Source to copy its source.
 - Diagrams are drawn with Mermaid, which is bundled with the app (no internet connection is used). It is loaded the first time a note with a diagram is shown, so the first diagram can take about a second to appear. Clicks and links in diagrams are disabled.
 
 **Emoji, plain URLs, alerts and footnotes (as on GitHub)**
 
-- **Emoji**: write `:name:` to show an emoji, with the same names as GitHub (`:smile:` 😄, `:+1:` 👍, `:tada:` 🎉; about 1,900 of them). In the editor, type `:` and two letters of a name to see suggestions at the cursor. Choose one with ↑ / ↓ and press Enter or Tab to insert `:name:` (one edit, undone with `Ctrl+Z`), or click it; Esc closes the list. Suggestions are not shown right after a letter, a digit, `:` or `/` (as in `12:30` or `http:`), or in code blocks. The note keeps `:name:`, so the emoji also shows on GitHub. Unknown names, names right after or before a letter or digit, and names in code are left as they are. Note titles show the emoji too.
+- **Emoji**: write `:name:` to show an emoji, with the same names as GitHub (`:smile:` 😄, `:+1:` 👍, `:tada:` 🎉; about 1,900 of them). In the Text view, type `:` and two letters of a name to see suggestions at the cursor. Choose one with ↑ / ↓ and press Enter or Tab to insert `:name:` (one edit, undone with `Ctrl+Z`), or click it; Esc closes the list. Suggestions are not shown right after a letter, a digit, `:` or `/` (as in `12:30` or `http:`), or in code blocks. The note keeps `:name:`, so the emoji also shows on GitHub. Unknown names, names right after or before a letter or digit, and names in code are left as they are. Note titles show the emoji too.
 - **Plain URLs**: addresses starting with `http://`, `https://` or `www.` become links without `[ ]( )`, and so does an address surrounded by `< >`. An address ends before a space or a non-ASCII character (so `https://example.comを見る` links only the address), and a final `.`, `,`, `:`, `;`, `!`, `?` or an unmatched `)` is not part of it.
-- **Writing marks as text**: put `\` before an ASCII punctuation character to show it as it is: `\*` shows `*` instead of starting italics, and `\#`, `\-`, `1\.` or `\>` at the start of a line do not make a heading, list or quote. Two backslashes show one, so a path written as `\\server\share` is shown as `\server\share` in the preview (the editor keeps what you typed; put it in `` ` `` to show it unchanged). Code and math are not affected (`\$` is still a literal dollar sign).
+- **Writing marks as text**: put `\` before an ASCII punctuation character to show it as it is: `\*` shows `*` instead of starting italics, and `\#`, `\-`, `1\.` or `\>` at the start of a line do not make a heading, list or quote. Two backslashes show one, so a path written as `\\server\share` is shown as `\server\share` in the preview (the Text view keeps what you typed; put it in `` ` `` to show it unchanged). Code and math are not affected (`\$` is still a literal dollar sign).
 - **Alerts**: a block quote whose first line is only `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` is shown as a colored notice with an icon and the heading Note, Tip, Important, Warning or Caution (注記・ヒント・重要・警告・注意 in Japanese).
 - **Footnotes**: write `[^name]` in the text and `[^name]: the note` at the start of a line (anywhere in the note). Notes are numbered in the order they are first referred to and listed at the end of the note; notes that are never referred to are not shown, and `[^name]` without a note stays as text. To continue a note on more lines or paragraphs, indent them by two spaces. Click a number to go to its note and ↩ to go back; pointing at a number shows the note at the bottom left.
 - These are kept in printouts, PDFs, HTML and MHTML files. Word documents get Word footnotes and alerts as block quotes with a colored line and heading; AsciiDoc files get `footnote:[…]` and admonition blocks (`[NOTE]` and so on, with the Japanese headings set when the interface is in Japanese); LaTeX files get `\footnote` and boxes with a colored line and heading.
@@ -177,7 +177,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Bold, italic, strikethrough and code**
 
-- Select text in the editor and right-click to choose Bold, Italic, Strikethrough or Code (also in Edit → Format). The text is surrounded by `**`, `*`, `~~` or `` ` ``. Ctrl+B shows and hides the left pane, so Bold is `Ctrl+Shift+B`.
+- Select text in the Text view (or in a part being edited in the preview) and right-click to choose Bold, Italic, Strikethrough or Code (also in Edit → Format). The text is surrounded by `**`, `*`, `~~` or `` ` ``. Ctrl+B shows and hides the left pane, so Bold is `Ctrl+Shift+B`.
 - When the selection spans several lines, each line is decorated separately (only the selected part of the first and last lines). List marks, check boxes, `>`, `#`, indentation and spaces at either end stay outside the marks, so `- apple` becomes `- **apple**`. Empty lines, code blocks, horizontal rules and the `|---|` line of a table are skipped, and each cell of a table row is decorated separately.
 - If everything selected already has that decoration, it is removed instead, whether you selected the text with or without the marks. Bold and italic can be combined (`***text***`). If only part of the selection is bold, the inner `**` are removed first and the whole selection is made bold.
 - The text stays selected afterward, so you can add another decoration right away. With nothing selected, a pair of marks is inserted with the cursor between them. The change is a single edit that can be undone with `Ctrl+Z`.
@@ -185,7 +185,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Formatting lines**
 
-- Choose Edit → Format → Quote, Bulleted List, Numbered List or Code Block (also on the editor's right-click menu) to format every line the selection touches, or the cursor's line when nothing is selected. A selection that ends right at the start of a line does not include that line.
+- Choose Edit → Format → Quote, Bulleted List, Numbered List or Code Block (also on the Text view's right-click menu) to format every line the selection touches, or the cursor's line when nothing is selected. A selection that ends right at the start of a line does not include that line.
 - Quotes add `> ` to each line (`>` on empty lines, so the quote is not broken). Bulleted and numbered lists add `- ` or `1. `, `2. ` … after the indentation and skip empty lines; applying one to the other switches between them. Code blocks add a ```` ``` ```` line before and after the lines.
 - If all the lines already have that format, it is removed instead (for a code block: when the lines are surrounded by ```` ``` ```` lines). Tables and headings are processed the same way, without exceptions.
 - The change is recorded in the history as a single edit and can be undone with `Ctrl+Z`. Available in the Text view, and in the preview while a part of the note is being edited.
@@ -201,7 +201,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Images and attachments**
 
-- In the editor, paste a copied image (such as a screenshot), drag and drop a file onto the window, or choose a file with the Attach button. `![name](attach:…)` (image) or `[name](attach:…)` (file) is inserted at the cursor, and is shown as an image or a file link in the preview and in the history's Markdown view. Pasting inside a table row puts the attachment in that cell (several attachments line up side by side). Clicking an image or link opens it; executables and similar files are not opened, but shown in their folder instead.
+- In the Text view, paste a copied image (such as a screenshot), drag and drop a file onto the window, or choose a file with the Attach button. `![name](attach:…)` (image) or `[name](attach:…)` (file) is inserted at the cursor, and is shown as an image or a file link in the preview and in the history's Markdown view. Pasting inside a table row puts the attachment in that cell (several attachments line up side by side). Clicking an image or link opens it; executables and similar files are not opened, but shown in their folder instead.
 - The files are kept in the note's `.files` folder. **Removing an attachment from the text does not delete the file, so that older versions in the history can still show it.** Identical files are stored only once. The size limit is 50 MB per file.
 - To delete an attachment, right-click it in the attachment list below the Text view (or the image in the preview) and choose "Move to Recycle Bin…". After a confirmation, the file goes to the Recycle Bin and the links to it are removed from the text in one edit, which Undo (`Ctrl+Z`) brings back. Restoring the file from the Recycle Bin makes it show again. Past versions that use it show "(Image not found)". Attachments are also moved to the Recycle Bin when no version uses them any more after deleting old history (see "Views and history").
 - You may freely edit the "name" part before `attach:` (avoid `|`, `[` and `]`). Copying the attachment syntax into another note does not work, because the file does not exist in that note; paste the file again instead.
@@ -268,7 +268,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document, LaTeX or EverPad archive; the latest version), Read-Only, Properties… and Delete… (grayed out for a read-only note). The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
 - Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, the attachment name, or the text of a footnote. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
-- Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
+- Right-click in the Text view (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the Text view, the menu also has text formatting (bold and so on), line formatting (quote and so on), Insert Formula… (Edit Formula… when the cursor is in a formula) and Table. In the preview, right-click a table cell for the table commands, a formula to edit or copy it, or another place to insert a table. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
 - To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered, and the current view (Text, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
 - The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Text view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
@@ -400,7 +400,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **macOS**
 
 - The menus follow the macOS layout: an EverPad menu (About EverPad, Services, Hide EverPad, Quit EverPad and so on) on the left, and a Window menu.
-- Shortcuts use ⌘ instead of Ctrl (⌘N, ⌘F and so on). These differ, because macOS uses the Windows keys for something else: Back to Previous Note ⌘[, Properties ⌘I, Find and replace ⌥⌘F, Quote ⌘', Italic ⇧⌘I (⌘H hides the app, ⇧⌘Q logs out and ⌘I is Properties). Redo is ⇧⌘Z, and a link to another note opens with ⌘-click in the editor.
+- Shortcuts use ⌘ instead of Ctrl (⌘N, ⌘F and so on). These differ, because macOS uses the Windows keys for something else: Back to Previous Note ⌘[, Properties ⌘I, Find and replace ⌥⌘F, Quote ⌘', Italic ⇧⌘I (⌘H hides the app, ⇧⌘Q logs out and ⌘I is Properties). Redo is ⇧⌘Z, and a link to another note opens with ⌘-click in the Text view.
 - Closing the window does not quit EverPad: it stays in the Dock, and clicking the Dock icon opens the window again. Quit with ⌘Q. Unsaved edits are saved when the window closes. While EverPad is running, its data folder stays locked (see "Where notes are stored").
 - `.everpad` files can be opened by double-clicking them in Finder, with Open With, or by dragging them onto the Dock icon. Import text files by dragging them into the window, or with File → Import….
 - Settings are saved in `~/Library/Application Support/EverPad`, and notes in `~/Documents/EverPad`. The first time, macOS asks whether EverPad may access the Documents folder.
@@ -559,7 +559,7 @@ EverPad Data\
 | 編集 / プレビュー | `Ctrl+1` / `Ctrl+2` |
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
-| 検索と置換(「テキスト」表示の上にバーが出ます。プレビューと履歴の表示では検索だけ) | `Ctrl+H` |
+| 検索と置換(メモの上にバーが出ます。プレビューと履歴の表示では検索だけ) | `Ctrl+H` |
 | 他のメモへのリンクを挿入 | `Ctrl+K` |
 | 数式の挿入・編集 | `Ctrl+Shift+M` |
 | 選んだ文字を太字 / 斜体 / 取り消し線 / コードにする | `Ctrl+Shift+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
@@ -655,7 +655,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **太字・斜体・取り消し線・コード**
 
-- 「テキスト」表示で文字を選んで右クリックし、「太字」「斜体」「取り消し線」「コード」を選びます(「編集」→「書式」にもあります)。選んだ文字を `**`・`*`・`~~`・`` ` `` で囲みます。Ctrl+B は左側の表示の切り替えなので、太字は `Ctrl+Shift+B` です。
+- 「テキスト」表示(またはプレビューで編集している部分)で文字を選んで右クリックし、「太字」「斜体」「取り消し線」「コード」を選びます(「編集」→「書式」にもあります)。選んだ文字を `**`・`*`・`~~`・`` ` `` で囲みます。Ctrl+B は左側の表示の切り替えなので、太字は `Ctrl+Shift+B` です。
 - 選択が複数行にまたがるときは、行ごとに装飾します(最初と最後の行は、選んだ部分だけ)。箇条書きの記号、チェックボックス、`>`、`#`、字下げと、前後の空白は記号の外に残すので、`- りんご` は `- **りんご**` になります。空の行、コードブロック、区切り線、表の `|---|` の行は飛ばし、表の行はセルごとに装飾します。
 - 選んだ部分がすべてすでにその装飾なら、外します(記号まで含めて選んでも、内側だけを選んでも同じです)。太字と斜体は重ねられます(`***文字***`)。一部だけ太字のときは、中の `**` を取ってから全体を太字にします。
 - 装飾したあとも同じ文字を選んだままなので、続けて別の装飾もかけられます。何も選んでいないときは、記号の組を入れて、カーソルを真ん中に置きます。1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。
@@ -746,9 +746,9 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・LaTeX・EverPad アーカイブ。最新の版を書き出します)「読み取り専用」「プロパティ…」「削除…」(読み取り専用のメモでは押せません)です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
 - プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前、脚注の文)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
-- 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
+- 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。「テキスト」表示では、文字の装飾(太字など)、行の書式(引用など)、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)、「表」も出ます。プレビューでは、表のセルを右クリックすると表の操作、数式を右クリックすると編集とコピー、そのほかの場所では「表を挿入」が出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
-- 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
+- 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
 - 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョン、メモの保存先、EverPad の公開場所([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/))も表示され、「GitHub で開く」でブラウザで開けます。
