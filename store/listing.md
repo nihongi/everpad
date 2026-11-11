@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.33.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.33.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -57,11 +57,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューのままで編集できるようになりました。段落・見出し・リストの項目などをクリックすると、その場で書き換えられます。チェックボックスは押すだけで切り替わります。  
-・表をセルごとに編集できるようになりました。セルを右クリックすると、行・列の挿入と削除、左寄せ・中央揃え・右寄せができます。「編集」→「表」→「表を挿入」で空の表も入れられます。  
-・数式エディタを足しました。「編集」→「数式を挿入…」(Ctrl+Shift+M)で、典型的な数式のひな型や記号を選び、プレビューを見ながら数式を書けます。プレビューでは、数式をダブルクリックすると編集できます。  
-・「編集」の表示を「テキスト」表示という名前にしました。  
-・LaTeX への書き出しで、\pu{…} で書いた単位があるとコンパイルできなかったのを直しました。
+・何も書いていないメモでも、プレビューのどこかをクリックすると空の編集欄が出て、そのまま書き始められるようになりました。  
+・プレビューで表の外(文の無い下の方も)を右クリックすると、「表を挿入」と並んで「数式を挿入…」が出るようになりました。  
+・プレビューで編集している部分や表のセルの右クリックにも、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」が出るようになりました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -153,11 +151,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• You can now edit right in the preview: click a paragraph, heading or list item to change it in place. Check boxes switch with a click.  
-• Tables can be edited cell by cell. Right-click a cell to insert or delete rows and columns, or to align a column left, center or right. Edit → Table → Insert Table adds an empty table.  
-• New formula editor: Edit → Insert Formula… (Ctrl+Shift+M) lets you pick typical formula templates and symbols and write formulas while seeing the result. In the preview, double-click a formula to edit it.  
-• The Edit view is now called the Text view.  
-• LaTeX export: units written with \pu{…} no longer stop the file from compiling.
+• In an empty note, click anywhere in the preview to get an empty box and start writing.  
+• Right-clicking in the preview outside a table (including the empty space below the text) now offers Insert Formula… next to Insert Table.  
+• While you edit a part or a table cell in the preview, its right-click menu also has Insert Formula… (Edit Formula… when the cursor is in a formula) and Table.
 
 ### Product features (up to 20, up to 200 characters each)
 
