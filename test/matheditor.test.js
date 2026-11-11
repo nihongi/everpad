@@ -139,9 +139,7 @@ test('数式エディタ: 画面・メニュー・キー・右クリックへの
   }
 });
 test('数式エディタ: プレビューで編集しているかたまり・セルの右クリックにも出し、カーソルが数式の中なら編集する', () => {
-  const fs = require('fs'), path = require('path');
-  const app = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'app.js'), 'utf8');
-  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const app = read('renderer/app.js'), main = read('main.js');
   assert.match(app, /\} else if \(pe\.box && e\.target === pe\.box && S\.mode === 'preview' && !isRO\(cur\(\)\)\) \{[\s\S]*?math = !!mathAt\(pe\.box\.value, pe\.box\.selectionStart\);/);
   assert.match(app, /api\.editContext\(\{ table: info, math: math, cell: cell, editable: !!info \}\);/);
   assert.match(app, /if \(pe\.kind === 'block'\) \{\n\s+const ta = pe\.box, s = ta\.selectionStart, e = ta\.selectionEnd;\n\s+const at = mathAt\(ta\.value, s\);/);
@@ -150,9 +148,7 @@ test('数式エディタ: プレビューで編集しているかたまり・セ
   assert.match(main, /cell: !!\(ctx && ctx\.cell\)/);
 });
 test('プレビュー: 空のメモはどこを押しても空の編集欄。表の外の右クリックには「数式を挿入…」も出す', () => {
-  const fs = require('fs'), path = require('path');
-  const app = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'app.js'), 'utf8');
-  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const app = read('renderer/app.js'), main = read('main.js');
   assert.match(app, /const peBlank = \(\) => \$\('preview'\)\.querySelector\(':scope > p\.empty'\);/);
   assert.match(app, /if \(peBlank\(\)\) return \{ blank: true \};/);
   assert.match(app, /if \(d\.blank\) \{ const el = peBlank\(\); if \(el\) peOpenBlock\(el, \{ at: 'end', blank: true \}\); return; \}/);
