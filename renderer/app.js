@@ -503,7 +503,7 @@
     $('tl').hidden = m !== 'history';
     if (typeof frShow === 'function') frShow();
     if (typeof updateStrip === 'function') updateStrip();
-    $('attBtn').hidden = m !== 'edit';
+    $('attBtn').hidden = m === 'history';
     if (m === 'preview') renderPreview();
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
@@ -1667,23 +1667,63 @@
 
   const extOfType = t => ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/bmp': 'bmp' }[t] || 'png');
   const stamp = () => { const d = new Date(); return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()); };
-  /* 取り込んだ添付を、カーソルの位置に書く。表の行の中なら横に並べて、表を壊さない */
-  function insertAttachments(items) {
+  /* 取り込んだ添付を書く。「テキスト」表示ではカーソルの位置(表の行の中なら横に並べて、表を壊さない)。
+     プレビューでは where で決める(peInsertAttachments) */
+  function insertAttachments(items, where) {
     if (!items.length) return;
-    const ed = $('editor');
-    const s = ed.selectionStart, e = ed.selectionEnd;
-    const ls = ed.value.lastIndexOf('\n', s - 1) + 1;
-    const inTable = /^\s*\|/.test(ed.value.slice(ls, ed.value.indexOf('\n', s) < 0 ? undefined : ed.value.indexOf('\n', s)));
-    const text = items.map(i => attachMarkup(i.name, i.fileId, i.image)).join(inTable ? ' ' : '\n');
-    frInsert(s, e, text);
-    ed.focus();
+    if (where && S.mode === 'preview') peInsertAttachments(items, where);
+    else {
+      const ed = $('editor');
+      const s = ed.selectionStart, e = ed.selectionEnd;
+      const ls = ed.value.lastIndexOf('\n', s - 1) + 1;
+      const inTable = /^\s*\|/.test(ed.value.slice(ls, ed.value.indexOf('\n', s) < 0 ? undefined : ed.value.indexOf('\n', s)));
+      const text = items.map(i => attachMarkup(i.name, i.fileId, i.image)).join(inTable ? ' ' : '\n');
+      frInsert(s, e, text);
+      ed.focus();
+    }
     toast(T('itemsAdded', { n: items.length, images: items.every(i => i.image) }));
     updateStrip();
   }
+  /* プレビューで添付を書く。where.box(開いていた編集欄)がまだ開いていれば、そのカーソルの位置(表のセルなら横に並べる)。
+     そうでなければ、かたまり where.el の次(el が無ければメモの最後)に、1つのかたまりとして入れる */
+  function peInsertAttachments(items, where) {
+    const marks = items.map(i => attachMarkup(i.name, i.fileId, i.image));
+    if (where.box && pe.box === where.box) {
+      const b = pe.box, s = b.selectionStart, e = b.selectionEnd;
+      if (pe.kind === 'block') { peReplace(s, e, marks.join('\n')); peFit(true); return; }
+      const v = marks.join(' ');
+      b.focus();
+      b.setSelectionRange(s, e);
+      try { if (!document.execCommand('insertText', false, v)) throw new Error('x'); } catch (x) { b.setRangeText(v, s, e, 'end'); }
+      peSync();
+      return;
+    }
+    if (pe.box) peClose();
+    const el = where.el && where.el.isConnected && $('preview').contains(where.el) ? where.el : null;
+    const before = cur().text;
+    const r = blockInsert(before, el ? peAfter(el) : before.split('\n').length, marks);
+    const top = el ? el.getBoundingClientRect().top : null;
+    if (!peSetText(r.text)) return;
+    peRecord(before, r.text);
+    peRerender(el ? +el.dataset.line : r.at, top);
+    const added = peBlockAt(r.at);
+    if (added) added.scrollIntoView({ block: 'nearest' });
+  }
+  /* プレビューで、ファイルを落とした場所: 編集欄を開いていればそのカーソル、そうでなければ落としたかたまり(その次に入れる) */
+  function peDropTarget(e) {
+    if (pe.box) return { box: pe.box };
+    const t = e.target, pv = $('preview');
+    const el = t && t.closest && pv.contains(t) ? t.closest('[data-line]') : null;
+    return { el: el && pv.contains(el) && !el.closest('.footnotes') ? el : null };
+  }
   function reportErrors(errors) { if (errors.length) toast(errors[0] + (errors.length > 1 ? T('moreErrors', { n: errors.length - 1 }) : '')); }
-  async function ingestFiles(files) {
+  // where: プレビューでの入れる場所(peDropTarget の形)。無ければ、開いている編集欄のカーソルか、メモの最後
+  async function ingestFiles(files, where) {
     if (isRO(cur())) { roBlocked(); return; }
-    if (S.mode !== 'edit') { toast(T('attachEditOnly')); return; }
+    if (S.mode === 'preview') {
+      if (!peAllowed()) return;
+      if (!where) where = pe.box ? { box: pe.box } : { el: null };
+    } else if (S.mode !== 'edit') { toast(T('attachEditOnly')); return; }
     const noteId = S.active, items = [], errors = [];
     for (const f of files) {
       if (f.size > MAX_ATTACH_MB * 1024 * 1024) { errors.push(T('tooLarge', { name: f.name || T('file'), mb: MAX_ATTACH_MB })); continue; }
@@ -1694,16 +1734,18 @@
       } catch (err) { errors.push(T('saveFailed', { name: name })); }
     }
     if (S.active !== noteId) { toast(T('pasteAborted')); return; }
-    insertAttachments(items);
+    insertAttachments(items, where);
     reportErrors(errors);
   }
+  /* 「添付」ボタン・メニュー。プレビューでは、開いている編集欄のカーソルの位置か、メモの最後に入れる */
   async function pickAttachments() {
     if (isRO(cur())) { roBlocked(); return; }
-    if (S.mode !== 'edit') setMode('edit', false);
-    const noteId = S.active;
+    if (S.mode === 'preview' && !peAllowed()) return;
+    if (S.mode !== 'edit' && S.mode !== 'preview') setMode('edit', false);
+    const noteId = S.active, where = S.mode === 'preview' ? (pe.box ? { box: pe.box } : { el: null }) : null;
     let r;
     try { r = await api.attachPick(noteId); } catch (err) { r = { items: [], errors: [T('attachFailed')] }; }
-    if (S.active === noteId) insertAttachments(r.items);
+    if (S.active === noteId) insertAttachments(r.items, where);
     reportErrors(r.errors);
   }
   $('attBtn').addEventListener('click', pickAttachments);
@@ -1714,12 +1756,19 @@
     e.preventDefault();
     ingestFiles([...cd.files]);
   });
+  // プレビューの編集欄(かたまり・表のセル)への貼り付けも同じ
+  $('preview').addEventListener('paste', e => {
+    const cd = e.clipboardData;
+    if (e.target !== pe.box || !cd || !cd.files || !cd.files.length || cd.getData('text/plain')) return;
+    e.preventDefault();
+    ingestFiles([...cd.files], { box: pe.box });
+  });
   // ドラッグ&ドロップ(ウィンドウのどこでも。ファイルを落としてもページが切り替わらないようにする)
   document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
   document.addEventListener('drop', e => {
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
     e.preventDefault();
-    ingestFiles([...e.dataTransfer.files]);
+    ingestFiles([...e.dataTransfer.files], S.mode === 'preview' ? peDropTarget(e) : null);
   });
 
   /* ---------- サイドバー(狭い画面) ---------- */
@@ -2080,6 +2129,8 @@
   document.addEventListener('mousedown', e => {
     peNext = null;
     if (!pe.box || pe.holder.contains(e.target)) return;
+    // 「添付」ボタンは、編集欄を開いたまま押せる(カーソルの位置に入れる)
+    if (e.target.closest && e.target.closest('#attBtn')) { e.preventDefault(); return; }
     let d = peDescribe(e);
     const kind = pe.kind, end = pe.e;
     const delta = peClose();

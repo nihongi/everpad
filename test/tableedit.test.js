@@ -213,3 +213,9 @@ test('プレビューでの編集: 表のメニューの項目(見出しの行�
   assert.strictEqual(I.DICT.ja.mModeEdit, 'テキスト');
   assert.strictEqual(I.DICT.en.mModeEdit, 'Text');
 });
+
+test('見出しの行がすべて空の表は、GitHub と同じく細い行(空のセルを1行分にする決まりを、その行には当てない)', () => {
+  const css = read('renderer/styles.css');
+  assert.match(css, /#preview td:empty::before, #preview thead tr:has\(> th:not\(:empty\)\) > th:empty::before \{ content: '\\200b'; \}/);
+  assert.doesNotMatch(css, /:is\(td, th\):empty::before/);
+});

@@ -1002,7 +1002,7 @@ function buildMenu() {
         { role: 'undo', label: T('mUndo') },
         { role: 'redo', label: T('mRedo') },
         { type: 'separator' },
-        { label: T('mAttach'), accelerator: A('attach'), enabled: ui.edit && !ui.ro, click: () => send('attach') },
+        { label: T('mAttach'), accelerator: A('attach'), enabled: !ui.hist && !ui.ro, click: () => send('attach') },
         { id: 'replace', label: T('mReplace'), accelerator: A('replace'), click: () => send('replace') },
         { label: T('mFormat'), enabled: ui.fmt && !ui.ro, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.fmt && !ui.ro })) },
         { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit && !ui.ro, click: () => send('link') },

@@ -298,8 +298,9 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
   font: 15px/1.4 var(--mono); color: var(--fg); background: var(--surface); border: 1px solid var(--accent); border-radius: 6px; outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 li.pe-li { list-style: none; }
-/* 空のセルも1行分の高さにする(挿入した空の表のセルをクリックしやすく) */
-#preview :is(td, th):empty::before { content: '\200b'; }
+/* 空のセルも1行分の高さにする(挿入した空の表のセルをクリックしやすく)。
+   見出しの行がすべて空のときは、GitHub と同じく細い行にする(見出しの無い表に見せる書き方) */
+#preview td:empty::before, #preview thead tr:has(> th:not(:empty)) > th:empty::before { content: '\200b'; }
 /* 編集欄は描画を省かない(省くと、高さが1行分と見積もられて、文が入りきらない) */
 #preview > .pe-edit { content-visibility: visible; contain-intrinsic-size: none; }
 .pe-cell { width: 100%; min-width: 6em; box-sizing: border-box; padding: 2px 4px; font: 14px/1.4 var(--mono); color: var(--fg); background: var(--surface);
