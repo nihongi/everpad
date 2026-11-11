@@ -1767,6 +1767,8 @@
      元に戻す: 編集欄の中ではその編集欄の Ctrl+Z。閉じたあとは、プレビューでの変更を1回ずつ戻す(peUndo。メモを移ると消える) */
   const PE_SKIP = 'a, img, .math, .diagram, sup.fnref, .fnback, .link-other, .note-link, .att-file, input, button, textarea, .alert-title, .footnotes, .att-missing';
   const peAllowed = () => S.mode === 'preview' && !!cur() && !isRO(cur()) && $('modal').hidden;
+  // 何も書いていないメモのプレビューなら、「空のメモ」の表示(そうでなければ null)
+  const peBlank = () => $('preview').querySelector(':scope > p.empty');
   /* プレビューを作り直す。anchor(元の文の行)のかたまりが、作り直す前の top(画面の上からの高さ)と同じ高さに来るようにする */
   function renderPreview() {
     const pv = $('preview');
@@ -1826,6 +1828,8 @@
   function peDescribe(e) {
     const t = e.target;
     if (!t.closest || !$('preview').contains(t) || t.closest(PE_SKIP)) return null;
+    // 何も書いていないメモ(「空のメモ」の表示だけ)は、どこを押しても空の編集欄にする
+    if (peBlank()) return { blank: true };
     const cell = t.closest('td, th');
     if (cell) { const tr = cell.closest('tr[data-line]'); return tr ? { row: +tr.dataset.line, col: [...tr.children].indexOf(cell) } : null; }
     const el = t.closest('[data-line]');
@@ -1837,6 +1841,7 @@
   }
   function peOpen(d) {
     if (!d || !peAllowed()) return;
+    if (d.blank) { const el = peBlank(); if (el) peOpenBlock(el, { at: 'end', blank: true }); return; }
     if (d.row != null) {
       const tr = $('preview').querySelector('tr[data-line="' + d.row + '"]');
       const cell = tr && tr.children[Math.max(0, Math.min(tr.children.length - 1, d.col))];
@@ -1850,9 +1855,10 @@
   }
   function peOpenBlock(el, d) {
     const n = cur(), lines = n.text.split('\n');
-    const s = +el.dataset.line;
-    let e = +el.dataset.end;
-    el.querySelectorAll('[data-end]').forEach(x => { e = Math.max(e, +x.dataset.end); });
+    // 空のメモ(d.blank)は、元の文の全体(空か空白だけ)を編集する
+    const s = d && d.blank ? 0 : +el.dataset.line;
+    let e = d && d.blank ? lines.length : +el.dataset.end;
+    if (!(d && d.blank)) el.querySelectorAll('[data-end]').forEach(x => { e = Math.max(e, +x.dataset.end); });
     e = Math.min(e, lines.length);
     const src = lines.slice(s, e).join('\n');
     const ta = document.createElement('textarea');
@@ -2161,7 +2167,7 @@
     else if (action) peTable(row, col, action);
     else peLastCell = { row: row, col: col };
   });
-  // 表の外を右クリック(文字を選んでいないとき): 「表を挿入」。かたまりの上ならその次、何もない所ならメモの最後に入れる
+  // 表の外を右クリック(文字を選んでいないとき): 「数式を挿入…」と「表を挿入」。かたまりの上ならその次、何もない所(空のメモも)ならメモの最後に入れる
   document.addEventListener('contextmenu', async e => {
     const t = e.target;
     if (!t.closest || !$('preview').contains(t) || t.closest('td, th, a, img, .math, .diagram, [data-att], input, textarea, .footnotes') || !peAllowed()) return;
@@ -2175,21 +2181,27 @@
     }
     let action = null;
     try { action = await api.tableMenu({ inTable: false }); } catch (err) { action = null; }
-    if (action !== 'insert') return;
+    if (action !== 'insert' && action !== 'math') return;
     const el = line != null ? peBlockAt(line) : null;
-    peInsertTable(el ? peAfter(el) : null, el);
+    if (action === 'math') peInsertMath(el);
+    else peInsertTable(el ? peAfter(el) : null, el);
   });
-  // 「テキスト」表示の右クリック: メニューに「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」を足す
+  // 「テキスト」表示と、プレビューで編集しているかたまり・セルの右クリック: メニューに「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」を足す
   // (カーソルが表の中なら表の操作、外なら「表を挿入」だけ。main.js に先に知らせる)
   document.addEventListener('contextmenu', e => {
-    let info = null, math = false;
+    let info = null, math = false, cell = false;
     if (e.target === $('editor') && S.mode === 'edit' && !isRO(cur())) {
       const ed = $('editor'), at = tableCaret(ed.value, ed.selectionStart);
       const t = at && tableAt(ed.value, at.row);
       info = t ? { inTable: true, head: at.row === t.head || at.row === t.delim, cols: t.cols, align: t.align[at.col] || '' } : { inTable: false };
       math = !!mathAt(ed.value, ed.selectionStart);
+    } else if (pe.box && e.target === pe.box && S.mode === 'preview' && !isRO(cur())) {
+      cell = pe.kind === 'cell';
+      const t = cell && tableAt(cur().text, pe.row);
+      info = t ? { inTable: true, head: pe.row === t.head, cols: t.cols, align: t.align[pe.col] || '' } : { inTable: false };
+      math = !!mathAt(pe.box.value, pe.box.selectionStart);
     }
-    api.editContext({ table: info, math: math, editable: !!info });
+    api.editContext({ table: info, math: math, cell: cell, editable: !!info });
   }, true);
 
   /* ---------- 数式エディタ ----------
@@ -2330,7 +2342,7 @@
     update();
   }
   /* 「数式を挿入…」: 「テキスト」表示ではカーソルの数式(あれば編集、無ければ挿入。文字を選んでいればそれを LaTeX にする)、
-     プレビューでは編集中のかたまり・セルのカーソルの位置か、クリックしたかたまりの次(どこでもなければメモの最後) */
+     プレビューでは編集中のかたまり・セルのカーソルの位置(数式の中なら編集)か、クリックしたかたまりの次(どこでもなければメモの最後) */
   function mathCommand() {
     const n = cur();
     if (!n || !$('modal').hidden) return;
@@ -2363,6 +2375,18 @@
     if (S.mode !== 'preview') return;
     if (pe.kind === 'block') {
       const ta = pe.box, s = ta.selectionStart, e = ta.selectionEnd;
+      const at = mathAt(ta.value, s);
+      if (at && (s === e || (s >= at.s && e <= at.e))) {
+        openMathEditor({ tex: at.tex.trim(), display: at.display, editing: true }, (tex, disp) => {
+          const r = mathReplace(ta.value, at, tex, disp);
+          const op = makeOp(ta.value, r.text, 0);
+          peReplace(op.p, op.p + op.d.length, op.i);
+          ta.focus();
+          ta.setSelectionRange(r.e, r.e);
+          peFit();
+        });
+        return;
+      }
       const sel = ta.value.slice(s, e);
       openMathEditor({ tex: sel.indexOf('\n') < 0 ? sel : '', display: false }, (tex, disp) => {
         const r = mathInsert(ta.value, s, e, tex, disp);
@@ -2376,6 +2400,17 @@
     }
     if (pe.kind === 'cell') {
       const inp = pe.box, s = inp.selectionStart, e = inp.selectionEnd;
+      const at = mathAt(inp.value, s);
+      if (at && (s === e || (s >= at.s && e <= at.e))) {
+        openMathEditor({ tex: at.tex.trim(), display: false, editing: true, inlineOnly: true }, tex => {
+          const op = makeOp(inp.value, mathReplace(inp.value, at, tex, false).text, 0);
+          inp.focus();
+          inp.setSelectionRange(op.p, op.p + op.d.length);
+          try { if (!document.execCommand('insertText', false, op.i)) throw new Error('x'); } catch (x) { inp.setRangeText(op.i, op.p, op.p + op.d.length, 'end'); }
+          peSync();
+        });
+        return;
+      }
       openMathEditor({ tex: inp.value.slice(s, e), display: false, inlineOnly: true }, tex => {
         inp.focus();
         inp.setSelectionRange(s, e);
@@ -2385,7 +2420,11 @@
       });
       return;
     }
-    const el0 = lastClick && lastClick.el && lastClick.el.isConnected && $('preview').contains(lastClick.el) ? lastClick.el : null;
+    peInsertMath(lastClick && lastClick.el && lastClick.el.isConnected && $('preview').contains(lastClick.el) ? lastClick.el : null);
+  }
+  /* プレビュー(編集欄を開いていないとき): かたまり el0 の次に数式を入れる(el0 が無ければメモの最後) */
+  function peInsertMath(el0) {
+    if (!peAllowed()) return;
     openMathEditor({ tex: '', display: true }, (tex, disp) => {
       const before = cur().text;
       const after = el0 ? peAfter(el0) : before.split('\n').length;

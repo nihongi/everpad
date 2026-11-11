@@ -128,7 +128,7 @@ test('数式エディタ: 画面・メニュー・キー・右クリックへの
   // メニュー・キー・右クリック
   assert.match(main, /\{ label: T\('mInsertMath'\), accelerator: A\('math'\), enabled: !ui\.hist && !ui\.ro, click: \(\) => send\('math'\) \}/);
   assert.match(main, /if \(kind === 'math' && canEdit\) items\.unshift\(\{ label: T\('mEditMath'\)/);
-  assert.match(cm, /if \(body && opts\.onMath\) fmt\.push\(\{ type: 'separator' \}, \{ label: T\(opts\.inMath \? 'mEditMath' : 'mInsertMath'\)/);
+  assert.match(cm, /if \(extra && opts\.onMath\) fmt\.push\(\{ type: 'separator' \}, \{ label: T\(opts\.inMath \? 'mEditMath' : 'mInsertMath'\)/);
   const K = require('../keymap');
   assert.strictEqual(K.defaults('win32').math, 'CmdOrCtrl+Shift+M');
   assert.match(css, /\.modal\.wide \.modal-box \{/);
@@ -137,4 +137,29 @@ test('数式エディタ: 画面・メニュー・キー・右クリックへの
   for (const l of ['ja', 'en']) for (const k of ['mInsertMath', 'mEditMath', 'mathInsertTitle', 'mathEditTitle', 'mathTexLabel', 'mathPreviewLabel', 'mathDisplay', 'mathInline', 'mathInsertBtn', 'mathReplaceBtn', 'mathEmpty', 'mathError', 'mathNotFound']) {
     assert.ok(I.DICT[l][k], l + ':' + k);
   }
+});
+test('数式エディタ: プレビューで編集しているかたまり・セルの右クリックにも出し、カーソルが数式の中なら編集する', () => {
+  const fs = require('fs'), path = require('path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'app.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(app, /\} else if \(pe\.box && e\.target === pe\.box && S\.mode === 'preview' && !isRO\(cur\(\)\)\) \{[\s\S]*?math = !!mathAt\(pe\.box\.value, pe\.box\.selectionStart\);/);
+  assert.match(app, /api\.editContext\(\{ table: info, math: math, cell: cell, editable: !!info \}\);/);
+  assert.match(app, /if \(pe\.kind === 'block'\) \{\n\s+const ta = pe\.box, s = ta\.selectionStart, e = ta\.selectionEnd;\n\s+const at = mathAt\(ta\.value, s\);/);
+  assert.match(app, /const op = makeOp\(inp\.value, mathReplace\(inp\.value, at, tex, false\)\.text, 0\);/);
+  assert.match(main, /cell: !!st\.cell/);
+  assert.match(main, /cell: !!\(ctx && ctx\.cell\)/);
+});
+test('プレビュー: 空のメモはどこを押しても空の編集欄。表の外の右クリックには「数式を挿入…」も出す', () => {
+  const fs = require('fs'), path = require('path');
+  const app = fs.readFileSync(path.join(__dirname, '..', 'renderer', 'app.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  assert.match(app, /const peBlank = \(\) => \$\('preview'\)\.querySelector\(':scope > p\.empty'\);/);
+  assert.match(app, /if \(peBlank\(\)\) return \{ blank: true \};/);
+  assert.match(app, /if \(d\.blank\) \{ const el = peBlank\(\); if \(el\) peOpenBlock\(el, \{ at: 'end', blank: true \}\); return; \}/);
+  assert.match(app, /const s = d && d\.blank \? 0 : \+el\.dataset\.line;\n\s+let e = d && d\.blank \? lines\.length : \+el\.dataset\.end;/);
+  // 空のメモの「空のメモ」の表示が、renderPreview の p.empty であること
+  assert.match(app, /'<p class="empty">' \+ esc\(T\('emptyNote'\)\) \+ '<\/p>'/);
+  assert.match(app, /if \(action === 'math'\) peInsertMath\(el\);\n\s+else peInsertTable\(el \? peAfter\(el\) : null, el\);/);
+  assert.match(app, /function peInsertMath\(el0\) \{\n\s+if \(!peAllowed\(\)\) return;/);
+  assert.match(main, /if \(state\.inTable === false\) items\.unshift\(\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \}\);/);
 });

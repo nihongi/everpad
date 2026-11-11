@@ -18,10 +18,12 @@ function buildTemplate(params, opts) {
           inlineItems(T, opts.onFormat, platform, opts.keys).map(x => Object.assign(x, { enabled: !!params.selectionText })),
           [{ type: 'separator' }], formatItems(T, opts.onFormat, platform, opts.keys))
       : [];
-    // 「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)。画面側が右クリックの前に知らせたときだけ
-    if (body && opts.onMath) fmt.push({ type: 'separator' }, { label: T(opts.inMath ? 'mEditMath' : 'mInsertMath'), accelerator: (opts.keys || keymap.defaults(platform))['math'] || undefined, registerAccelerator: false, click: opts.onMath });
+    // 「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」は、画面側が右クリックの前に知らせたときだけ。
+    // 本文のほか、プレビューで編集している表のセル(1行の入力欄。opts.cell)にも出す
+    const extra = body || (params.formControlType === 'input-text' && opts && opts.cell);
+    if (extra && opts.onMath) fmt.push({ type: 'separator' }, { label: T(opts.inMath ? 'mEditMath' : 'mInsertMath'), accelerator: (opts.keys || keymap.defaults(platform))['math'] || undefined, registerAccelerator: false, click: opts.onMath });
     // カーソルが表の中なら「表」(画面側が右クリックの前に知らせた opts.table)
-    if (body && opts.table && opts.onTable) fmt.push({ type: 'separator' }, { label: T('mTable'), submenu: tableItems(T, opts.onTable, opts.table, opts.keys, platform) });
+    if (extra && opts.table && opts.onTable) fmt.push({ type: 'separator' }, { label: T('mTable'), submenu: tableItems(T, opts.onTable, opts.table, opts.keys, platform) });
     return [
       { label: T('mUndo'), role: 'undo', enabled: !!f.canUndo, accelerator: 'CmdOrCtrl+Z', registerAccelerator: false },
       { label: T('mRedo'), role: 'redo', enabled: !!f.canRedo, accelerator: platform === 'darwin' ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y', registerAccelerator: false },

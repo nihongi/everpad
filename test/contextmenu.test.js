@@ -58,3 +58,18 @@ test('右クリック: 本文では、装飾と行の書式がサブメニュー
   const en = buildTemplate({ isEditable: true, formControlType: 'text-area', selectionText: 'a', editFlags: {} }, { onFormat, lang: 'en' });
   assert.deepStrictEqual(labels(en).slice(7), ['Bold', 'Italic', 'Strikethrough', 'Code', 'Quote', 'Bulleted List', 'Numbered List', 'Code Block', 'Indent', 'Outdent']);
 });
+test('右クリック: プレビューで編集している表のセルにも「数式を挿入…」と「表」を出す(検索欄などには出さない)', () => {
+  const onFormat = () => {}, onMath = () => {}, onTable = () => {};
+  const st = { inTable: true, head: false, cols: 3, align: '' };
+  const p = { isEditable: true, formControlType: 'input-text', selectionText: '', editFlags: {} };
+  const cell = buildTemplate(p, { onFormat, onMath, onTable, table: st, cell: true, platform: 'win32' });
+  assert.deepStrictEqual(labels(cell), ['元に戻す', 'やり直し', '切り取り', 'コピー', '貼り付け', '削除', 'すべて選択', '数式を挿入…', '表']);
+  assert.ok(cell.find(x => x.label === '表').submenu.some(x => x.label && /行/.test(x.label)));
+  // カーソルが数式の中なら「数式を編集…」
+  assert.ok(labels(buildTemplate(p, { onFormat, onMath, onTable, table: st, cell: true, inMath: true })).includes('数式を編集…'));
+  // セルでない1行の入力欄(検索欄など)には出さない
+  assert.deepStrictEqual(labels(buildTemplate(p, { onFormat, onMath, onTable, table: st })), ['元に戻す', 'やり直し', '切り取り', 'コピー', '貼り付け', '削除', 'すべて選択']);
+  // プレビューで編集しているかたまり(テキストエリア)は、本文と同じ並びに「数式を挿入…」と「表」
+  const blk = buildTemplate(Object.assign({}, p, { formControlType: 'text-area' }), { onFormat, onMath, onTable, table: { inTable: false, head: false, cols: 2, align: '' } });
+  assert.deepStrictEqual(labels(blk).slice(-2), ['数式を挿入…', '表']);
+});

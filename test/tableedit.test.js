@@ -175,7 +175,7 @@ test('プレビューでの編集: 画面・メニュー・main.js へのつな�
   assert.match(main, /ipcMain\.on\('edit:ctx', \(e, st\) => \{[\s\S]*?e\.returnValue = true;/);
   assert.match(main, /onTable: id => send\('tbl:' \+ id\), table: ctx && ctx\.table,/);
   assert.match(preload, /tableMenu: st => ipcRenderer\.invoke\('table:menu', st\),\n\s+editContext: st => ipcRenderer\.sendSync\('edit:ctx', st\),/);
-  assert.match(cm, /if \(body && opts\.table && opts\.onTable\) fmt\.push/);
+  assert.match(cm, /if \(extra && opts\.table && opts\.onTable\) fmt\.push/);
   assert.match(css, /\.pe-edit \{/);
   assert.match(css, /\.pe-cell \{/);
 });
