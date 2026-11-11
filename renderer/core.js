@@ -1194,6 +1194,406 @@ function pieceSpans(pieces, at, hits) {
   return out;
 }
 
+/* ---------- 表の編集(プレビューと「テキスト」表示で使う) ----------
+   表の行の元の文を、書いたままの区切り(| の前後の空白、両端の | の有無)を残して読み書きする。
+   書き換えるのはその表の行だけで、表の外は変えない。 */
+/* 表の1行を読む: { pre(引用の > と行頭の空白), lead(先頭の |), segs(| で区切った生の文字の並び), trail(末尾の |), tail(末尾の空白) }。
+   \ の後ろの文字はエスケープとして区切りにしない */
+function tableRowParse(line) {
+  const m = /^((?:\s*>\s?)*\s*)/.exec(line);
+  const pre = m[1];
+  let body = line.slice(pre.length);
+  const tm = /\s*$/.exec(body);
+  const tail = tm[0];
+  body = body.slice(0, body.length - tail.length);
+  const lead = body[0] === '|';
+  if (lead) body = body.slice(1);
+  const segs = [];
+  let cur = '';
+  for (let i = 0; i < body.length; i++) {
+    if (body[i] === '\\' && i + 1 < body.length) { cur += body[i] + body[i + 1]; i++; }
+    else if (body[i] === '|') { segs.push(cur); cur = ''; }
+    else cur += body[i];
+  }
+  let trail = false;
+  if (cur === '' && segs.length && (body.length > 0 && body[body.length - 1] === '|')) trail = true;
+  else segs.push(cur);
+  if (!segs.length) segs.push('');
+  return { pre, lead, segs, trail, tail };
+}
+function tableRowBuild(r) {
+  // 端の | の無い行で、端のセルが空になったときは | を付ける(付けないと、空のセルが端の | と読まれて列が減る)
+  const lead = r.lead || (r.segs.length > 1 && !r.segs[0].trim());
+  const trail = r.trail || (r.segs.length > 1 && !r.segs[r.segs.length - 1].trim());
+  return r.pre + (lead ? '|' : '') + r.segs.join('|') + (trail ? '|' : '') + r.tail;
+}
+/* セルの生の文字から、前後の空白を除いた中身 */
+const segText = s => s.trim();
+/* 中身を入れ替える(前後の空白はそのまま。空のセルなら前後に1つずつ空白を付ける) */
+function segSet(seg, v) {
+  if (!seg.trim()) return ' ' + v + ' ';
+  const a = /^\s*/.exec(seg)[0], b = /\s*$/.exec(seg)[0];
+  return a + v + b;
+}
+/* セルに書く文字: | をエスケープし、改行は空白にする */
+function cellEscape(v) {
+  let out = '';
+  const s = String(v).replace(/\r?\n/g, ' ');
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\' && i + 1 < s.length) { out += s[i] + s[i + 1]; i++; }
+    else if (s[i] === '|') out += '\\|';
+    else out += s[i];
+  }
+  return out;
+}
+/* 元の文の line 行目を含む表(md と同じ読み方。引用の中の表も)。{ head(見出しの行), delim(区切りの行), rows(本文の行), cols, align } か null */
+function tableAt(text, line) {
+  const html = md(text, { lines: true });
+  const re = /<table><thead><tr data-line="(\d+)"[^>]*>([\s\S]*?)<\/table>/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const head = +m[1];
+    const rows = [];
+    m[2].replace(/<tr data-line="(\d+)"/g, (x, n) => { rows.push(+n); return x; });
+    const last = rows.length ? rows[rows.length - 1] : head + 1;
+    if (line < head || line > last) continue;
+    const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+    const d = tableRowParse(lines[head + 1]);
+    const align = d.segs.map(s => { const t = s.trim(); return /^:-+:$/.test(t) ? 'c' : /-:$/.test(t) ? 'r' : /^:/.test(t) ? 'l' : ''; });
+    return { head: head, delim: head + 1, rows: rows, cols: d.segs.length, align: align };
+  }
+  return null;
+}
+/* 表のセルの中身(元の文のまま)。row は元の文の行(見出しの行か本文の行) */
+function tableCell(text, row, col) {
+  const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  const r = tableRowParse(lines[row] || '');
+  return r.segs[col] != null ? segText(r.segs[col]) : '';
+}
+/* 表を編集する。row は元の文の行(見出しの行・区切りの行・本文の行)、col は列(0から)。
+   action: rowAbove / rowBelow / rowDelete / colLeft / colRight / colDelete / alignLeft / alignCenter / alignRight / alignNone / delete / cell(arg: 中身)。
+   { text, row, col }(編集のあとにカーソルを置くセル。表を消したときは row が表のあった行、col は -1)か、できないときは null */
+function tableEdit(text, row, col, action, arg) {
+  const t = tableAt(text, row);
+  if (!t) return null;
+  const nl = /\r\n/.test(text) ? '\r\n' : '\n';
+  const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  const all = [t.head, t.delim].concat(t.rows);
+  const n = t.cols;
+  col = Math.max(0, Math.min(n - 1, col | 0));
+  const isHead = row === t.head || row === t.delim;
+  if (row === t.delim) row = t.head;
+  const parsed = {};
+  for (const i of all) parsed[i] = tableRowParse(lines[i]);
+  // セルが足りない行は、空のセルで補う(区切りの行は ---)
+  const pad = (r, i) => { while (r.segs.length < n) r.segs.push(i === t.delim ? ' --- ' : '  '); };
+  const out = (r, c) => ({ text: lines.join('\n').replace(/\n/g, nl), row: r, col: c });
+  const hp = parsed[t.head];
+  // 新しい行: 見出しの行と同じ書き方(両端の | と引用の >)で、空のセル。1列の表は両端に | が要る
+  const newRow = () => tableRowBuild({ pre: hp.pre, lead: hp.lead || n === 1, segs: Array.from({ length: n }, () => '  '), trail: hp.trail || n === 1, tail: '' });
+  if (action === 'cell') {
+    const r = parsed[row];
+    pad(r, row);
+    r.segs[col] = segSet(r.segs[col], cellEscape(arg == null ? '' : arg));
+    lines[row] = tableRowBuild(r);
+    return out(row, col);
+  }
+  if (action === 'rowAbove' || action === 'rowBelow') {
+    if (action === 'rowAbove' && isHead) return null;
+    const at = action === 'rowAbove' ? row : (isHead ? t.delim + 1 : row + 1);
+    lines.splice(at, 0, newRow());
+    return out(at, col);
+  }
+  if (action === 'rowDelete') {
+    if (isHead) return null;
+    lines.splice(row, 1);
+    const k = t.rows.indexOf(row);
+    const next = k + 1 < t.rows.length ? row : k > 0 ? t.rows[k - 1] : t.head;
+    return out(next, col);
+  }
+  if (action === 'colLeft' || action === 'colRight' || action === 'colDelete') {
+    if (action === 'colDelete' && n <= 1) return null;
+    const at = action === 'colRight' ? col + 1 : col;
+    for (const i of all) {
+      const r = parsed[i];
+      pad(r, i);
+      if (action === 'colDelete') r.segs.splice(col, 1);
+      else r.segs.splice(at, 0, i === t.delim ? ' --- ' : '  ');
+      // 先頭の | の無い行で、最初の列を消して空になったときは、そのまま(区切りは残る)
+      lines[i] = tableRowBuild(r);
+    }
+    return out(row, action === 'colDelete' ? Math.min(col, n - 2) : at);
+  }
+  if (/^align(Left|Center|Right|None)$/.test(action)) {
+    const d = parsed[t.delim];
+    pad(d, t.delim);
+    const seg = d.segs[col];
+    const dashes = Math.max(3, (seg.match(/-/g) || []).length);
+    const a = /^\s*/.exec(seg)[0], b = /\s*$/.exec(seg)[0];
+    const v = action === 'alignLeft' ? ':' + '-'.repeat(dashes) : action === 'alignCenter' ? ':' + '-'.repeat(dashes) + ':' : action === 'alignRight' ? '-'.repeat(dashes) + ':' : '-'.repeat(dashes);
+    d.segs[col] = a + v + b;
+    lines[t.delim] = tableRowBuild(d);
+    return out(row, col);
+  }
+  if (action === 'delete') {
+    const first = t.head, last = all[all.length - 1];
+    lines.splice(first, last - first + 1);
+    // 前後が空の行なら、空の行を1つにする
+    if (first > 0 && lines[first - 1] === '' && lines[first] === '') lines.splice(first, 1);
+    return out(first, -1);
+  }
+  return null;
+}
+
+/* 空の表(見出しの行 + 3行、3列)を、元の文の after 行目の次に入れる(after が負なら先頭、最後の行以上なら最後)。
+   前後が文の行なら空の行をはさむ(表が段落とつながらないように)。after 行目が空の行なら、その行に入れる。
+   { text, row(見出しの行), col: 0 } */
+const TABLE_NEW = ['|  |  |  |', '| --- | --- | --- |', '|  |  |  |', '|  |  |  |', '|  |  |  |'];
+function tableInsert(text, after) {
+  const r = blockInsert(text, after, TABLE_NEW);
+  return { text: r.text, row: r.at, col: 0 };
+}
+/* かたまり(行の並び)を、元の文の after 行目の次に入れる。決まりは tableInsert と同じ。{ text, at(かたまりの最初の行) } */
+function blockInsert(text, after, blockLines) {
+  const nl = /\r\n/.test(text) ? '\r\n' : '\n';
+  const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  if (lines.length === 1 && lines[0] === '') return { text: blockLines.join(nl), at: 0 };
+  let k;
+  if (after >= lines.length - 1) {
+    // 最後: 終わりの空の行は1つにまとめて、その後ろに
+    while (lines.length > 1 && lines[lines.length - 1].trim() === '' && lines[lines.length - 2].trim() === '') lines.pop();
+    k = lines[lines.length - 1].trim() === '' ? lines.length - 1 : lines.length;
+    if (k === lines.length - 1) lines.splice(k, 1);
+  } else if (after >= 0 && lines[after].trim() === '') { k = after; lines.splice(k, 1); }
+  else k = Math.max(0, after + 1);
+  const block = blockLines.slice();
+  if (k > 0 && lines[k - 1].trim() !== '') block.unshift('');
+  if (k < lines.length && lines[k].trim() !== '') block.push('');
+  lines.splice(k, 0, ...block);
+  return { text: lines.join(nl), at: k + (block[0] === '' && blockLines[0] !== '' ? 1 : 0) };
+}
+
+/* ---------- 数式の挿入と編集(数式エディタ) ----------
+   文中の数式: $…$、\(…\)、$$…$$(文中)、\[…\](文中)。独立した数式のかたまり: $$ / \[ の行、```math のコードブロック。
+   読み方は md・inline と同じ(コード表記の中は数式ではない、\$ は区切りにしない) */
+/* 1行の中の文中の数式の位置: [{ s, e(区切りを含む), o, c(区切り), tex, display }] */
+function inlineMathSpans(line) {
+  const src = String(line);
+  let m = src;
+  const mask = (a, b, ch) => { m = m.slice(0, a) + (ch || '\u0001').repeat(b - a) + m.slice(b); };
+  // コード表記(バッククォートの組)を消す。読み方は codeSpans と同じ
+  for (let i = 0; i < src.length;) {
+    const a = src.indexOf('`', i);
+    if (a < 0) break;
+    let n = 0; while (src[a + n] === '`') n++;
+    let close = -1;
+    for (let k = a + n; k < src.length;) {
+      const j = src.indexOf('`', k);
+      if (j < 0) break;
+      let q = 0; while (src[j + q] === '`') q++;
+      if (q === n) { close = j; break; }
+      k = j + q;
+    }
+    if (close < 0) { i = a + n; continue; }
+    mask(a, close + n);
+    i = close + n;
+  }
+  m = m.replace(/\\\$/g, '\u0003\u0003');
+  const out = [];
+  const take = (re, o, c, display) => {
+    re.lastIndex = 0;
+    let x;
+    const found = [];
+    while ((x = re.exec(m))) found.push([x.index, x.index + x[0].length]);
+    for (const [a, b] of found) { out.push({ s: a, e: b, o: o, c: c, tex: src.slice(a + o.length, b - c.length), display: display }); mask(a, b, '\u0004'); }
+  };
+  take(/\\\((.+?)\\\)/g, '\\(', '\\)', false);
+  take(/\\\[(.+?)\\\]/g, '\\[', '\\]', true);
+  take(/\$\$(.+?)\$\$/g, '$$', '$$', true);
+  // $…$ は inlineDollars と同じ決まり
+  for (let i = 0; ;) {
+    const a = m.indexOf('$', i);
+    if (a < 0) break;
+    if (m[a + 1] === '$') { i = a + 2; continue; }
+    if (a + 1 >= m.length || /\s/.test(m[a + 1])) { i = a + 1; continue; }
+    let b = m.indexOf('$', a + 1), close = -1;
+    while (b >= 0) { if (!/\s/.test(m[b - 1]) && !/\d/.test(m[b + 1] || '')) { close = b; break; } b = m.indexOf('$', b + 1); }
+    if (close < 0) break;
+    out.push({ s: a, e: close + 1, o: '$', c: '$', tex: src.slice(a + 1, close), display: false });
+    i = close + 1;
+  }
+  return out.sort((x, y) => x.s - y.s);
+}
+/* 元の文のかたまり(数式・コード・図)の行の範囲: [{ kind: 'math'|'code'|'diagram', s, e }] */
+function blockRanges(text) {
+  const html = md(String(text), { lines: true });
+  const out = [];
+  const re = /<(pre|div)\b([^>]*)>/g;
+  let x;
+  while ((x = re.exec(html))) {
+    const r = /data-line="(\d+)" data-end="(\d+)"/.exec(x[2]);
+    if (!r) continue;
+    const kind = x[1] === 'pre' ? 'code' : /class="math\b/.test(x[2]) ? 'math' : /class="diagram\b/.test(x[2]) ? 'diagram' : '';
+    if (kind) out.push({ kind: kind, s: +r[1], e: +r[2] });
+  }
+  return out;
+}
+/* 数式のかたまり(lines の s〜e 行)の中身と区切り: { pre(引用の > など), open, close, single(1行か), tex } */
+function mathBlockParts(lines, s, e) {
+  const first = lines[s] || '';
+  const pre = /^((?:\s*>\s?)*\s*)/.exec(first)[1];
+  const strip = l => (l.startsWith(pre) ? l.slice(pre.length) : l.replace(/^(?:\s*>\s?)*\s*/, ''));
+  const body = lines.slice(s, e).map(strip);
+  const t = body[0].trim();
+  const f = /^(`{3,}|~{3,})math\s*$/.exec(t);
+  if (f) return { pre: pre, open: f[1] + 'math', close: f[1], single: false, tex: body.slice(1, body.length - (e - s > 1 && /^(`{3,}|~{3,})\s*$/.test(body[body.length - 1].trim()) ? 1 : 0)).join('\n') };
+  const o = t.startsWith('\\[') ? '\\[' : '$$', c = o === '$$' ? '$$' : '\\]';
+  if (e - s === 1) return { pre: pre, open: o, close: c, single: true, tex: t.slice(o.length, t.length - c.length).trim() };
+  const inner = [body[0].trim().slice(o.length)].concat(body.slice(1, -1), [body[body.length - 1].trim().slice(0, -c.length)]);
+  return { pre: pre, open: o, close: c, single: false, tex: inner.join('\n').trim() };
+}
+/* 元の文の位置 pos にある数式: { s, e(元の文の位置。かたまりなら行の頭から行の終わりまで), tex, display, block, o, c } か null */
+function mathAt(text, pos) {
+  const src = String(text).replace(/\r\n?/g, '\n');
+  const lines = src.split('\n');
+  const line = src.slice(0, pos).split('\n').length - 1;
+  const starts = [];
+  let acc = 0;
+  for (const l of lines) { starts.push(acc); acc += l.length + 1; }
+  for (const b of blockRanges(src)) {
+    if (line < b.s || line >= b.e) continue;
+    if (b.kind !== 'math') return null;
+    const p = mathBlockParts(lines, b.s, b.e);
+    return { s: starts[b.s], e: starts[b.e - 1] + lines[b.e - 1].length, tex: p.tex, display: true, block: true, line: b.s, end: b.e };
+  }
+  const off = pos - starts[line];
+  const sp = inlineMathSpans(lines[line]).find(x => off >= x.s && off <= x.e);
+  return sp ? { s: starts[line] + sp.s, e: starts[line] + sp.e, tex: sp.tex, display: sp.display, block: false, o: sp.o, c: sp.c } : null;
+}
+/* プレビューの数式(かたまり el の k 番目の文中の数式で、中身が tex)の元の文の位置。lines の s〜e 行から探す */
+function mathInBlock(text, s, e, k, tex) {
+  const src = String(text).replace(/\r\n?/g, '\n');
+  const lines = src.split('\n');
+  let acc = 0;
+  const starts = [];
+  for (const l of lines) { starts.push(acc); acc += l.length + 1; }
+  const all = [];
+  for (let i = s; i < e && i < lines.length; i++) for (const sp of inlineMathSpans(lines[i])) all.push(Object.assign({}, sp, { s: starts[i] + sp.s, e: starts[i] + sp.e }));
+  const norm = t => String(t).replace(/\s+/g, ' ').trim();
+  const hit = all[k] && norm(all[k].tex) === norm(tex) ? all[k] : all.find(x => norm(x.tex) === norm(tex));
+  return hit ? { s: hit.s, e: hit.e, tex: hit.tex, display: hit.display, block: false, o: hit.o, c: hit.c } : null;
+}
+/* 文中に入れる数式の書き方。$…$ にするが、閉じの後ろが数字のとき(読めなくなる)は \(…\) */
+function mathInline(tex, next) {
+  const t = String(tex).replace(/\s*\n\s*/g, ' ').trim();
+  return /\d/.test(next || '') ? '\\(' + t + '\\)' : '$' + t + '$';
+}
+/* 数式の挿入: 文中なら選んだ範囲を置き換え、独立した行なら blockInsert(カーソルの行の次)。{ text, sel(中身の始まり), selEnd } */
+function mathInsert(text, selStart, selEnd, tex, display, after) {
+  const src = String(text);
+  if (!display) {
+    const v = mathInline(tex, src[selEnd]);
+    const o = v[0] === '$' ? 1 : 2;
+    return { text: src.slice(0, selStart) + v + src.slice(selEnd), sel: selStart + o, selEnd: selStart + v.length - o };
+  }
+  const t = String(tex).trim();
+  const r = blockInsert(src, after == null ? src.slice(0, selStart).split('\n').length - 1 : after, ['$$'].concat(t.split('\n'), ['$$']));
+  const lines = r.text.replace(/\r\n?/g, '\n').split('\n');
+  let p = 0;
+  for (let i = 0; i <= r.at; i++) p += lines[i].length + 1;
+  return { text: r.text, sel: p, selEnd: p + t.length };
+}
+/* 数式 at(mathAt・mathInBlock の結果)を tex に置き換える。区切りの書き方(引用の > も)はできるだけ残す */
+function mathReplace(text, at, tex, display) {
+  const src = String(text).replace(/\r\n?/g, '\n');
+  const t = String(tex).trim();
+  let v;
+  if (at.block) {
+    const lines = src.split('\n');
+    const p = mathBlockParts(lines, at.line, at.end);
+    if (!display) v = p.pre + mathInline(t, '');
+    else if (p.single && t.indexOf('\n') < 0) v = p.pre + p.open + t + p.close;
+    else v = [p.open].concat(t.split('\n'), [p.close]).map(l => p.pre + l).join('\n');
+  } else if (display === at.display) v = at.o + (at.o === '$' ? t.replace(/\s*\n\s*/g, ' ') : t.replace(/\s*\n\s*/g, ' ')) + at.c;
+  else v = display ? '$$' + t.replace(/\s*\n\s*/g, ' ') + '$$' : mathInline(t, src[at.e]);
+  return { text: src.slice(0, at.s) + v + src.slice(at.e), s: at.s, e: at.s + v.length };
+}
+/* 数式エディタ: pos の後ろ(back なら前)の空の {} の中の位置。無ければ -1(端まで行ったら反対の端から探す) */
+function emptyBraceAt(text, pos, back) {
+  const s = String(text);
+  const all = [];
+  for (let i = s.indexOf('{}'); i >= 0; i = s.indexOf('{}', i + 1)) all.push(i + 1);
+  if (!all.length) return -1;
+  if (back) { const b = all.filter(i => i < pos); return b.length ? b[b.length - 1] : all[all.length - 1]; }
+  const f = all.find(i => i > pos);
+  return f != null ? f : all[0];
+}
+/* 「テキスト」表示で表を入れる行: カーソルが表の中なら表の後ろ、コード・数式・図のかたまりの中ならその後ろ、それ以外はカーソルの行の次 */
+function tableInsertAfter(text, pos) {
+  const src = String(text);
+  const line = src.slice(0, pos).split('\n').length - 1;
+  const t = tableAt(src, line);
+  if (t) return t.rows.length ? t.rows[t.rows.length - 1] : t.delim;
+  const html = md(src, { lines: true });
+  const re = /<(pre|div)\b([^>]*)>/g;
+  let m;
+  while ((m = re.exec(html))) {
+    const a = m[2], r = /data-line="(\d+)" data-end="(\d+)"/.exec(a);
+    if (!r || (m[1] === 'div' && !/class="(?:math|diagram)\b/.test(a))) continue;
+    if (line >= +r[1] && line < +r[2]) return +r[2] - 1;
+  }
+  return line;
+}
+
+/* 元の文の位置 pos(カーソル)がある表のセル: { row(元の文の行), col } か、表の中でなければ null。区切りの行は見出しの行として扱う */
+function tableCaret(text, pos) {
+  const src = String(text);
+  const row = src.slice(0, pos).split('\n').length - 1;
+  const t = tableAt(src, row);
+  if (!t) return null;
+  const ls = src.lastIndexOf('\n', pos - 1) + 1;
+  const line = src.slice(ls, src.indexOf('\n', ls) < 0 ? src.length : src.indexOf('\n', ls));
+  const r = tableRowParse(line);
+  let k = r.pre.length + (r.lead ? 1 : 0), col = 0;
+  for (let i = 0; i < r.segs.length - 1; i++) {
+    k += r.segs[i].length;
+    if (pos - ls > k) col = i + 1;
+    k++;
+  }
+  return { row: row === t.delim ? t.head : row, col: Math.min(t.cols - 1, col) };
+}
+/* 表のセルの中身の始まりの位置(空のセルなら、その真ん中)。セルが無ければ行の終わり */
+function tableCellPos(text, row, col) {
+  const src = String(text), lines = src.split('\n');
+  let ls = 0;
+  for (let i = 0; i < row && i < lines.length; i++) ls += lines[i].length + 1;
+  const line = lines[row] || '';
+  const r = tableRowParse(line);
+  if (col >= r.segs.length) return ls + line.length;
+  let k = r.pre.length + (r.lead ? 1 : 0);
+  for (let i = 0; i < col; i++) k += r.segs[i].length + 1;
+  const seg = r.segs[col];
+  return ls + k + (seg.trim() ? /^\s*/.exec(seg)[0].length : Math.min(1, seg.length));
+}
+/* プレビューでクリックした場所に当たる、元の文の位置。before はクリックした場所より前の表示の文字、total は表示の文字の数。
+   表示の文字の終わりの数文字を元の文で探し、表示の割合から見た位置にいちばん近いものを選ぶ。
+   前に何も無ければ、見出しやリストの記号のあと */
+function caretFromRendered(src, before, total) {
+  src = String(src);
+  const prefix = /^((?:\s*>\s?)*\s*(?:#{1,6}\s+|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?)?)/.exec(src)[1].length;
+  const b = String(before || '');
+  if (!b.trim()) return prefix;
+  if (!total || b.length >= total) return src.length;
+  const guess = prefix + Math.round((src.length - prefix) * b.length / total);
+  for (let k = Math.min(12, b.length); k >= 1; k--) {
+    const key = b.slice(-k);
+    let best = -1, bd = Infinity;
+    for (let i = src.indexOf(key); i >= 0; i = src.indexOf(key, i + 1)) { const d = Math.abs(i + k - guess); if (d < bd) { bd = d; best = i + k; } }
+    if (best >= 0) return best;
+  }
+  return Math.min(src.length, guess);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

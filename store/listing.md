@@ -25,10 +25,11 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 
 ■ 書く  
 ・プレーンテキストでも Markdown でも書けます。見出し、リスト、チェックボックス、コード、引用、表、リンクをプレビューで整形して表示します。  
-・編集とプレビューを切り替えても、見ていた場所はそのままです。  
+・プレビューのままでも、クリックした段落やリストをその場で書き換えられます。空の表の挿入もでき、表はセルごとに編集でき、右クリックで行・列の挿入と削除、左寄せ・中央揃え・右寄せができます。チェックボックスは押すだけで切り替わります。  
+・テキストとプレビューを切り替えても、見ていた場所はそのままです。  
 ・選んだ文字を、右クリックで太字・斜体・取り消し線・コードにできます。  
 ・GitHub と同じ書き方で、絵文字(:smile: など。打つと候補が出ます)、色付きの注意書き(アラート)、脚注を書けます。  
-・LaTeX の数式と化学式を、整った数式として表示します。  
+・LaTeX の数式と化学式を、整った数式として表示します。数式エディタでは、典型的な数式のひな型や記号を選んで、プレビューを見ながら書けます。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
 ・他のメモへのリンクを入れて、メモどうしをつなげられます。  
@@ -74,7 +75,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 12. アカウント不要、インターネットに接続しない
 13. 日本語と英語の画面、ダークモード
 14. Mermaid の図(フローチャート・シーケンス図など)
-15. 編集とプレビューを切り替えても、見ていた場所がそのまま
+15. プレビューのままで段落・表・チェックボックスを編集でき、表の行・列の挿入と削除・配置も簡単
 16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
 17. キーボードショートカットを好きなキーに変えられる
 18. GitHub と同じ絵文字ショートコード(入力候補つき)・アラート・脚注
@@ -116,10 +117,11 @@ Every edit, from a single character to a full rewrite, is kept in the history. D
 
 WRITE  
 • Write in plain text or Markdown. Headings, lists, check boxes, code, block quotes, tables and links are formatted in the preview.  
-• Switching between Edit and Preview keeps your place.  
+• Edit right in the preview: click a paragraph or a list to change it in place. Insert an empty table, edit tables cell by cell, and right-click to insert or delete rows and columns or to align a column left, center or right. Check boxes switch with a click.  
+• Switching between Text and Preview keeps your place.  
 • Make selected text bold, italic, struck through or code from the right-click menu.  
 • Use GitHub's emoji shortcodes (such as :smile:, with suggestions as you type), alerts and footnotes.  
-• LaTeX math and chemical formulas are shown as formatted formulas.  
+• LaTeX math and chemical formulas are shown as formatted formulas. The formula editor lets you pick templates and symbols and see the result as you type.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax.  
 • Paste screenshots or drop files to attach images and files to a note.  
 • Link notes to each other.  
@@ -165,7 +167,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 12. No account, and no internet connection
 13. English and Japanese interface, with dark mode
 14. Mermaid diagrams: flowcharts, sequence diagrams and more
-15. Switching between Edit and Preview keeps your place
+15. Edit paragraphs, tables and check boxes right in the preview, with easy row, column and alignment changes for tables
 16. Bold, italic, strikethrough and code from the right-click menu
 17. Keyboard shortcuts you can change
 18. GitHub emoji shortcodes (with suggestions), alerts and footnotes

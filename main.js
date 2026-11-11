@@ -8,7 +8,7 @@ const { decodeText, MAX_IMPORT } = require('./textcodec');
 const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
 const { buildArchive, readArchive, looksLikeArchive } = require('./archive');
 const { titleOf } = require('./renderer/core');
-const { buildTemplate, buildAttachTemplate, formatItems, inlineItems } = require('./contextmenu');
+const { buildTemplate, buildAttachTemplate, formatItems, inlineItems, tableItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
 const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv } = require('./portable');
@@ -286,17 +286,38 @@ ipcMain.handle('note:menu', (e, title, ro) => {
   });
 });
 
-// 数式・図を右クリックしたときのメニュー: 元の LaTeX・図の元の文をコピーする(kind: 'math' か 'diagram')
-ipcMain.handle('math:menu', (e, tex, kind) => {
+// 数式・図を右クリックしたときのメニュー: 元の LaTeX・図の元の文をコピーする(kind: 'math' か 'diagram')。canEdit なら「数式を編集…」も
+ipcMain.handle('math:menu', (e, tex, kind, canEdit) => {
   if (!fromOurWindow(e)) return null;
   return new Promise(resolve => {
     let chosen = false;
-    const menu = Menu.buildFromTemplate([{ label: T(kind === 'diagram' ? 'mCopyDiagram' : 'mCopyTex'), click: async () => {
+    const items = [{ label: T(kind === 'diagram' ? 'mCopyDiagram' : 'mCopyTex'), click: async () => {
       chosen = true;
       try { await clipboard.writeText(String(tex || '').slice(0, 100000)); resolve({ status: 'copied' }); } catch (err) { resolve({ status: 'none' }); }
-    } }]);
+    } }];
+    // プレビューの数式(編集できるメモ)は、数式エディタで編集できる
+    if (kind === 'math' && canEdit) items.unshift({ label: T('mEditMath'), click: () => { chosen = true; resolve({ status: 'edit' }); } }, { type: 'separator' });
+    const menu = Menu.buildFromTemplate(items);
     menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve({ status: 'none' }); }, 300) });
   });
+});
+
+/* 表の操作のメニュー(プレビューのセルを右クリックしたとき。表の外なら「表を挿入」だけ)。選んだ操作の名前を返す(選ばなければ null) */
+const cleanTableState = st => (st && typeof st === 'object' ? { inTable: st.inTable !== false, head: !!st.head, cols: Math.max(1, Math.min(1000, st.cols | 0)), align: ['l', 'c', 'r'].indexOf(st.align) >= 0 ? st.align : '' } : null);
+ipcMain.handle('table:menu', (e, st) => {
+  if (!fromOurWindow(e)) return null;
+  return new Promise(resolve => {
+    let chosen = false;
+    const menu = Menu.buildFromTemplate(tableItems(T, id => { chosen = true; resolve(id); }, cleanTableState(st) || { head: false, cols: 2, align: '' }, curKeys()));
+    menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve(null); }, 300) });
+  });
+});
+/* 「テキスト」表示の右クリックの直前に、カーソルの場所(表のセル・数式の中か)を知らせてもらう
+   (本文の右クリックのメニューに「数式を挿入…」「数式を編集…」と「表」を足す) */
+let editCtx = null;
+ipcMain.on('edit:ctx', (e, st) => {
+  editCtx = fromOurWindow(e) && st && st.editable ? { table: cleanTableState(st.table), math: !!st.math, t: Date.now() } : null;
+  e.returnValue = true;
 });
 
 ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y, canTrash) => {
@@ -402,15 +423,15 @@ ipcMain.handle('history:prune', async (e, id, k, n, title) => {
 });
 
 /* ---------- 画面の状態に合わせて、実行できないメニューを押せなくする ----------
-   edit: 編集画面か(書式・リンクの挿入・添付は編集画面だけ。「検索と置換…」はどの表示でも使え、
-   プレビュー・履歴の表示・読み取り専用のメモでは検索だけのバーになる)、lines: 行番号が出る表示か(プレビューでは出ない)、
+   edit: 「テキスト」表示か(リンクの挿入・添付は「テキスト」表示だけ。「検索と置換…」はどの表示でも使え、
+   プレビュー・履歴の表示・読み取り専用のメモでは検索だけのバーになる)、fmt: 書式を使えるか(「テキスト」表示と、プレビューでかたまりを編集している間)、lines: 行番号が出る表示か(プレビューでは出ない)、
    back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)、
    base: いま見ている表示(edit / preview。履歴の表示の中ではその元の表示。「表示」→「編集」「プレビュー」は、いま見ていないほうだけ押せる)、
    ro: 今のメモが読み取り専用か(書式・リンクの挿入・添付・古い履歴の削除を押せなくする)。押せない項目はキー操作も効かない */
-let ui = { edit: true, lines: true, back: false, hist: false, base: 'edit', ro: false };
+let ui = { edit: true, fmt: true, lines: true, back: false, hist: false, base: 'edit', ro: false };
 ipcMain.on('ui:state', (e, st) => {
   if (!fromOurWindow(e) || !st) return;
-  const next = { edit: !!st.edit, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit', ro: !!st.ro };
+  const next = { edit: !!st.edit, fmt: !!st.fmt, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit', ro: !!st.ro };
   if (Object.keys(next).every(k => next[k] === ui[k])) return;
   ui = next;
   buildMenu();
@@ -979,8 +1000,10 @@ function buildMenu() {
         { type: 'separator' },
         { label: T('mAttach'), accelerator: A('attach'), enabled: ui.edit && !ui.ro, click: () => send('attach') },
         { id: 'replace', label: T('mReplace'), accelerator: A('replace'), click: () => send('replace') },
-        { label: T('mFormat'), enabled: ui.edit && !ui.ro, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.edit && !ui.ro })) },
+        { label: T('mFormat'), enabled: ui.fmt && !ui.ro, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.fmt && !ui.ro })) },
         { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit && !ui.ro, click: () => send('link') },
+        { label: T('mInsertMath'), accelerator: A('math'), enabled: !ui.hist && !ui.ro, click: () => send('math') },
+        { label: T('mTable'), enabled: !ui.hist && !ui.ro, submenu: tableItems(T, id => send('tbl:' + id), null, KM).map(x => (x.type === 'separator' || x.submenu ? x : Object.assign(x, { enabled: !ui.hist && !ui.ro }))) },
         { type: 'separator' },
         { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },
         { label: T('mAutoList'), type: 'checkbox', checked: ep.autoList, click: item => setEditPref('autoList', item.checked) },
@@ -1208,7 +1231,9 @@ function createWindow() {
 
   // 右クリック: Electronには標準のメニューが無いので、切り取り・コピー・貼り付けなどを自前で出す
   win.webContents.on('context-menu', (_e, params) => {
-    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), lang: lang, keys: curKeys() });
+    const ctx = editCtx && Date.now() - editCtx.t < 3000 ? editCtx : null;
+    editCtx = null;
+    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), onTable: id => send('tbl:' + id), table: ctx && ctx.table, onMath: ctx ? () => send('math') : null, inMath: !!(ctx && ctx.math), lang: lang, keys: curKeys() });
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: win });
   });
 

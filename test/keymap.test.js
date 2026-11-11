@@ -132,13 +132,16 @@ test('つなぎ込み: メニューのキーは keymap.js から付け、表示�
   const menu = main.slice(main.indexOf('function buildMenu()'), main.indexOf('/* ---------- 言語 ----------'));
   assert.deepStrictEqual(menu.match(/accelerator: '[^']*'/g), ["accelerator: 'CmdOrCtrl+A'"]);
   for (const c of K.COMMANDS.filter(x => !x.role)) {
-    assert.ok(menu.includes("accelerator: A('" + c.id + "')") || c.id.startsWith('fmt:'), 'メニューに無い: ' + c.id);
+    assert.ok(menu.includes("accelerator: A('" + c.id + "')") || c.id.startsWith('fmt:') || c.id.startsWith('tbl:'), 'メニューに無い: ' + c.id);
   }
   for (const c of K.COMMANDS.filter(x => x.role)) assert.ok(menu.includes("roleItem(KM, '" + c.id + "'"), c.id);
   assert.match(menu, /T\('mKeys'\), click: \(\) => send\('keys'\)/);
+  // 表の操作のキーは、contextmenu.js の tableItems が keymap の tbl:… から付ける(メニューバーの「編集」→「表」)
+  assert.match(menu, /T\('mTable'\), enabled: !ui\.hist && !ui\.ro, submenu: tableItems\(T, id => send\('tbl:' \+ id\), null, KM\)/);
+  assert.match(read('contextmenu.js'), /\['tbl:' \+ id\]/);
   assert.match(menu, /T\('mModeEdit'\), accelerator: A\('mode:edit'\), enabled: ui\.base !== 'edit'/);
   assert.match(menu, /T\('mModePreview'\), accelerator: A\('mode:preview'\), enabled: ui\.base !== 'preview'/);
-  assert.match(app, /api\.setUiState\(\{ edit: S\.mode === 'edit', lines: lines, back: back, hist: S\.mode === 'history', base: S\.hbase, ro: isRO\(cur\(\)\) \}\)/);
+  assert.match(app, /api\.setUiState\(\{ edit: S\.mode === 'edit', fmt: S\.mode === 'edit' \|\| pe\.kind === 'block', lines: lines, back: back, hist: S\.mode === 'history', base: S\.hbase, ro: isRO\(cur\(\)\) \}\)/);
   // 「検索と置換…」はどの表示でも押せる(プレビュー・履歴の表示・読み取り専用のメモでは、検索だけ)
   assert.match(menu, /T\('mReplace'\), accelerator: A\('replace'\), click:/);
   // 割り当て中は、押したキーを main.js が読む

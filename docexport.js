@@ -450,8 +450,10 @@ function texMathUni(t) {
   return out;
 }
 /* 数式の中身。KaTeX の \empty は ∅ だが、LaTeX の \empty は「空」なので \emptyset にする。数式の中の空行は取る(LaTeX では誤りになる) */
+/* KaTeX の \pu{9.8 m/s^2}(単位)は LaTeX の mhchem には無いので、立体の文字にする(空白は細い空白) */
+const texPu = t => t.replace(/\\pu\{([^{}]*)\}/g, (m, v) => '\\mathrm{' + v.trim().replace(/\s+/g, '\\,') + '}');
 function texMath(tex, X) {
-  let t = texMathUni(String(tex).replace(TEX_CTRL, '').replace(/\\empty(?![A-Za-z])/g, '\\emptyset').replace(/\n[ \t]*(?=\n)/g, '').replace(/\n{2,}/g, '\n'));
+  let t = texMathUni(texPu(String(tex).replace(TEX_CTRL, '').replace(/\\empty(?![A-Za-z])/g, '\\emptyset').replace(/\n[ \t]*(?=\n)/g, '').replace(/\n{2,}/g, '\n')));
   X.math.push(t);
   // % で始まるコメントがあれば、閉じる記号がコメントにならないよう改行する
   if (/(^|[^\\])(\\\\)*%/.test(t)) t += '\n';

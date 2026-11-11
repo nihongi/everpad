@@ -51,6 +51,10 @@
   const fmtMin = t => { const d = new Date(t); return fmtDate(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 
   const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', scope: 'latest', lines: false, frOpen: false };
+  // プレビューでの編集の状態(「プレビューでの編集」を参照。表示の切り替えやメモの移動で閉じるので、ここで用意する)
+  const pe = { box: null, holder: null, el: null, kind: '', s: 0, e: 0, n: 0, pre: '', post: '', hasPost: false, start: '', row: 0, col: 0, html: '', init: '' };
+  let peComposing = false, peNext = null, peLastCell = null;
+  const peUndo = [], peRedo = [];
   const cur = () => S.notes.find(n => n.id === S.active);
   const sorted = () => S.notes.slice().sort((a, b) => b.t - a.t);
 
@@ -485,6 +489,7 @@
   /* 表示は「編集」「プレビュー」の2つ。それぞれに、通常表示と履歴表示がある。
      S.mode は実際の画面(edit / preview / history)、S.hbase は履歴表示のときの元の画面(edit=変更箇所を示す文字、preview=整形した表示)。 */
   function setMode(m, focusEditor) {
+    if (pe.box) peClose(true);
     stop();
     emoClose();
     const enteringHistory = m === 'history' && S.mode !== 'history';
@@ -499,7 +504,7 @@
     if (typeof frShow === 'function') frShow();
     if (typeof updateStrip === 'function') updateStrip();
     $('attBtn').hidden = m !== 'edit';
-    if (m === 'preview') { $('preview').innerHTML = md(cur().text, { lines: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>'; lastHydrate = hydrate($('preview'), cur().id); highlight($('preview'), S.q); }
+    if (m === 'preview') renderPreview();
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
@@ -513,7 +518,7 @@
     // 行番号が出るのは、編集画面と、編集から入った履歴の表示(変更箇所の表示)だけ
     const lines = S.mode === 'edit' || (S.mode === 'history' && S.hbase === 'edit');
     $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
-    api.setUiState({ edit: S.mode === 'edit', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase, ro: isRO(cur()) });
+    api.setUiState({ edit: S.mode === 'edit', fmt: S.mode === 'edit' || pe.kind === 'block', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase, ro: isRO(cur()) });
   }
   /* ---------- 「編集」と「プレビュー」を切り替えたときの位置合わせ ----------
      切り替える前の表示で基準の場所(元の文の行と、画面の上からの高さ)を決め、切り替えたあとの表示で、その行を同じ高さに出して一瞬光らせる。
@@ -722,6 +727,10 @@
     return true;
   }
   function show(id) {
+    if (pe.box) peClose(true);
+    peUndo.length = 0;
+    peRedo.length = 0;
+    peLastCell = null;
     stop();
     emoClose();
     S.active = id;
@@ -1384,14 +1393,16 @@
      選んだ文字を太字・斜体・取り消し線・コードにする(複数行なら行ごと。core.js の inlineFormat)。
      1回の編集として履歴に残り、Ctrl+Z で戻せる。編集画面でだけ使える */
   function applyFormat(kind) {
-    if (S.mode !== 'edit' || !$('modal').hidden) return;
-    const ed = $('editor');
+    // プレビューでかたまりを編集している間は、その編集欄に対して行う
+    const blk = S.mode === 'preview' && pe.kind === 'block';
+    if ((S.mode !== 'edit' && !blk) || !$('modal').hidden) return;
+    const ed = blk ? pe.box : $('editor');
     const r = kind === 'indent' || kind === 'outdent'
       ? indentEdit(ed.value, ed.selectionStart, ed.selectionEnd, EDIT.indentWidth, kind === 'outdent')
       : ['bold', 'italic', 'strike', 'icode'].indexOf(kind) >= 0 ? inlineFormat(ed.value, ed.selectionStart, ed.selectionEnd, kind)
         : formatLines(ed.value, ed.selectionStart, ed.selectionEnd, kind);
     if (!r) return;
-    if (ed.value.slice(r.from, r.to) !== r.insert) frInsert(r.from, r.to, r.insert);
+    if (ed.value.slice(r.from, r.to) !== r.insert) { if (blk) peReplace(r.from, r.to, r.insert); else frInsert(r.from, r.to, r.insert); }
     ed.focus();
     ed.setSelectionRange(r.selStart, r.selEnd);
     queueStatus();
@@ -1582,8 +1593,10 @@
     e.preventDefault();
     const diagram = m.classList.contains('diagram');
     let r = null;
-    try { r = await api.mathMenu(diagram ? m.dataset.src || '' : m.dataset.tex || '', diagram ? 'diagram' : 'math'); } catch (err) { r = null; }
+    const canEdit = !diagram && !!m.closest('#preview') && peAllowed();
+    try { r = await api.mathMenu(diagram ? m.dataset.src || '' : m.dataset.tex || '', diagram ? 'diagram' : 'math', canEdit); } catch (err) { r = null; }
     if (r && r.status === 'copied') toast(T(diagram ? 'diagramCopied' : 'texCopied'));
+    else if (r && r.status === 'edit' && m.isConnected) peMathEdit(m);
   });
   document.addEventListener('contextmenu', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
@@ -1744,6 +1757,673 @@
   });
 
   /* ---------- メニュー・終了時の保存 ---------- */
+  /* ---------- プレビューでの編集 ----------
+     プレビューでかたまり(段落・見出し・リストの項目・引用や注意書きの中の段落・コード・区切り線)をクリックすると、
+     そのかたまりの元の文(md が付けた data-line〜data-end の行。リストの項目は、その下の項目も含む)を、その場の編集欄にする。
+     表はセルごとに、そのセルの中身だけを編集する(core.js の tableEdit)。チェックボックスは押すと [ ] と [x] を切り替える。
+     打った文字は「テキスト」表示と同じく、入力ごとに履歴に入る(元の文を直して commit)。書いていない所は変えない。
+     Esc か、ほかの場所をクリックすると閉じて、整形した表示に戻す。数式と図は編集しない(ダブルクリックで「テキスト」表示のその行へ)。
+     読み取り専用のメモでは編集しない。
+     元に戻す: 編集欄の中ではその編集欄の Ctrl+Z。閉じたあとは、プレビューでの変更を1回ずつ戻す(peUndo。メモを移ると消える) */
+  const PE_SKIP = 'a, img, .math, .diagram, sup.fnref, .fnback, .link-other, .note-link, .att-file, input, button, textarea, .alert-title, .footnotes, .att-missing';
+  const peAllowed = () => S.mode === 'preview' && !!cur() && !isRO(cur()) && $('modal').hidden;
+  /* プレビューを作り直す。anchor(元の文の行)のかたまりが、作り直す前の top(画面の上からの高さ)と同じ高さに来るようにする */
+  function renderPreview() {
+    const pv = $('preview');
+    pv.innerHTML = md(cur().text, { lines: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
+    lastHydrate = hydrate(pv, cur().id);
+    highlight(pv, S.q);
+    // チェックボックスは、編集できるメモでは押せるようにする(押したときは元の文を書き換える)
+    const ro = isRO(cur());
+    pv.classList.toggle('pe-on', !ro);
+    pv.querySelectorAll('li > input[type=checkbox]').forEach(cb => { cb.disabled = ro; });
+  }
+  function peRerender(anchor, top) {
+    const pv = $('preview');
+    renderPreview();
+    const el = anchor == null ? null : peBlockAt(anchor) || [...pv.querySelectorAll('[data-line]')].find(x => +x.dataset.line >= anchor);
+    if (el && top != null) pv.scrollTop += el.getBoundingClientRect().top - top;
+    if (S.frOpen) frRefresh();
+  }
+  /* 元の文を v にする(「テキスト」表示の編集欄にも入れて、履歴に入れる) */
+  function peSetText(v) {
+    const n = cur(), ed = $('editor');
+    if (!n || isRO(n) || v === n.text) return false;
+    const op = makeOp(ed.value, v, 0);
+    ed.setRangeText(op.i, op.p, op.p + op.d.length, 'preserve');
+    commit();
+    return true;
+  }
+  function peRecord(before, after) {
+    if (before === after) return;
+    peUndo.push({ id: S.active, before: before, after: after });
+    if (peUndo.length > 200) peUndo.shift();
+    peRedo.length = 0;
+  }
+  function peUndoRedo(redo) {
+    const from = redo ? peRedo : peUndo, to = redo ? peUndo : peRedo;
+    const x = from[from.length - 1];
+    if (!x || x.id !== S.active || cur().text !== (redo ? x.before : x.after)) { from.length = 0; return; }
+    from.pop();
+    const top = $('preview').getBoundingClientRect().top;
+    const line = cur().text.slice(0, makeOp(cur().text, redo ? x.after : x.before, 0).p).split('\n').length - 1;
+    const el = peBlockAt(line);
+    const y = el ? el.getBoundingClientRect().top : top;
+    peSetText(redo ? x.after : x.before);
+    to.push(x);
+    peRerender(line, y);
+  }
+  // 行 line から始まる、編集できるかたまり
+  function peBlockAt(line) {
+    return [...$('preview').querySelectorAll('[data-line="' + line + '"]')].find(x => !x.matches('.math, .diagram') && !x.closest('.footnotes')) || null;
+  }
+  // 編集できるかたまり(表は行)を、元の文の順に
+  function peBlocks() {
+    return [...$('preview').querySelectorAll('[data-line]')].filter(x => !x.matches('.math, .diagram') && !x.closest('.footnotes')).sort((a, b) => +a.dataset.line - +b.dataset.line);
+  }
+  /* クリックした場所を、作り直したあとでも探せる形で覚える: セルなら { row, col }、かたまりなら { line, before, total }
+     (before はかたまりの中でクリックした場所より前の表示の文字、total は表示の文字の数。カーソルを置く場所を元の文で探すのに使う) */
+  function peDescribe(e) {
+    const t = e.target;
+    if (!t.closest || !$('preview').contains(t) || t.closest(PE_SKIP)) return null;
+    const cell = t.closest('td, th');
+    if (cell) { const tr = cell.closest('tr[data-line]'); return tr ? { row: +tr.dataset.line, col: [...tr.children].indexOf(cell) } : null; }
+    const el = t.closest('[data-line]');
+    if (!el || el.matches('.math, .diagram, tr')) return null;
+    let before = '';
+    const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+    if (r && el.contains(r.startContainer)) { const rr = document.createRange(); rr.setStart(el, 0); rr.setEnd(r.startContainer, r.startOffset); before = rr.toString(); }
+    return { line: +el.dataset.line, before: before, total: el.textContent.length };
+  }
+  function peOpen(d) {
+    if (!d || !peAllowed()) return;
+    if (d.row != null) {
+      const tr = $('preview').querySelector('tr[data-line="' + d.row + '"]');
+      const cell = tr && tr.children[Math.max(0, Math.min(tr.children.length - 1, d.col))];
+      if (cell) peOpenCell(cell, d.end);
+      return;
+    }
+    const el = peBlockAt(d.line);
+    if (!el) return;
+    if (el.tagName === 'TR') { peOpenCell(el.children[d.end === false ? 0 : el.children.length - 1] || el.children[0]); return; }
+    peOpenBlock(el, d);
+  }
+  function peOpenBlock(el, d) {
+    const n = cur(), lines = n.text.split('\n');
+    const s = +el.dataset.line;
+    let e = +el.dataset.end;
+    el.querySelectorAll('[data-end]').forEach(x => { e = Math.max(e, +x.dataset.end); });
+    e = Math.min(e, lines.length);
+    const src = lines.slice(s, e).join('\n');
+    const ta = document.createElement('textarea');
+    ta.className = 'pe-edit';
+    ta.spellcheck = false;
+    ta.value = src;
+    let holder = ta;
+    if (el.tagName === 'LI') { holder = document.createElement('li'); holder.className = 'pe-li'; holder.appendChild(ta); }
+    el.before(holder);
+    el.hidden = true;
+    Object.assign(pe, { box: ta, holder: holder, el: el, kind: 'block', s: s, e: e, n: e - s, start: n.text, pre: lines.slice(0, s).join('\n'), post: lines.slice(e).join('\n'), hasPost: e < lines.length });
+    peFit(true);
+    ta.focus({ preventScroll: true });
+    const pos = d && d.at === 'start' ? 0 : d && d.at === 'end' ? src.length : caretFromRendered(src, d ? d.before : '', d ? d.total : 0);
+    ta.setSelectionRange(pos, pos);
+    // 描き終えたあとにもう一度合わせる(フォントや折り返しが決まってから)
+    requestAnimationFrame(() => { if (pe.box === ta) peFit(true); });
+    sendUiState();
+  }
+  function peOpenCell(cell, atEnd) {
+    const tr = cell.closest('tr[data-line]');
+    if (!tr) return;
+    const row = +tr.dataset.line, col = [...tr.children].indexOf(cell);
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'pe-cell';
+    inp.spellcheck = false;
+    // 中身の \| は | で見せる(書き戻すときに tableEdit がエスケープし直す)
+    inp.value = tableCell(cur().text, row, col).replace(/\\\|/g, '|');
+    Object.assign(pe, { box: inp, holder: inp, el: cell, kind: 'cell', row: row, col: col, start: cur().text, html: cell.innerHTML, init: inp.value });
+    peLastCell = { row: row, col: col };
+    cell.innerHTML = '';
+    cell.appendChild(inp);
+    inp.focus({ preventScroll: true });
+    const p = atEnd === false ? 0 : inp.value.length;
+    inp.setSelectionRange(p, p);
+    sendUiState();
+  }
+  /* 編集欄の高さを中身に合わせる(折り返した行も含めて、全体が見えるように)。reveal なら、編集欄の全体が画面に入るように動かす
+     (画面より高いときは、編集欄の上端を画面の上端に) */
+  function peFit(reveal) {
+    if (!pe.box || pe.kind !== 'block') return;
+    const ta = pe.box, pv = $('preview');
+    const keep = pv.scrollTop;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 2 + 'px';
+    pv.scrollTop = keep;
+    if (!reveal) return;
+    const r = ta.getBoundingClientRect(), v = pv.getBoundingClientRect();
+    if (r.height > v.height - 16 || r.top < v.top) pv.scrollTop += r.top - v.top - 8;
+    else if (r.bottom > v.bottom) pv.scrollTop += r.bottom - v.bottom + 8;
+  }
+  window.addEventListener('resize', () => peFit());
+  // 編集欄の中身を元の文に入れる
+  function peSync() {
+    if (!pe.box || peComposing) return;
+    if (pe.kind === 'block') {
+      peSetText(pe.pre + (pe.s > 0 ? '\n' : '') + pe.box.value + (pe.hasPost ? '\n' + pe.post : ''));
+      peFit();
+    } else if (pe.box.value !== pe.init || cur().text !== pe.start) {
+      // 何も変えずに閉じたときは書かない(セルの足りない行を補ったりしない)
+      const r = tableEdit(cur().text, pe.row, pe.col, 'cell', pe.box.value);
+      if (r) peSetText(r.text);
+    }
+  }
+  /* 編集欄を閉じて、整形した表示に戻す。戻り値は、かたまりの行の数の増減(後ろのかたまりの行がずれる分) */
+  function peClose(noRender) {
+    if (!pe.box) return 0;
+    peSync();
+    const top = pe.holder.getBoundingClientRect().top;
+    const delta = pe.kind === 'block' ? pe.box.value.split('\n').length - pe.n : 0;
+    const anchor = pe.kind === 'block' ? pe.s : pe.row;
+    peRecord(pe.start, cur().text);
+    const wasFocused = pe.holder.contains(document.activeElement);
+    pe.box = null;
+    pe.holder = null;
+    pe.kind = '';
+    peComposing = false;
+    if (!noRender && S.mode === 'preview') {
+      peRerender(anchor, top);
+      if (wasFocused) $('preview').focus({ preventScroll: true });
+    }
+    sendUiState();
+    return delta;
+  }
+  // 前後のかたまりの編集に移る(↑ で前、↓ で次。表は行の最初のセル)
+  function peMove(dir) {
+    const s = pe.s, end = pe.s + pe.box.value.split('\n').length;
+    peClose();
+    const list = peBlocks();
+    const el = dir < 0 ? list.filter(x => +x.dataset.line < s).pop() : list.find(x => +x.dataset.line >= end);
+    if (!el) return;
+    if (el.tagName === 'TR') { peOpenCell(el.children[0], dir < 0); return; }
+    peOpenBlock(el, { at: dir < 0 ? 'end' : 'start' });
+  }
+  // セルを移る(Tab で次・Shift+Tab で前、↑↓ で上下の行)。最後のセルで Tab を押すと、下に行を足す
+  function peCellMove(dx, dy) {
+    const row = pe.row, col = pe.col;
+    peClose();
+    const t = tableAt(cur().text, row);
+    if (!t) return;
+    const rows = [t.head].concat(t.rows);
+    let k = rows.indexOf(row), c = col;
+    if (dy) k += dy;
+    else {
+      c += dx;
+      if (c >= t.cols) { c = 0; k++; }
+      if (c < 0) { c = t.cols - 1; k--; }
+    }
+    if (k < 0) return;
+    if (k >= rows.length) {
+      if (dy || !dx) return;
+      peTable(rows[rows.length - 1], 0, 'rowBelow');
+      return;
+    }
+    peOpen({ row: rows[k], col: c, end: true });
+  }
+  /* 表の操作(行・列の挿入と削除、列の配置、表の削除)。プレビューでは作り直して、挿入したときは新しいセルを編集にする */
+  function peTable(row, col, action) {
+    if (!peAllowed()) return;
+    const before = cur().text;
+    const r = tableEdit(before, row, col, action);
+    if (!r) return;
+    const tr = $('preview').querySelector('tr[data-line="' + row + '"]');
+    const top = tr ? tr.getBoundingClientRect().top : null;
+    peSetText(r.text);
+    peRecord(before, r.text);
+    peRerender(r.col < 0 ? r.row : row, top);
+    if (/^(row|col)(Above|Below|Left|Right)$/.test(action)) peOpen({ row: r.row, col: r.col });
+    else if (r.col >= 0) peLastCell = { row: r.row, col: r.col };
+    else peLastCell = null;
+  }
+  /* 「テキスト」表示での表の操作: カーソルのあるセルに対して行い、元に戻せるよう編集欄への入力として書き換える */
+  function textTable(action) {
+    const ed = $('editor');
+    if (isRO(cur())) { roBlocked(); return; }
+    const at = tableCaret(ed.value, ed.selectionStart);
+    const r = at && tableEdit(ed.value, at.row, at.col, action);
+    if (!r) { toast(T(at ? 'tblCannot' : 'tblNotInTable')); return; }
+    const op = makeOp(ed.value, r.text, 0);
+    frInsert(op.p, op.p + op.d.length, op.i);
+    const p = r.col >= 0 ? tableCellPos(ed.value, r.row, r.col) : Math.min(ed.value.length, op.p);
+    ed.focus();
+    ed.setSelectionRange(p, p);
+    queueStatus();
+  }
+  /* 空の表を入れる(core.js の tableInsert)。「テキスト」表示ではカーソルの行の次(表・コードの中ならその後ろ)、
+     プレビューでは編集中・右クリックしたかたまりの次(どこでもなければメモの最後)。入れたら見出しの最初のセルにカーソルを置く */
+  function textInsertTable() {
+    const ed = $('editor');
+    if (isRO(cur())) { roBlocked(); return; }
+    const r = tableInsert(ed.value, tableInsertAfter(ed.value, ed.selectionStart));
+    const op = makeOp(ed.value, r.text, 0);
+    frInsert(op.p, op.p + op.d.length, op.i);
+    const p = tableCellPos(ed.value, r.row, 0);
+    ed.focus();
+    ed.setSelectionRange(p, p);
+    queueStatus();
+  }
+  // かたまり el の最後の行(リストの項目は下の項目も含む)
+  const peBlockEnd = el => { let e = +el.dataset.end || 0; el.querySelectorAll('[data-end]').forEach(x => { e = Math.max(e, +x.dataset.end); }); return e - 1; };
+  // 表を入れる行: かたまりの次。引用・注意書き・表の中なら、それ全体の次(途中に入れると分かれてしまうので)
+  function peAfter(el) {
+    if (!el.closest('blockquote, .tblwrap')) return peBlockEnd(el);
+    let top = el;
+    while (top.parentElement && top.parentElement !== $('preview')) top = top.parentElement;
+    return peBlockEnd(top);
+  }
+  function peInsertTable(after, el) {
+    if (!peAllowed()) return;
+    const before = cur().text;
+    const r = tableInsert(before, after == null ? before.split('\n').length : after);
+    const top = el && el.isConnected ? el.getBoundingClientRect().top : null;
+    peSetText(r.text);
+    peRecord(before, r.text);
+    peRerender(top == null ? null : +el.dataset.line, top);
+    peOpen({ row: r.row, col: 0, end: true });
+    if (pe.box) pe.box.scrollIntoView({ block: 'nearest' });
+  }
+  function tableMenuAction(action) {
+    if (action === 'insert') {
+      if (S.mode === 'edit') { textInsertTable(); return; }
+      if (S.mode !== 'preview' || isRO(cur())) return;
+      const line = pe.kind === 'block' ? pe.s : null, row = pe.kind === 'cell' ? pe.row : null;
+      if (pe.box) peClose();
+      const el = line != null ? peBlockAt(line) : row != null ? $('preview').querySelector('tr[data-line="' + row + '"]')
+        : lastClick && lastClick.el && lastClick.el.isConnected && $('preview').contains(lastClick.el) ? lastClick.el : null;
+      peInsertTable(el ? peAfter(el) : null, el);
+      return;
+    }
+    if (S.mode === 'edit') { textTable(action); return; }
+    if (S.mode !== 'preview' || isRO(cur())) return;
+    const at = pe.kind === 'cell' ? { row: pe.row, col: pe.col } : peLastCell;
+    if (pe.box) peClose();
+    if (!at || !tableAt(cur().text, at.row)) { toast(T('tblNotInTable')); return; }
+    peTable(at.row, at.col, action);
+  }
+  $('preview').addEventListener('click', e => {
+    const cb = e.target.closest && e.target.closest('li > input[type=checkbox]');
+    if (cb && $('preview').contains(cb)) {
+      e.preventDefault();
+      if (!peAllowed()) return;
+      const li = cb.closest('li[data-line]');
+      if (!li) return;
+      const n = +li.dataset.line, before = cur().text, lines = before.split('\n');
+      const m = /^((?:\s*>\s?)*\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])\]/.exec(lines[n] || '');
+      if (!m) return;
+      lines[n] = m[1] + (m[2] === ' ' ? 'x' : ' ') + lines[n].slice(m[1].length + 1);
+      const top = li.getBoundingClientRect().top;
+      if (peSetText(lines.join('\n'))) { peRecord(before, cur().text); peRerender(n, top); }
+      return;
+    }
+    if (pe.box || !peAllowed() || !window.getSelection().isCollapsed) return;
+    const d = peNext || peDescribe(e);
+    peNext = null;
+    peOpen(d);
+  });
+  // 編集欄の外を押したら閉じる(押した場所がプレビューのかたまりなら、閉じたあとでそこを編集にする)
+  document.addEventListener('mousedown', e => {
+    peNext = null;
+    if (!pe.box || pe.holder.contains(e.target)) return;
+    let d = peDescribe(e);
+    const kind = pe.kind, end = pe.e;
+    const delta = peClose();
+    if (d && kind === 'block') {
+      if (d.line != null && d.line >= end) d.line += delta;
+      if (d.row != null && d.row >= end) d.row += delta;
+    }
+    peNext = d;
+    if (d) e.preventDefault();   // 作り直した表示で文字の選択を始めない
+  }, true);
+  // 押した場所のかたまりは作り直して無くなっているので(click が来ない)、離したときに開く
+  document.addEventListener('mouseup', () => {
+    if (!peNext) return;
+    const d = peNext;
+    peNext = null;
+    if (!pe.box && window.getSelection().isCollapsed) peOpen(d);
+  }, true);
+  // 数式をダブルクリック: 数式エディタで編集。図をダブルクリック: 「テキスト」表示のその行へ
+  $('preview').addEventListener('dblclick', e => {
+    const m = e.target.closest && e.target.closest('#preview .math, #preview .diagram[data-line]');
+    if (!m || pe.box || !$('preview').contains(m)) return;
+    if (m.classList.contains('math') && peAllowed()) peMathEdit(m);
+    else if (m.classList.contains('diagram')) switchBase('edit');
+  });
+  $('preview').addEventListener('input', e => { if (e.target === pe.box) peSync(); });
+  $('preview').addEventListener('compositionstart', e => { if (e.target === pe.box) peComposing = true; });
+  $('preview').addEventListener('compositionend', e => { if (e.target === pe.box) { peComposing = false; peSync(); } });
+  $('preview').addEventListener('keydown', e => {
+    if (e.target !== pe.box || e.isComposing || e.keyCode === 229) return;
+    const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
+    if (e.key === 'Escape') { e.preventDefault(); peClose(); return; }
+    if (pe.kind === 'cell') {
+      if (e.key === 'Tab' && plain) { e.preventDefault(); peCellMove(e.shiftKey ? -1 : 1, 0); }
+      else if (e.key === 'Enter' && plain) { e.preventDefault(); peClose(); }
+      else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && plain && !e.shiftKey) { e.preventDefault(); peCellMove(0, e.key === 'ArrowUp' ? -1 : 1); }
+      return;
+    }
+    const ta = pe.box, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
+    if (e.key === 'ArrowUp' && plain && !e.shiftKey && s === en && v.lastIndexOf('\n', s - 1) < 0) { e.preventDefault(); peMove(-1); return; }
+    if (e.key === 'ArrowDown' && plain && !e.shiftKey && s === en && v.indexOf('\n', s) < 0) { e.preventDefault(); peMove(1); return; }
+    // Enter / Tab: 「テキスト」表示と同じ、箇条書きの続き・自動インデント・字下げ
+    if ((e.key === 'Enter' || e.key === 'Tab') && plain) {
+      const r = e.key === 'Tab' ? tabEdit(v, s, en, EDIT.indentWidth, e.shiftKey) : newlineEdit(v, s, en, { indent: EDIT.autoIndent, list: EDIT.autoList, soft: e.shiftKey });
+      if (!r) return;
+      e.preventDefault();
+      peReplace(r.from, r.to, r.insert);
+      ta.setSelectionRange(r.selStart, r.selEnd);
+    }
+  });
+  /* 編集欄の範囲を置き換える(元に戻せるよう、入力として行う) */
+  function peReplace(from, to, str) {
+    const ta = pe.box;
+    if (ta.value.slice(from, to) === str) return;
+    ta.focus();
+    ta.setSelectionRange(from, to);
+    let ok = false;
+    try { ok = str ? document.execCommand('insertText', false, str) : document.execCommand('delete'); } catch (err) { ok = false; }
+    if (!ok) { ta.setRangeText(str, from, to, 'end'); peSync(); }
+  }
+  // プレビューでの変更を元に戻す・やり直す(編集欄を開いていないとき)
+  document.addEventListener('keydown', e => {
+    if (S.mode !== 'preview' || pe.box || !(e.ctrlKey || e.metaKey) || e.altKey || !$('modal').hidden) return;
+    const a = document.activeElement;
+    if (a && a !== document.body && a !== $('preview') && /^(INPUT|TEXTAREA)$/.test(a.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); peUndoRedo(false); }
+    else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); peUndoRedo(true); }
+  });
+  // 表のセルを右クリック: 表の操作のメニュー
+  document.addEventListener('contextmenu', async e => {
+    const cell = e.target.closest && e.target.closest('#preview td, #preview th');
+    if (!cell || !peAllowed() || e.target.closest('input')) return;
+    if (!window.getSelection().isCollapsed && window.getSelection().toString().trim()) return;
+    e.preventDefault();
+    const tr = cell.closest('tr[data-line]');
+    if (!tr) return;
+    let row = +tr.dataset.line;
+    const col = [...tr.children].indexOf(cell);
+    if (pe.box) { const kind = pe.kind, end = pe.e, delta = peClose(); if (kind === 'block' && row >= end) row += delta; }
+    const t = tableAt(cur().text, row);
+    if (!t) return;
+    let action = null;
+    try { action = await api.tableMenu({ inTable: true, head: row === t.head, cols: t.cols, align: t.align[col] || '' }); } catch (err) { action = null; }
+    if (action === 'insert') peInsertTable(t.rows.length ? t.rows[t.rows.length - 1] : t.delim, tr);
+    else if (action) peTable(row, col, action);
+    else peLastCell = { row: row, col: col };
+  });
+  // 表の外を右クリック(文字を選んでいないとき): 「表を挿入」。かたまりの上ならその次、何もない所ならメモの最後に入れる
+  document.addEventListener('contextmenu', async e => {
+    const t = e.target;
+    if (!t.closest || !$('preview').contains(t) || t.closest('td, th, a, img, .math, .diagram, [data-att], input, textarea, .footnotes') || !peAllowed()) return;
+    if (!window.getSelection().isCollapsed && window.getSelection().toString().trim()) return;
+    e.preventDefault();
+    const blk = t.closest('[data-line]');
+    let line = blk ? +blk.dataset.line : null;
+    if (pe.box) {
+      const kind = pe.kind, end = pe.e, delta = peClose();
+      if (kind === 'block' && line != null && line >= end) line += delta;
+    }
+    let action = null;
+    try { action = await api.tableMenu({ inTable: false }); } catch (err) { action = null; }
+    if (action !== 'insert') return;
+    const el = line != null ? peBlockAt(line) : null;
+    peInsertTable(el ? peAfter(el) : null, el);
+  });
+  // 「テキスト」表示の右クリック: メニューに「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」を足す
+  // (カーソルが表の中なら表の操作、外なら「表を挿入」だけ。main.js に先に知らせる)
+  document.addEventListener('contextmenu', e => {
+    let info = null, math = false;
+    if (e.target === $('editor') && S.mode === 'edit' && !isRO(cur())) {
+      const ed = $('editor'), at = tableCaret(ed.value, ed.selectionStart);
+      const t = at && tableAt(ed.value, at.row);
+      info = t ? { inTable: true, head: at.row === t.head || at.row === t.delim, cols: t.cols, align: t.align[at.col] || '' } : { inTable: false };
+      math = !!mathAt(ed.value, ed.selectionStart);
+    }
+    api.editContext({ table: info, math: math, editable: !!info });
+  }, true);
+
+  /* ---------- 数式エディタ ----------
+     「編集」→「数式を挿入…」(Ctrl+Shift+M)、右クリック、プレビューの数式のダブルクリックで開く窓。
+     左はパレット(ひな型と、記号のタブ。mathpalette.js)、右上は LaTeX、右下はメモと同じ設定で描いたプレビュー。
+     パレットの記号はカーソルの位置に入り、最初の空の {} にカーソルを置く(Tab で次の {}、Shift+Tab で前の {})。
+     ひな型は、LaTeX が空ならそのまま入れ、空でなければカーソルの位置に入れる。書き方に誤りがあれば、誤りを出して「挿入」を押せなくする。
+     入れる・置き換えるのは core.js の mathInsert・mathReplace(1回の編集として履歴に残る) */
+  const mathCache = new Map();   // パレットのボタンの描画(LaTeX → HTML)
+  let mathTab = 'tpl';
+  function mathHtml(tex, display) {
+    const key = (display ? 'D' : 'I') + tex;
+    if (mathCache.has(key)) return mathCache.get(key);
+    let h;
+    try { h = katex.renderToString(tex, Object.assign({}, MATH_OPTS, { displayMode: !!display })); } catch (err) { h = esc(tex); }
+    mathCache.set(key, h);
+    return h;
+  }
+  // パレットのボタンに描く形(mathpalette.js の show)
+  const mathShow = s => window.MATH_PALETTE.show(s);
+  /* init: { tex, display, editing }。onOK(tex, display) */
+  function openMathEditor(init, onOK) {
+    const P = window.MATH_PALETTE;
+    const L = LANG === 'en' ? 'en' : 'ja';
+    const box = el('div', 'mathed');
+    const left = el('div', 'me-left'), tabs = el('div', 'me-tabs'), pal = el('div', 'me-pal');
+    tabs.setAttribute('role', 'tablist');
+    left.append(tabs, pal);
+    const right = el('div', 'me-right');
+    const ta = el('textarea', 'me-tex');
+    ta.spellcheck = false;
+    ta.value = init.tex || '';
+    ta.setAttribute('aria-label', T('mathTexLabel'));
+    const pv = el('div', 'me-pv'), err = el('div', 'me-err');
+    pv.setAttribute('aria-live', 'polite');
+    right.append(el('div', 'me-lbl', T('mathTexLabel')), ta, el('div', 'me-lbl', T('mathPreviewLabel')), pv, err);
+    box.append(left, right);
+    // 下: 独立した行・文中の選択と、キャンセル・挿入
+    const foot = el('div', 'me-foot');
+    const radio = (v, label) => { const lb = el('label', 'me-mode'); const r = el('input'); r.type = 'radio'; r.name = 'meMode'; r.value = v; lb.append(r, document.createTextNode(label)); return { lb, r }; };
+    const rd = radio('display', T('mathDisplay')), ri = radio('inline', T('mathInline'));
+    if (init.inlineOnly) rd.r.disabled = true;
+    (init.display && !init.inlineOnly ? rd : ri).r.checked = true;
+    const modes = el('div', 'me-modes');
+    modes.append(rd.lb, ri.lb);
+    const cancel = el('button', 'btn', T('cancel'));
+    const ok = el('button', 'btn primary', T(init.editing ? 'mathReplaceBtn' : 'mathInsertBtn'));
+    cancel.type = ok.type = 'button';
+    const btns = el('div', 'me-btns');
+    btns.append(cancel, ok);
+    foot.append(modes, btns);
+    const display = () => rd.r.checked;
+    function update() {
+      const v = ta.value;
+      let e = '';
+      if (!v.trim()) { pv.innerHTML = ''; pv.classList.add('empty'); pv.textContent = T('mathEmpty'); }
+      else {
+        pv.classList.remove('empty');
+        try { pv.innerHTML = katex.renderToString(v, Object.assign({}, MATH_OPTS, { displayMode: display() })); } catch (x) { e = String(x && x.message || x).replace(/^KaTeX parse error: /, ''); pv.textContent = v; }
+      }
+      err.textContent = e ? T('mathError', { msg: e }) : '';
+      ok.disabled = !v.trim() || !!e;
+    }
+    // カーソルの位置に s を入れる(元に戻せるよう入力として)。最初の空の {} にカーソルを置く
+    function put(s, replaceAll) {
+      ta.focus();
+      if (replaceAll) ta.setSelectionRange(0, ta.value.length);
+      const a = ta.selectionStart;
+      let done = false;
+      try { done = document.execCommand('insertText', false, s); } catch (x) { done = false; }
+      if (!done) { ta.setRangeText(s, ta.selectionStart, ta.selectionEnd, 'end'); }
+      const i = s.indexOf('{}');
+      const p = i >= 0 ? a + i + 1 : a + s.length;
+      ta.setSelectionRange(p, p);
+      update();
+    }
+    function showTab(id) {
+      mathTab = id;
+      tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+      pal.textContent = '';
+      pal.className = 'me-pal' + (id === 'tpl' ? ' tpl' : '');
+      if (id === 'tpl') {
+        for (const g of P.templates) {
+          pal.append(el('div', 'me-group', g[L]));
+          for (const it of g.items) {
+            const b = el('button', 'me-tplbtn');
+            b.type = 'button';
+            b.title = it[2];
+            const name = el('span', 'me-name', L === 'en' ? it[1] : it[0]), m = el('span', 'me-math');
+            m.innerHTML = mathHtml(it[2], false);
+            b.append(name, m);
+            b.addEventListener('click', () => put(it[2], !ta.value.trim()));
+            pal.append(b);
+          }
+        }
+        return;
+      }
+      const tab = P.tabs.find(x => x.id === id);
+      for (const s of tab.items) {
+        const b = el('button', 'me-sym');
+        b.type = 'button';
+        b.title = s;
+        b.setAttribute('aria-label', s);
+        b.innerHTML = mathHtml(mathShow(s), false);
+        b.addEventListener('click', () => put(s));
+        pal.append(b);
+      }
+    }
+    for (const t of P.tabs) {
+      const b = el('button', 'me-tab', t[L]);
+      b.type = 'button';
+      b.dataset.tab = t.id;
+      b.setAttribute('role', 'tab');
+      b.addEventListener('click', () => showTab(t.id));
+      tabs.append(b);
+    }
+    ta.addEventListener('input', update);
+    rd.r.addEventListener('change', update);
+    ri.r.addEventListener('change', update);
+    ta.addEventListener('keydown', e => {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        const p = emptyBraceAt(ta.value, e.shiftKey ? ta.selectionStart : ta.selectionEnd, e.shiftKey);
+        if (p >= 0) { e.preventDefault(); ta.setSelectionRange(p, p); }
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); ok.click(); }
+    });
+    cancel.addEventListener('click', closeModal);
+    ok.addEventListener('click', () => {
+      update();
+      if (ok.disabled) return;
+      const tex = ta.value, disp = display();
+      closeModal();
+      onOK(tex, disp);
+    });
+    openModal(T(init.editing ? 'mathEditTitle' : 'mathInsertTitle'), box, null, { wide: true, foot: foot, focus: ta });
+    showTab(P.tabs.some(t => t.id === mathTab) ? mathTab : 'tpl');
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    update();
+  }
+  /* 「数式を挿入…」: 「テキスト」表示ではカーソルの数式(あれば編集、無ければ挿入。文字を選んでいればそれを LaTeX にする)、
+     プレビューでは編集中のかたまり・セルのカーソルの位置か、クリックしたかたまりの次(どこでもなければメモの最後) */
+  function mathCommand() {
+    const n = cur();
+    if (!n || !$('modal').hidden) return;
+    if (isRO(n)) { roBlocked(); return; }
+    if (S.mode === 'edit') {
+      const ed = $('editor'), s = ed.selectionStart, e = ed.selectionEnd;
+      const at = mathAt(ed.value, s);
+      const apply = r => {
+        const op = makeOp(ed.value, r.text, 0);
+        frInsert(op.p, op.p + op.d.length, op.i);
+        ed.focus();
+        ed.setSelectionRange(r.cursor, r.cursor);
+        queueStatus();
+      };
+      if (at && (s === e || (s >= at.s && e <= at.e))) {
+        openMathEditor({ tex: at.tex.trim(), display: at.display, editing: true }, (tex, disp) => {
+          const r = mathReplace(ed.value, at, tex, disp);
+          apply({ text: r.text, cursor: r.e });
+        });
+        return;
+      }
+      const sel = ed.value.slice(s, e);
+      const line = ed.value.slice(ed.value.lastIndexOf('\n', s - 1) + 1, ed.value.indexOf('\n', e) < 0 ? ed.value.length : ed.value.indexOf('\n', e));
+      openMathEditor({ tex: sel.indexOf('\n') < 0 ? sel : '', display: !sel && !line.trim() }, (tex, disp) => {
+        const r = mathInsert(ed.value, s, e, tex, disp, disp ? tableInsertAfter(ed.value, s) : null);
+        apply({ text: r.text, cursor: disp ? r.selEnd + 3 : r.selEnd + (r.text[r.selEnd] === '$' ? 1 : 2) });
+      });
+      return;
+    }
+    if (S.mode !== 'preview') return;
+    if (pe.kind === 'block') {
+      const ta = pe.box, s = ta.selectionStart, e = ta.selectionEnd;
+      const sel = ta.value.slice(s, e);
+      openMathEditor({ tex: sel.indexOf('\n') < 0 ? sel : '', display: false }, (tex, disp) => {
+        const r = mathInsert(ta.value, s, e, tex, disp);
+        const op = makeOp(ta.value, r.text, 0);
+        peReplace(op.p, op.p + op.d.length, op.i);
+        ta.focus();
+        ta.setSelectionRange(r.selEnd, r.selEnd);
+        peFit();
+      });
+      return;
+    }
+    if (pe.kind === 'cell') {
+      const inp = pe.box, s = inp.selectionStart, e = inp.selectionEnd;
+      openMathEditor({ tex: inp.value.slice(s, e), display: false, inlineOnly: true }, tex => {
+        inp.focus();
+        inp.setSelectionRange(s, e);
+        const v = mathInline(tex, inp.value[e]);
+        try { if (!document.execCommand('insertText', false, v)) throw new Error('x'); } catch (x) { inp.setRangeText(v, s, e, 'end'); }
+        peSync();
+      });
+      return;
+    }
+    const el0 = lastClick && lastClick.el && lastClick.el.isConnected && $('preview').contains(lastClick.el) ? lastClick.el : null;
+    openMathEditor({ tex: '', display: true }, (tex, disp) => {
+      const before = cur().text;
+      const after = el0 ? peAfter(el0) : before.split('\n').length;
+      const r = disp ? mathInsert(before, 0, 0, tex, true, after) : (() => { const b = blockInsert(before, after, [mathInline(tex, '')]); return { text: b.text }; })();
+      const top = el0 && el0.isConnected ? el0.getBoundingClientRect().top : null;
+      if (peSetText(r.text)) { peRecord(before, r.text); peRerender(el0 ? +el0.dataset.line : null, top); }
+    });
+  }
+  /* プレビューの数式を編集する(ダブルクリック・右クリックの「数式を編集…」)。元の文の位置は、かたまりの中で何番目の数式かで探す */
+  function peMathEdit(m) {
+    if (!peAllowed() || !$('modal').hidden) return;
+    if (pe.box) peClose();
+    const text = cur().text;
+    let at = null, anchor = null;
+    if (m.matches('[data-line]')) {
+      anchor = +m.dataset.line;
+      const lines = text.split('\n');
+      let p = 0;
+      for (let i = 0; i < anchor; i++) p += lines[i].length + 1;
+      at = mathAt(text, p);
+    } else {
+      const box = m.closest('[data-line]');
+      if (!box) return;
+      anchor = +box.dataset.line;
+      const own = [...box.querySelectorAll('.math')].filter(x => x.closest('[data-line]') === box);
+      at = mathInBlock(text, +box.dataset.line, +box.dataset.end, own.indexOf(m), m.dataset.tex || '');
+    }
+    if (!at) { toast(T('mathNotFound')); return; }
+    const inTable = !!m.closest('td, th');
+    openMathEditor({ tex: at.tex.trim(), display: at.display, editing: true, inlineOnly: inTable }, (tex, disp) => {
+      const before = cur().text;
+      if (before !== text) return;   // 開いている間に変わったときは書き換えない
+      const r = mathReplace(before, at, tex, disp && !inTable);
+      const blk = peBlockAt(anchor), top = blk ? blk.getBoundingClientRect().top : null;
+      if (peSetText(r.text)) { peRecord(before, r.text); peRerender(anchor, top); }
+    });
+  }
+
   api.onMenu(name => {
     if (name === 'new') createNote();
     else if (name === 'selectall') selectAllScoped();
@@ -1755,6 +2435,8 @@
     else if (name === 'mode:history') toggleHistory();
     else if (name === 'prune') pruneHistory();
     else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
+    else if (name.indexOf('tbl:') === 0) tableMenuAction(name.slice(4));
+    else if (name === 'math') mathCommand();
     else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name.indexOf('keys:') === 0) { try { Object.assign(KEYD, JSON.parse(name.slice(5))); applyKeyTitles(); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name === 'keys') showKeys();
@@ -1888,19 +2570,29 @@
   /* ---------- 画面の上に出す小さな窓 ---------- */
   let modalBack = null;
   let modalOnClose = null;   // 閉じるときに呼ぶ(キーボードショートカットの割り当てをやめるなど)
-  function openModal(title, body, onClose) {
+  /* opts: { wide(広い窓), foot(「閉じる」の代わりに下に出すボタンなど), focus(最初に入力する場所) } */
+  function openModal(title, body, onClose, opts) {
     if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
     modalOnClose = onClose || null;
     modalBack = document.activeElement;
     $('modalTitle').textContent = title;
     const b = $('modalBody'); b.textContent = ''; b.appendChild(body);
+    const o = opts || {};
+    $('modal').classList.toggle('wide', !!o.wide);
+    const foot = $('modalClose').parentElement;
+    foot.querySelectorAll('.modal-extra').forEach(x => x.remove());
+    $('modalClose').hidden = !!o.foot;
+    if (o.foot) { o.foot.classList.add('modal-extra'); foot.prepend(o.foot); }
     $('modal').hidden = false;
-    $('modalClose').focus();
+    (o.focus || $('modalClose')).focus();
   }
   function closeModal() {
     if ($('modal').hidden) return;
     if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
     $('modal').hidden = true;
+    $('modal').classList.remove('wide');
+    $('modalClose').parentElement.querySelectorAll('.modal-extra').forEach(x => x.remove());
+    $('modalClose').hidden = false;
     $('modalBody').textContent = '';
     if (modalBack && modalBack.focus) modalBack.focus({ preventScroll: true });
   }

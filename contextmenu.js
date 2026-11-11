@@ -18,6 +18,10 @@ function buildTemplate(params, opts) {
           inlineItems(T, opts.onFormat, platform, opts.keys).map(x => Object.assign(x, { enabled: !!params.selectionText })),
           [{ type: 'separator' }], formatItems(T, opts.onFormat, platform, opts.keys))
       : [];
+    // 「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)。画面側が右クリックの前に知らせたときだけ
+    if (body && opts.onMath) fmt.push({ type: 'separator' }, { label: T(opts.inMath ? 'mEditMath' : 'mInsertMath'), accelerator: (opts.keys || keymap.defaults(platform))['math'] || undefined, registerAccelerator: false, click: opts.onMath });
+    // カーソルが表の中なら「表」(画面側が右クリックの前に知らせた opts.table)
+    if (body && opts.table && opts.onTable) fmt.push({ type: 'separator' }, { label: T('mTable'), submenu: tableItems(T, opts.onTable, opts.table, opts.keys, platform) });
     return [
       { label: T('mUndo'), role: 'undo', enabled: !!f.canUndo, accelerator: 'CmdOrCtrl+Z', registerAccelerator: false },
       { label: T('mRedo'), role: 'redo', enabled: !!f.canRedo, accelerator: platform === 'darwin' ? 'Shift+Cmd+Z' : 'CmdOrCtrl+Y', registerAccelerator: false },
@@ -73,6 +77,33 @@ function inlineItems(T, onFormat, platform, keys) {
   ];
 }
 
+/* 表の操作(行・列の挿入と削除、列の配置、表の削除)。プレビューのセルの右クリック、「テキスト」表示の右クリック(カーソルが表の中のとき)、
+   「編集」→「表」で同じ項目を使う。st はカーソルのあるセル { inTable, head: 見出しの行か, cols: 列の数, align: 'l'|'c'|'r'|'' }(inTable が false なら表の外で、「表を挿入」だけ)。
+   st が無いとき(メニューバー)は、押せない項目を作らない(表の外で選んだときは画面側が知らせる) */
+function tableItems(T, onTable, st, keys, platform) {
+  const K = id => (keys || keymap.defaults(platform || process.platform))['tbl:' + id] || undefined;
+  const item = (id, label, enabled) => ({ label: T(label), accelerator: K(id), registerAccelerator: !st, enabled: enabled !== false, click: () => onTable(id) });
+  const al = st ? (st.align || 'l') : '';
+  const radio = (id, label, a) => Object.assign(item(id, label), st ? { type: 'checkbox', checked: al === a } : {});
+  // 表の外では「表を挿入」だけ
+  if (st && st.inTable === false) return [item('insert', 'mTblInsert')];
+  return [
+    item('insert', 'mTblInsert'),
+    { type: 'separator' },
+    item('rowAbove', 'mTblRowAbove', !st || !st.head),
+    item('rowBelow', 'mTblRowBelow'),
+    item('rowDelete', 'mTblRowDelete', !st || !st.head),
+    { type: 'separator' },
+    item('colLeft', 'mTblColLeft'),
+    item('colRight', 'mTblColRight'),
+    item('colDelete', 'mTblColDelete', !st || st.cols > 1),
+    { type: 'separator' },
+    { label: T('mTblAlign'), submenu: [radio('alignLeft', 'mTblAlignLeft', 'l'), radio('alignCenter', 'mTblAlignCenter', 'c'), radio('alignRight', 'mTblAlignRight', 'r')] },
+    { type: 'separator' },
+    item('delete', 'mTblDelete')
+  ];
+}
+
 /* 添付の画像・ファイルを右クリックしたときのメニュー。actions は { copy, open, show, save, trash } のクリック時の処理。
    trash があるとき(編集画面とプレビュー。履歴の表示では出さない)だけ、最後に「ごみ箱に入れる…」を出す */
 function buildAttachTemplate(image, actions, lang) {
@@ -92,4 +123,4 @@ function buildAttachTemplate(image, actions, lang) {
   if (actions.trash) items.push({ type: 'separator' }, { label: T('mTrashAttach'), click: actions.trash });
   return items;
 }
-module.exports = { buildTemplate, buildAttachTemplate, formatItems, inlineItems };
+module.exports = { buildTemplate, buildAttachTemplate, formatItems, inlineItems, tableItems };

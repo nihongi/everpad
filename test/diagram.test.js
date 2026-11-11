@@ -102,7 +102,7 @@ test('図: 画面・ヘルプ・main.js・ビルドへのつなぎ込み', () =>
   assert.match(app, /Diagrams\.onThemeChange/);
   assert.match(read('renderer/help.js'), /Diagrams\.render\(root\)/);
   assert.match(read('main.js'), /T\(kind === 'diagram' \? 'mCopyDiagram' : 'mCopyTex'\)/);
-  assert.match(read('preload.js'), /mathMenu: \(tex, kind\) => ipcRenderer\.invoke\('math:menu', tex, kind\)/);
+  assert.match(read('preload.js'), /mathMenu: \(tex, kind, canEdit\) => ipcRenderer\.invoke\('math:menu', tex, kind, canEdit\)/);
 });
 
 test('図: 表示の言葉(日本語・英語)とヘルプの例', () => {

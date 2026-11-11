@@ -21,7 +21,10 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachTrash: (noteId, fileId, name, refs) => ipcRenderer.invoke('attach:trash', noteId, fileId, name, refs),
   // 古い履歴の削除(確認・アーカイブへの書き出し・書き換え・使われなくなった添付をごみ箱へ、まで main.js が行う)
   pruneHistory: (id, k, n, title) => ipcRenderer.invoke('history:prune', id, k, n, title),
-  mathMenu: (tex, kind) => ipcRenderer.invoke('math:menu', tex, kind),
+  mathMenu: (tex, kind, canEdit) => ipcRenderer.invoke('math:menu', tex, kind, canEdit),
+  // 表の操作: プレビューのセルの右クリックのメニュー(選んだ操作を返す)と、「テキスト」表示の右クリックの前に知らせるカーソルの場所(表・数式)
+  tableMenu: st => ipcRenderer.invoke('table:menu', st),
+  editContext: st => ipcRenderer.sendSync('edit:ctx', st),
   noteMenu: (title, ro) => ipcRenderer.invoke('note:menu', title, ro),
   setReadOnly: (id, on) => ipcRenderer.invoke('memo:setReadOnly', id, on),
   // 最近見たメモ(メニューを作り直してもらう)

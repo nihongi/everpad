@@ -108,6 +108,10 @@ test('LaTeX: KaTeX にだけある命令は、使っているものだけ定義�
   assert.ok(!p.includes('{amscd}'));
   // KaTeX の \empty は ∅
   assert.ok(doc(t).includes('\\(\\emptyset\\)'));
+  // \pu(単位)は LaTeX の mhchem に無いので立体の文字に(空白は細い空白)
+  const pu = tex('$\\pu{9.8 m/s^2}$');
+  assert.ok(doc(pu).includes('\\(\\mathrm{9.8\\,m/s^2}\\)'), doc(pu));
+  assert.ok(!/mhchem/.test(preamble(pu)));
   // \Ree などを \Re と取り違えない
   assert.ok(!preamble(tex('$\\Reals x$')).includes('\\providecommand{\\real}'));
   // 数式が無ければ数式のパッケージは入れない

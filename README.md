@@ -15,7 +15,7 @@ This program was created with the help of Claude Code.
 ### Features
 
 - **Full edit history**: every edit is recorded. Drag the time slider or play the history back to see any past version, and restore it with one click.
-- **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables, plus GitHub's emoji shortcodes (`:smile:`, with suggestions as you type), alerts (`> [!NOTE]`) and footnotes. Switching between Edit and Preview keeps your place. Selected text can be made bold, italic, struck through or code from the right-click menu, line by line when the selection spans several lines.
+- **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables, plus GitHub's emoji shortcodes (`:smile:`, with suggestions as you type), alerts (`> [!NOTE]`) and footnotes. Switching between Text and Preview keeps your place, and paragraphs, lists, tables and check boxes can also be edited right in the preview. Selected text can be made bold, italic, struck through or code from the right-click menu, line by line when the selection spans several lines.
 - **Math**: LaTeX math (and chemical formulas) is shown as formatted formulas in the preview, the history and printouts.
 - **Diagrams**: flowcharts, sequence diagrams and other diagrams written in [Mermaid](https://mermaid.js.org/) are drawn in the preview, the history and printouts.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
@@ -51,10 +51,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.32.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.33.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.32.0.exe
+EverPad 0.33.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -78,11 +78,12 @@ EverPad Data\
 | Print | `Ctrl+P` |
 | Export as PDF | `Ctrl+Shift+P` |
 | Properties of the current note | `Alt+Enter` |
-| Edit / Preview | `Ctrl+1` / `Ctrl+2` |
+| Text / Preview | `Ctrl+1` / `Ctrl+2` |
 | Show / hide history | `Ctrl+3` (or the History button at the top) |
 | Attach an image or file | `Ctrl+Shift+U` (or paste with `Ctrl+V`, drag and drop, or the Attach button at the top right) |
 | Find and replace (a bar appears above the editor; in the Preview view and the history, find only) | `Ctrl+H` |
 | Insert a link to another note | `Ctrl+K` |
+| Insert or edit a formula | `Ctrl+Shift+M` |
 | Bold / italic / strikethrough / code for the selected text | `Ctrl+Shift+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
 | Quote / bulleted list / numbered list / code block for the selected lines | `Ctrl+Shift+Q` / `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+K` |
 | Indent / outdent (the current line or the selected lines) | `Tab` / `Shift+Tab` (see "Indentation and lists") |
@@ -102,12 +103,21 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Tab inserts spaces up to the next indentation position. On a list line, it indents the whole line, nesting the item one level deeper. With text selected, Tab indents the selected lines (empty lines are skipped) and Shift+Tab outdents them; Shift+Tab also works on the current line. The width of one indentation (2 or 4 spaces, 4 by default) is set with Edit → Indent Width (Tab). Edit → Format also has Indent and Outdent. In the note text, Tab no longer moves to buttons; it still does in other boxes such as the find and replace bar.
 - Undo (`Ctrl+Z`) removes a new line and the indentation or mark added with it in one step. Nothing is added while you are converting text with an input method (IME).
 
+**Editing in the preview**
+
+- Click a paragraph, heading, list item, text in a block quote, code block or horizontal rule in the Preview view to edit it in place: that part turns into a box with its Markdown text, and the rest of the note stays formatted. Only the part you edit changes; the rest of the text stays exactly as written. Press Esc or click elsewhere to see it formatted again. ↑ on the first line and ↓ on the last line move to the previous or next part. As in the Text view, Enter continues lists, Tab indents, and Format (bold, italic and so on) works on the selected text. Formulas are edited with the formula editor (double-click one). Diagrams are not edited in the preview: double-click one to open the Text view at that line.
+- Click a table cell to change just that cell (a `|` you type is written as `\|`). Tab moves to the next cell (at the last cell, it adds a row), Shift+Tab to the previous one and ↑ ↓ to the cell above or below; Enter or Esc finishes.
+- Click a check box to check or clear it (`[ ]` ↔ `[x]`).
+- To add a table, choose Edit → Table → Insert Table, or right-click in the preview outside a table and choose Insert Table. An empty table (a header row and 3 rows, 3 columns) is added after the part you clicked or are editing (after the whole block quote or table when you are in one, and at the end of the note when you clicked below the text), and its first header cell opens for editing. In the Text view, it is added on the line after the cursor (after the table, code block, formula or diagram when the cursor is in one), and the right-click menu has Table → Insert Table.
+- Right-click a table cell for Insert Table (after this table), Insert Row Above, Insert Row Below, Delete Row, Insert Column Left, Insert Column Right, Delete Column, Column Alignment (Align Left, Center, Align Right) and Delete Table. The same commands are in Edit → Table, and in the right-click menu of the Text view when the cursor is in a table (keys can be assigned in Keyboard Shortcuts). Only the lines of that table are changed, and the header row cannot be deleted.
+- What you type is recorded in the history just as in the Text view. After a box is closed, `Ctrl+Z` / `Ctrl+Y` in the preview undo and redo the changes made in the preview, one at a time (until another note is opened). Read-only notes and the history cannot be edited.
+
 **Views and history**
 
-- There are two views, Edit and Preview, and each has a history mode. Pressing History shows the time slider while keeping the current view: in Edit, the characters changed in each version are highlighted; in Preview, each version is shown formatted. Switching between Edit and Preview during the history keeps the same version. Press History again to leave the history.
-- Switching between Edit and Preview keeps your place, and the matching spot flashes briefly. From Edit, the line with the cursor stays at the same height on the screen if the cursor is visible; otherwise the line at the top stays at the top. From Preview, if you clicked somewhere that is still visible, the cursor moves to the start of that line in Edit (after a list mark or `#`), at the same height; otherwise the part at the top stays at the top and the cursor does not move. At the very top or bottom of the note, the other view also opens at the top or bottom. The same applies when switching during the history (without moving the cursor). Diagrams and images that take a moment to appear do not shift the place you were looking at.
+- There are two views, Text and Preview, and each has a history mode. Pressing History shows the time slider while keeping the current view: in Text, the characters changed in each version are highlighted; in Preview, each version is shown formatted. Switching between Text and Preview during the history keeps the same version. Press History again to leave the history.
+- Switching between Text and Preview keeps your place, and the matching spot flashes briefly. From Text, the line with the cursor stays at the same height on the screen if the cursor is visible; otherwise the line at the top stays at the top. From Preview, if you clicked somewhere that is still visible, the cursor moves to the start of that line in Text (after a list mark or `#`), at the same height; otherwise the part at the top stays at the top and the cursor does not move. At the very top or bottom of the note, the other view also opens at the top or bottom. The same applies when switching during the history (without moving the cursor). Diagrams and images that take a moment to appear do not shift the place you were looking at.
 - Opening another note from the note list while the history is shown shows that note's latest version.
-- The status bar at the bottom shows where the edit of the version shown was made ("Changed at: Ln 12, Col 5"): just after the added text, or where text was deleted. Click the change summary at the top (such as "1 character added") to scroll to the change and briefly emphasize it; in the Preview history, this switches to the Edit history to show it. When line numbers are shown, the numbers of the changed lines are highlighted.
+- The status bar at the bottom shows where the edit of the version shown was made ("Changed at: Ln 12, Col 5"): just after the added text, or where text was deleted. Click the change summary at the top (such as "1 character added") to scroll to the change and briefly emphasize it; in the Preview history, this switches to the Text history to show it. When line numbers are shown, the numbers of the changed lines are highlighted.
 - Playback speed can be set to five levels, from very slow to very fast.
 - Restore this version adds the content of that version as a new edit. The existing history is never deleted.
 - **Deleting old history**: to make a long history smaller, go to the oldest version you want to keep and press "Delete Older…" (or View → Delete History Older Than This Version…). All versions before it are deleted from the file. **This cannot be undone**, so a warning is shown first ("Cancel" is selected at first), with a check box (on by default) to export the full history to an EverPad archive before deleting; if the export is cancelled or fails, nothing is deleted. The text does not change, and neither does the number of versions: version numbers stay the same, and the history starts at the version you kept (the left end of the time slider says, for example, "Versions 1–1,000 deleted"). Properties shows the versions you can still view. Attachments that no remaining version uses are moved to the Recycle Bin at the same time (the warning shows how many and their size). This is like Etherpad's `compactPad --keep`, but done from the history view.
@@ -124,7 +134,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 - Search can target Latest version or All history. The history search finds every place where the text was ever written, including text that has since been deleted.
 - Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). Replace all is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
-- In the Preview view, Find and Replace… (`Ctrl+H`) opens a find-only bar, because nothing can be edited there. It searches the formatted text as you see it (so `**ap**ple` is found as "apple"; text inside formulas and diagrams is not searched). Every match is highlighted, and Enter / F3 moves to the next one. The bar stays open when you switch between Edit and Preview, and the replace row appears only in the Edit view. For a read-only note, the bar is find-only in the Edit view too.
+- In the Preview view, Find and Replace… (`Ctrl+H`) opens a find-only bar (replacing is done in the Text view). It searches the formatted text as you see it (so `**ap**ple` is found as "apple"; text inside formulas and diagrams is not searched). Every match is highlighted, and Enter / F3 moves to the next one. The bar stays open when you switch between Text and Preview, and the replace row appears only in the Text view. For a read-only note, the bar is find-only in the Text view too.
 - In the history, Find and Replace… also opens a find-only bar. The time slider then shows colored bands under it for the versions that contain the text, so you can see when it was written and when it was deleted. Previous change / Next change move to the versions where the number of matches changed (where the text was written or deleted). The matches in the version shown are highlighted, and Enter / F3 moves between them. The bands are computed from the note's text as written (Markdown), and regular expressions cannot be used in the history. Opening a result of the All history search opens this bar with the same text.
 
 **Recently viewed notes and links between notes**
@@ -142,6 +152,8 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Formulas are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents they become Word equations that can be edited in Word, and AsciiDoc and LaTeX files keep the LaTeX. The editor and search keep the LaTeX as text.
 - To keep prices such as "$5 and $10" from becoming math, the same rule as Pandoc and GitHub is used: there must be no space just inside the `$`, and the closing `$` must not be followed by a digit. Write `\$` for a literal dollar sign.
 - In a table, `|` inside a formula is taken as a cell separator; write `\vert` instead.
+- **Formula editor**: Edit → Insert Formula… (`Ctrl+Shift+M`, also in the right-click menu of the Text view) opens a window with a palette on the left, the LaTeX on the upper right and a live preview below it. The Templates tab lists about 45 typical formulas (quadratic formula, limits, integrals, sums, matrices, cases, statistics, trigonometry, chemical equations and more); choose one and change it as you like. The other tabs (Structures, Greek, Relations, Arrows, Symbols, Fonts and colors, Chemistry) insert a symbol at the cursor. Empty `{}` are slots: the cursor goes to the first one, and Tab / Shift+Tab move to the next or previous one. If the LaTeX has an error, the error is shown and Insert is grayed out. Choose On its own line (`$$…$$`) or In the text (`$…$`), and press Insert (or `Ctrl+Enter`).
+- Where the formula goes: in the Text view, at the cursor (in the text) or on the line after the cursor (on its own line); in the preview, at the cursor of the part being edited, or after the part you clicked (at the end of the note if you have not clicked anything). When the cursor is inside a formula in the Text view, the command edits that formula instead. In the preview, double-click a formula, or right-click it and choose Edit Formula…, to edit it; the way it was written (`$`, `\(…\)`, `$$` lines, ```` ```math ````, and `>` in a block quote) is kept. A formula in a table can only be in the text. The change is one edit in the history and can be undone.
 - A formula with an error is shown as its LaTeX in red; hover over it to see the error. Right-click a formula and choose Copy LaTeX to copy its source.
 - Math is drawn with [KaTeX](https://katex.org/), which is bundled with the app (no internet connection is used). KaTeX supports most common math commands, but not everything in LaTeX (for example, drawings such as TikZ, or `\label` / `\ref`). Commands that refer to external resources, such as `\href` and `\includegraphics`, are disabled.
 
@@ -176,11 +188,11 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Choose Edit → Format → Quote, Bulleted List, Numbered List or Code Block (also on the editor's right-click menu) to format every line the selection touches, or the cursor's line when nothing is selected. A selection that ends right at the start of a line does not include that line.
 - Quotes add `> ` to each line (`>` on empty lines, so the quote is not broken). Bulleted and numbered lists add `- ` or `1. `, `2. ` … after the indentation and skip empty lines; applying one to the other switches between them. Code blocks add a ```` ``` ```` line before and after the lines.
 - If all the lines already have that format, it is removed instead (for a code block: when the lines are surrounded by ```` ``` ```` lines). Tables and headings are processed the same way, without exceptions.
-- The change is recorded in the history as a single edit and can be undone with `Ctrl+Z`. Available in the Edit view.
+- The change is recorded in the history as a single edit and can be undone with `Ctrl+Z`. Available in the Text view, and in the preview while a part of the note is being edited.
 
 **Keyboard shortcuts**
 
-- Edit → Keyboard Shortcuts… lists every menu command with its key, grouped by menu (File, File › Export, Edit, Edit › Format, View, Help). Type in the box at the top to filter by command name or key (for example `ctrl+shift`).
+- Edit → Keyboard Shortcuts… lists every menu command with its key, grouped by menu (File, File › Export, Edit, Edit › Format, Edit › Table, View, Help). Type in the box at the top to filter by command name or key (for example `ctrl+shift`).
 - To change a key, double-click the command (or select it and press Enter, or press Change), then press the keys you want: the box shows them as you press them. Press Enter to set it, or Esc to cancel. While you are pressing keys, the menu shortcuts do nothing. Commands that have no key by default (such as File → Export → HTML…) can be given one too.
 - A key must use Ctrl or Alt (on macOS, ⌘, ⌃ or ⌥), or be one of F1–F24. Letters, digits, F keys, arrow keys, Home / End / Page Up / Page Down, Insert, Delete, Backspace, Space, Enter, Tab and the numeric keypad can be used. Keys whose character depends on the keyboard layout (such as `;` and `@`) cannot be assigned. Keys used for typing, editing or the system cannot be assigned either: Ctrl+Z / Y / X / C / V / A, Ctrl with the arrow keys, Home, End, Backspace or Delete, F3, Alt+F4 and F10 (on macOS, ⌘Q, ⌘H, ⌘W, ⌘M, ⌥ with a letter or digit, ⌃A, ⌃E and the other text-editing keys).
 - If the key is already used by another command, EverPad says which one. Press Enter to use the key here instead; the other command then has no key.
@@ -191,7 +203,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 - In the editor, paste a copied image (such as a screenshot), drag and drop a file onto the window, or choose a file with the Attach button. `![name](attach:…)` (image) or `[name](attach:…)` (file) is inserted at the cursor, and is shown as an image or a file link in the preview and in the history's Markdown view. Pasting inside a table row puts the attachment in that cell (several attachments line up side by side). Clicking an image or link opens it; executables and similar files are not opened, but shown in their folder instead.
 - The files are kept in the note's `.files` folder. **Removing an attachment from the text does not delete the file, so that older versions in the history can still show it.** Identical files are stored only once. The size limit is 50 MB per file.
-- To delete an attachment, right-click it in the attachment list below the Edit view (or the image in the preview) and choose "Move to Recycle Bin…". After a confirmation, the file goes to the Recycle Bin and the links to it are removed from the text in one edit, which Undo (`Ctrl+Z`) brings back. Restoring the file from the Recycle Bin makes it show again. Past versions that use it show "(Image not found)". Attachments are also moved to the Recycle Bin when no version uses them any more after deleting old history (see "Views and history").
+- To delete an attachment, right-click it in the attachment list below the Text view (or the image in the preview) and choose "Move to Recycle Bin…". After a confirmation, the file goes to the Recycle Bin and the links to it are removed from the text in one edit, which Undo (`Ctrl+Z`) brings back. Restoring the file from the Recycle Bin makes it show again. Past versions that use it show "(Image not found)". Attachments are also moved to the Recycle Bin when no version uses them any more after deleting old history (see "Views and history").
 - You may freely edit the "name" part before `attach:` (avoid `|`, `[` and `]`). Copying the attachment syntax into another note does not work, because the file does not exist in that note; paste the file again instead.
 - A list of the attachments used in the note (thumbnails) is shown below the text.
 - Right-click an image (in the preview, the history's Markdown view or the attachment list) for Copy Image, Open Image, Show Image in Folder and Save Image As…. Right-click a file link for Open File and Show File in Folder. In the attachment list and the preview, the menu also has Move to Recycle Bin…. Left-clicking still opens it.
@@ -252,14 +264,14 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Other**
 
-- Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Attach Image or File…, Format and Insert Link to Note… work only in the Edit view; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Edit view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Edit or Preview is grayed out while that view is shown (also during the history). For a read-only note, Attach Image or File…, Format, Insert Link to Note… and Delete History Older Than This Version… are grayed out (Find and Replace… still works, as find only).
+- Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Attach Image or File… and Insert Link to Note… work only in the Text view, and Format only in the Text view and while a part of the note is being edited in the preview; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Text view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Text or Preview is grayed out while that view is shown (also during the history). For a read-only note, Attach Image or File…, Format, Insert Link to Note… and Delete History Older Than This Version… are grayed out (Find and Replace… still works, as find only).
 - Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document, LaTeX or EverPad archive; the latest version), Read-Only, Properties… and Delete… (grayed out for a read-only note). The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
 - Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, the attachment name, or the text of a footnote. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the editor (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
-- To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered, and the current view (Edit, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
-- The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Edit view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
+- To change the interface language, choose View → Language (言語) → English or 日本語. The setting is remembered, and the current view (Text, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
+- The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Text view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
 - Choose Help → Markdown Guide for the Markdown you can use, with each example shown next to its result. See also "Markdown syntax" below.
 - To check the version you are running, choose Help → About EverPad from the menu. It also shows the Electron version, the data folder and the address where EverPad is published ([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/)); Open on GitHub opens it in your browser.
 - **Checking for updates**: EverPad checks GitHub for a newer version a few seconds after it starts, and you can check at any time with Help → Check for Updates…. If a newer version is available, Open Download Page opens the latest release page on GitHub (on macOS and Linux, which have no published builds yet, the repository page). EverPad does not download or install anything itself. At startup, nothing is shown unless a newer version is found, and you can tick "Don't remind me about version x.y.z" to skip that version. To turn off the check at startup, clear Help → Check for Updates at Startup.
@@ -366,15 +378,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.32.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.33.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.32.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.33.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.32.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.33.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -383,7 +395,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.32.0.AppImage` (x64)
+- Linux: `EverPad-0.33.0.AppImage` (x64)
 
 **macOS**
 
@@ -399,7 +411,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.32.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.33.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -481,7 +493,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 ### 特長
 
 - **すべての編集を履歴に残す**: タイムスライダーを動かすか履歴を再生すると、どの時点の版でも見られます。その版にはボタン1つで戻せます。
-- **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表に対応しています。GitHub と同じ絵文字ショートコード(`:smile:`。打つと候補が出ます)、アラート(`> [!NOTE]`)、脚注も使えます。編集とプレビューを切り替えても、見ていた場所はそのままです。選んだ文字は、右クリックで太字・斜体・取り消し線・コードにできます(複数行なら行ごと)。
+- **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表に対応しています。GitHub と同じ絵文字ショートコード(`:smile:`。打つと候補が出ます)、アラート(`> [!NOTE]`)、脚注も使えます。「テキスト」とプレビューを切り替えても、見ていた場所はそのままです。段落・リスト・表・チェックボックスは、プレビューのままでも編集できます。選んだ文字は、右クリックで太字・斜体・取り消し線・コードにできます(複数行なら行ごと)。
 - **数式**: LaTeX の数式(と化学式)を、プレビュー・履歴・印刷で整形した数式として表示します。
 - **図**: [Mermaid](https://mermaid.js.org/) で書いたフローチャートやシーケンス図などを、プレビュー・履歴・印刷で図として表示します。
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
@@ -517,10 +529,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.32.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.33.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.32.0.exe
+EverPad 0.33.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -547,8 +559,9 @@ EverPad Data\
 | 編集 / プレビュー | `Ctrl+1` / `Ctrl+2` |
 | 履歴表示の切り替え | `Ctrl+3`(画面上部の「履歴」ボタンでも) |
 | 画像・ファイルを添付 | `Ctrl+Shift+U`(`Ctrl+V` での貼り付け、ドラッグ&ドロップ、右上の「添付」ボタンでも) |
-| 検索と置換(編集画面の上にバーが出ます。プレビューと履歴の表示では検索だけ) | `Ctrl+H` |
+| 検索と置換(「テキスト」表示の上にバーが出ます。プレビューと履歴の表示では検索だけ) | `Ctrl+H` |
 | 他のメモへのリンクを挿入 | `Ctrl+K` |
+| 数式の挿入・編集 | `Ctrl+Shift+M` |
 | 選んだ文字を太字 / 斜体 / 取り消し線 / コードにする | `Ctrl+Shift+B` / `Ctrl+I` / `Ctrl+Shift+X` / `Ctrl+E` |
 | 選んだ行を引用 / 箇条書き / 番号付きの箇条書き / コードブロックにする | `Ctrl+Shift+Q` / `Ctrl+Shift+8` / `Ctrl+Shift+7` / `Ctrl+Shift+K` |
 | 字下げ / 字下げを戻す(今の行、または選んだ行) | `Tab` / `Shift+Tab`(「字下げと箇条書き」を見てください) |
@@ -568,12 +581,21 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - Tab を押すと、カーソルの位置に次の字下げの位置までスペースを入れます。箇条書きの行では、行全体を字下げして1段深い入れ子にします。文字を選んでいるときは、Tab で選んだ行をまとめて字下げし(空の行には付けません)、Shift+Tab で字下げを戻します。Shift+Tab は今の行にも使えます。1回の字下げの幅(スペース2つか4つ。既定は4つ)は「編集」→「字下げの幅(Tab)」で選びます。「編集」→「書式」にも「字下げ」「字下げを戻す」があります。本文の中では、Tab でボタンなどに移動しなくなります(検索と置換のバーなど、ほかの入力欄では今までどおり移動します)。
 - 元に戻す(`Ctrl+Z`)を1回押すと、改行と一緒に付いた字下げや記号もまとめて消えます。日本語入力の変換中は、何も付けません。
 
+**プレビューでの編集**
+
+- プレビューで段落・見出し・リストの項目・引用の中の文・コードブロック・区切り線をクリックすると、その場所がその部分の Markdown の文の編集欄になり、ほかの部分は整形したままです。書き換わるのは編集した部分だけで、ほかの文は書いたまま残ります。Esc を押すか、ほかの場所をクリックすると、整形した表示に戻ります。1行目で ↑、最後の行で ↓ を押すと、前・次の部分の編集に移ります。「テキスト」表示と同じく、Enter で箇条書きが続き、Tab で字下げでき、選んだ文字に「書式」(太字・斜体など)を使えます。数式は、ダブルクリックすると数式エディタで編集できます。図はプレビューでは編集しません。ダブルクリックすると、「テキスト」表示のその行に移ります。
+- 表のセルをクリックすると、そのセルだけを書き換えられます(打った `|` は `\|` として書きます)。Tab で次のセル(最後のセルでは行を足します)、Shift+Tab で前のセル、↑↓ で上下のセルに移り、Enter か Esc で終わります。
+- チェックボックスを押すと、チェックが付く・外れます(`[ ]` ↔ `[x]`)。
+- 表を入れるときは、「編集」→「表」→「表を挿入」を選ぶか、プレビューで表の外を右クリックして「表を挿入」を選びます。編集している部分・クリックした部分の次(引用や表の中なら、その全体の次。文の無い下の方をクリックしたときはメモの最後)に、空の表(見出しの行と3行、3列)が入り、見出しの最初のセルが編集の状態になります。「テキスト」表示では、カーソルの行の次(表・コードブロック・数式・図の中なら、その後ろ)に入ります。右クリックの「表」→「表を挿入」でも入れられます。
+- 表のセルを右クリックすると、「表を挿入」(この表の後ろ)「上に行を挿入」「下に行を挿入」「行を削除」「左に列を挿入」「右に列を挿入」「列を削除」「列の配置」(左寄せ・中央揃え・右寄せ)「表を削除」が出ます。同じ操作は「編集」→「表」と、「テキスト」表示でカーソルが表の中にあるときの右クリックにもあります(「キーボードショートカット」でキーを割り当てられます)。書き換えるのはその表の行だけで、見出しの行は削除できません。
+- 打った文字は、「テキスト」表示と同じく履歴に残ります。編集欄を閉じたあと、プレビューで `Ctrl+Z` / `Ctrl+Y` を押すと、プレビューでの変更を1回ずつ元に戻す・やり直すことができます(別のメモを開くまで)。読み取り専用のメモと履歴の表示では編集できません。
+
 **表示と履歴**
 
-- 表示は「編集」と「プレビュー」の2つで、どちらにも履歴の表示があります。「履歴」ボタンを押すと、今の表示のままタイムスライダーが出ます。編集の履歴では、その版で変わった文字が色で示され、プレビューの履歴では、その版が整形して表示されます。履歴の表示中に「編集」「プレビュー」を押すと、同じ版のまま切り替わります。もう一度「履歴」を押すと通常の表示に戻ります。
-- 「編集」と「プレビュー」を切り替えると、見ていた場所が切り替えたあとも同じ高さに出て、その場所が一瞬光ります。編集からは、カーソルが見えていればカーソルの行を、見えていなければ画面の上端の行を合わせます。プレビューからは、クリックした場所が見えていれば、編集のその行の先頭(リストの記号や `#` のあと)にカーソルを移して同じ高さに出します。クリックしていなければ上端の部分を合わせ、カーソルは動かしません。メモのいちばん上・いちばん下にいるときは、切り替えたあともいちばん上・いちばん下になります。履歴の表示の中で切り替えたときも同じです(カーソルは動かしません)。図や画像があとから出ても、見ていた場所はずれません。
+- 表示は「テキスト」と「プレビュー」の2つで、どちらにも履歴の表示があります。「履歴」ボタンを押すと、今の表示のままタイムスライダーが出ます。「テキスト」の履歴では、その版で変わった文字が色で示され、プレビューの履歴では、その版が整形して表示されます。履歴の表示中に「テキスト」「プレビュー」を押すと、同じ版のまま切り替わります。もう一度「履歴」を押すと通常の表示に戻ります。
+- 「テキスト」と「プレビュー」を切り替えると、見ていた場所が切り替えたあとも同じ高さに出て、その場所が一瞬光ります。「テキスト」からは、カーソルが見えていればカーソルの行を、見えていなければ画面の上端の行を合わせます。プレビューからは、クリックした場所が見えていれば、「テキスト」のその行の先頭(リストの記号や `#` のあと)にカーソルを移して同じ高さに出します。クリックしていなければ上端の部分を合わせ、カーソルは動かしません。メモのいちばん上・いちばん下にいるときは、切り替えたあともいちばん上・いちばん下になります。履歴の表示の中で切り替えたときも同じです(カーソルは動かしません)。図や画像があとから出ても、見ていた場所はずれません。
 - 履歴の表示中に左の一覧から別のメモを開くと、そのメモの最新の版を表示します。
-- 下の状態表示に、表示している版の編集で変更した位置(「変更位置: 12行目・5文字目」)が出ます。追加なら追加し終えた位置、削除なら削除した位置です。上の「追加 1文字」などを押すと、変更箇所まで表示を動かして一瞬強調します。プレビューの履歴では、編集の履歴に切り替えて示します。行番号を出しているときは、変更した行の番号も色で示します。
+- 下の状態表示に、表示している版の編集で変更した位置(「変更位置: 12行目・5文字目」)が出ます。追加なら追加し終えた位置、削除なら削除した位置です。上の「追加 1文字」などを押すと、変更箇所まで表示を動かして一瞬強調します。プレビューの履歴では、「テキスト」の履歴に切り替えて示します。行番号を出しているときは、変更した行の番号も色で示します。
 - 再生の速さは、とてもゆっくり・ゆっくり・ふつう・速い・とても速いの5段階から選べます。
 - 「この版に戻す」を押すと、その版の内容が新しい編集として追加されます。これまでの履歴は消えません。
 - **古い履歴の削除**: 履歴が長くなったときは、残したい最も古い版を表示して「これより前を削除…」(または「表示」→「この版より古い履歴を削除…」)を押すと、それより前の版をファイルから削除できます。**元に戻せない**ので、先に警告が出ます(初めは「キャンセル」が選ばれています)。警告には「削除する前に、すべての履歴をアーカイブ(.everpad)に書き出す」のチェックボックス(初めはオン)があり、書き出しをやめたときや書き出せなかったときは、何も削除しません。本文は変わらず、版数も変わりません。版の番号はそのままで、履歴は残した版から始まります(タイムスライダーの左端に「第1〜1,000版は削除済み」のように出ます)。見られる履歴の範囲は、プロパティに出ます。残る版のどこにも出てこない添付は、同時にごみ箱に入れます(数と大きさは警告に出ます)。Etherpad の `compactPad --keep` に当たる操作を、履歴の表示から行えるようにしたものです。
@@ -590,7 +612,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 - 検索は「最新の版」と「履歴すべて」から選べます。「履歴すべて」では、消したあとの文字も、書かれていた箇所ごとに見つかります。
 - 検索と置換では、大文字/小文字の区別・単語単位・正規表現を選べます。正規表現のときは、置換後の文字列に `$1`(かっこで囲んだ部分)、`$&`(一致した全体)、`\n`(改行)、`\t`(タブ)が使えます。「すべて置換」は1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。`Ctrl+F` は、これまでどおり全メモを対象にした検索です。
-- プレビューで「検索と置換…」(`Ctrl+H`)を選ぶと、検索だけのバーが出ます(プレビューでは何も書き換えられないため)。整形したあとの、見えている文字を探します(`**ap**ple` は「apple」として見つかります。数式と図の中は探しません)。一致した箇所すべてに色が付き、Enter / F3 で次の箇所に進みます。バーを開いたまま編集とプレビューを切り替えられ、置換の行は編集画面でだけ出ます。読み取り専用のメモでは、編集画面でも検索だけのバーになります。
+- プレビューで「検索と置換…」(`Ctrl+H`)を選ぶと、検索だけのバーが出ます(置換は「テキスト」表示で行います)。整形したあとの、見えている文字を探します(`**ap**ple` は「apple」として見つかります。数式と図の中は探しません)。一致した箇所すべてに色が付き、Enter / F3 で次の箇所に進みます。バーを開いたまま「テキスト」とプレビューを切り替えられ、置換の行は「テキスト」表示でだけ出ます。読み取り専用のメモでは、「テキスト」表示でも検索だけのバーになります。
 - 履歴の表示でも、「検索と置換…」で検索だけのバーが出ます。タイムスライダーの下に、検索語がある版の範囲が色の帯で出るので、その文をいつ書いて、いつ消したかがわかります。「前の変化」「次の変化」で、検索語の数が変わった版(書いた版・消した版)に移ります。表示中の版の中の一致には色が付き、Enter / F3 で順に移れます。帯はメモの元の文字(Markdown)で数えます。履歴の表示では正規表現は使えません。「履歴すべて」の検索結果から開いたときは、同じ検索語でこのバーが開きます。
 
 **最近見たメモとメモ同士のリンク**
@@ -598,32 +620,34 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「ファイル」→「最近見たメモ」に、最近開いたメモが新しい順に10件(いま開いているメモを除く)並びます。削除したメモも「(削除済み)」と付けて残り、選ぶとお知らせが出ます。ごみ箱から元に戻したメモは、また開けます。一覧は保存先ごとに控え、「一覧を消去」で空にできます(最近更新したメモは、左側の一覧の上にあります)。
 - 「ファイル」→「前に見たメモに戻る」(`Alt+←`)で、今のメモの前に見ていたメモを開きます。続けて押すと元に戻るので、リンクで移動した後などに、2つのメモを行き来できます。
 - `[表示する文字](note:メモID)` と書くと、他のメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(`Ctrl+K`)で一覧から選ぶ(題名で絞り込めます)か、参照先のメモのプロパティで「このメモへのリンクをコピー」を押して貼り付けます。
-- プレビューや履歴の「Markdown表示」ではクリック、編集画面では `Ctrl`+クリックで、そのメモに移動します。マウスを重ねると、参照先の今の題名が出ます。リンクはメモそのものを指し(メモの中の位置は指しません)、参照先の題名や中身が変わっても切れません。参照先を削除すると、リンクは灰色の取り消し線で表示され、クリックするとお知らせが出ます。
+- プレビューや履歴の「Markdown表示」ではクリック、「テキスト」表示では `Ctrl`+クリックで、そのメモに移動します。マウスを重ねると、参照先の今の題名が出ます。リンクはメモそのものを指し(メモの中の位置は指しません)、参照先の題名や中身が変わっても切れません。参照先を削除すると、リンクは灰色の取り消し線で表示され、クリックするとお知らせが出ます。
 - あるメモを参照しているメモを探すには、全メモの検索で `note:` に続けてそのメモID(プロパティに表示されます)を探します。印刷・PDF・テキストへの書き出しでは、リンクは書いたまま出ます。HTML・MHTML・AsciiDoc・Word・LaTeX では、他のメモへのリンクはただの文字になります。
 
 **数式**
 
 - LaTeX の数式を `$` で囲むと文中の数式(`$E = mc^2$`)、`$$` だけの行で前後を囲むと独立した行の数式になります。`\( … \)`・`\[ … \]`・```` ```math ```` のコードブロックも使えます。化学式は `\ce{…}`(mhchem)で書けます(例: `$\ce{H2O}$`)。
 - 文中の数式は、行の間隔をそろえるため、分数などを小さく表示します(LaTeX と同じです)。大きく表示するには、`$$` だけの行で前後を囲んで独立した行の数式にするか、文中のまま `\frac` の代わりに `\dfrac` と書きます(`$\dfrac{1}{3}$`)。
-- 数式は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書では Word で編集できる数式になり、AsciiDoc と LaTeX では LaTeX のまま入ります。編集画面と検索では、LaTeX の文字のまま扱います。
+- 数式は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書では Word で編集できる数式になり、AsciiDoc と LaTeX では LaTeX のまま入ります。「テキスト」表示と検索では、LaTeX の文字のまま扱います。
 - 「$5 と $10」のような金額が数式にならないよう、Pandoc や GitHub と同じ規則にしています。`$` の内側のすぐ隣に空白を入れないでください。また、閉じの `$` の直後が数字のときは数式になりません。`$` を文字として書くときは `\$` にします。
 - 表の中の数式で `|` を使うと、セルの区切りと見なされます。`\vert` と書いてください。
+- **数式エディタ**: 「編集」→「数式を挿入…」(`Ctrl+Shift+M`。「テキスト」表示の右クリックにもあります)で、左にパレット、右上に LaTeX、その下にすぐ反映されるプレビューの窓が開きます。「ひな型」のタブには、二次方程式の解・極限・積分・総和・行列・場合分け・統計・三角関数・化学反応式など、典型的な数式が約45個あり、選んでから自由に書き換えられます。ほかのタブ(演算・ギリシャ文字・関係・論理・矢印・記号・書体・色・化学)の記号は、カーソルの位置に入ります。空の `{}` は入れ物で、最初の `{}` にカーソルが移り、Tab / Shift+Tab で次・前の `{}` に移ります。LaTeX に誤りがあると、誤りの内容を出し、「挿入」を押せなくします。「独立した行(`$$…$$`)」か「文中(`$…$`)」を選んで「挿入」(または `Ctrl+Enter`)を押します。
+- 入る場所: 「テキスト」表示では、文中ならカーソルの位置、独立した行ならカーソルの行の次です。プレビューでは、編集している部分のカーソルの位置か、クリックした部分の次(どこもクリックしていなければメモの最後)です。「テキスト」表示でカーソルが数式の中にあるときは、その数式の編集になります。プレビューでは、数式をダブルクリックするか、右クリックして「数式を編集…」を選ぶと編集できます。書いてあった形(`$`・`\(…\)`・`$$` の行・```` ```math ````、引用の `>`)は、そのまま残します。表の中の数式は文中だけです。1回の編集として履歴に残り、元に戻せます。
 - 誤りのある数式は、元の LaTeX を赤字で表示します。マウスを重ねると誤りの内容が出ます。数式を右クリックして「数式の LaTeX をコピー」を選ぶと、元の LaTeX をコピーできます。
 - 数式の表示には、アプリに同梱した [KaTeX](https://katex.org/) を使います(インターネットには接続しません)。よく使う数式コマンドにはほぼ対応していますが、LaTeX のすべてではありません(TikZ などの図や、`\label`・`\ref` には対応しません)。`\href` や `\includegraphics` のように外部を参照するコマンドは使えません。
 
 **図(Mermaid)**
 
 - ```` ```mermaid ```` のコードブロックに [Mermaid](https://mermaid.js.org/) の書き方で書くと、図になります。フローチャート、シーケンス図、クラス図、状態遷移図、ガントチャート、円グラフ、マインドマップなどが書けます。書き方は Mermaid の説明を見てください。
-- 図は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書と LaTeX では画像になり、AsciiDoc では `[mermaid]` のブロックに元の文のまま入ります(Asciidoctor Diagram が入っていれば図になります)。編集画面と検索では、元の文のまま扱います。
+- 図は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書と LaTeX では画像になり、AsciiDoc では `[mermaid]` のブロックに元の文のまま入ります(Asciidoctor Diagram が入っていれば図になります)。「テキスト」表示と検索では、元の文のまま扱います。
 - 図の配色はダークモードに合わせます。印刷と書き出したファイルは、いつも明るい配色です。
 - 書き方に誤りのある図は、元の文を赤く表示します。マウスを重ねると誤りの内容が出ます。図を右クリックして「図の元の文をコピー」を選ぶと、元の文をコピーできます。
 - 図の表示には、アプリに同梱した Mermaid を使います(インターネットには接続しません)。図のあるメモを初めて表示したときに読み込むので、最初の図が出るまで1秒ほどかかることがあります。図の中のクリックやリンクは使えません。
 
 **絵文字・URL・アラート・脚注(GitHub と同じ書き方)**
 
-- **絵文字**: `:名前:` と書くと絵文字になります。名前は GitHub と同じです(`:smile:` 😄、`:+1:` 👍、`:tada:` 🎉 など、約1,900個)。編集画面で `:` に続けて名前を2文字打つと、カーソルの位置に候補が出ます。↑・↓ で選んで Enter か Tab を押すと `:名前:` が入ります(1回の編集で、`Ctrl+Z` で戻せます)。候補はクリックでも選べ、Esc で閉じます。英字・数字・`:`・`/` のすぐ後ろ(`12:30` や `http:` など)と、コードブロックの中では候補を出しません。本文には `:名前:` のまま残るので、GitHub でも同じ絵文字になります。一覧に無い名前、前後に英字や数字が付いた名前、コードの中の名前は、そのまま文字で出します。メモの題名も絵文字で出します。
+- **絵文字**: `:名前:` と書くと絵文字になります。名前は GitHub と同じです(`:smile:` 😄、`:+1:` 👍、`:tada:` 🎉 など、約1,900個)。「テキスト」表示で `:` に続けて名前を2文字打つと、カーソルの位置に候補が出ます。↑・↓ で選んで Enter か Tab を押すと `:名前:` が入ります(1回の編集で、`Ctrl+Z` で戻せます)。候補はクリックでも選べ、Esc で閉じます。英字・数字・`:`・`/` のすぐ後ろ(`12:30` や `http:` など)と、コードブロックの中では候補を出しません。本文には `:名前:` のまま残るので、GitHub でも同じ絵文字になります。一覧に無い名前、前後に英字や数字が付いた名前、コードの中の名前は、そのまま文字で出します。メモの題名も絵文字で出します。
 - **URL をそのまま書く**: `http://`・`https://`・`www.` で始まるアドレスは、`[ ]( )` を使わなくてもリンクになります。`< >` で囲んだアドレスも同じです。アドレスは、空白か、日本語などの ASCII でない文字の手前で終わります(`https://example.comを見る` なら、アドレスだけがリンク)。最後の `.`・`,`・`:`・`;`・`!`・`?` と、対になっていない `)` は、アドレスに含めません。
-- **記号をそのまま書く**: ASCII の記号の前に `\` を付けると、その記号をそのまま出します。`\*` は斜体にならずに `*` と出て、行の先頭の `\#`・`\-`・`1\.`・`\>` は、見出し・箇条書き・引用になりません。`\` を2つ重ねると1つになるので、`\\server\share` と書いたパスは、プレビューでは `\server\share` と出ます(編集画面は書いたままです。そのまま出すには `` ` `` で囲みます)。コードと数式の中は変わりません(`\$` は今までどおり $ の文字です)。
+- **記号をそのまま書く**: ASCII の記号の前に `\` を付けると、その記号をそのまま出します。`\*` は斜体にならずに `*` と出て、行の先頭の `\#`・`\-`・`1\.`・`\>` は、見出し・箇条書き・引用になりません。`\` を2つ重ねると1つになるので、`\\server\share` と書いたパスは、プレビューでは `\server\share` と出ます(「テキスト」表示は書いたままです。そのまま出すには `` ` `` で囲みます)。コードと数式の中は変わりません(`\$` は今までどおり $ の文字です)。
 - **アラート**: 引用の1行目が `[!NOTE]`・`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` だけなら、色とアイコンと見出し(注記・ヒント・重要・警告・注意。英語の画面では Note などの英語)の付いた注意書きになります。
 - **脚注**: 本文に `[^名前]` と書き、行の先頭に `[^名前]: 注の文` と書きます(メモのどこに書いてもかまいません)。番号は本文で最初に参照した順に付き、注はメモの最後にまとめて表示されます。参照の無い注は表示せず、注の無い `[^名前]` はそのまま文字で出します。注を2行以上や複数の段落にするときは、空白2つで字下げします。番号をクリックすると注へ、↩ をクリックすると本文に戻ります。番号にマウスを重ねると、左下に注の文が出ます。
 - 印刷・PDF・HTML・MHTML にもそのまま出ます。Word 文書では、脚注は Word の脚注に、アラートは色の付いた線と見出しの引用になります。AsciiDoc では、`footnote:[…]` と注記のブロック(`[NOTE]` など。日本語の画面では見出しを日本語にする設定も入れます)になります。LaTeX では、`\footnote` と、色の付いた線と見出しの枠になります。
@@ -631,7 +655,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **太字・斜体・取り消し線・コード**
 
-- 編集画面で文字を選んで右クリックし、「太字」「斜体」「取り消し線」「コード」を選びます(「編集」→「書式」にもあります)。選んだ文字を `**`・`*`・`~~`・`` ` `` で囲みます。Ctrl+B は左側の表示の切り替えなので、太字は `Ctrl+Shift+B` です。
+- 「テキスト」表示で文字を選んで右クリックし、「太字」「斜体」「取り消し線」「コード」を選びます(「編集」→「書式」にもあります)。選んだ文字を `**`・`*`・`~~`・`` ` `` で囲みます。Ctrl+B は左側の表示の切り替えなので、太字は `Ctrl+Shift+B` です。
 - 選択が複数行にまたがるときは、行ごとに装飾します(最初と最後の行は、選んだ部分だけ)。箇条書きの記号、チェックボックス、`>`、`#`、字下げと、前後の空白は記号の外に残すので、`- りんご` は `- **りんご**` になります。空の行、コードブロック、区切り線、表の `|---|` の行は飛ばし、表の行はセルごとに装飾します。
 - 選んだ部分がすべてすでにその装飾なら、外します(記号まで含めて選んでも、内側だけを選んでも同じです)。太字と斜体は重ねられます(`***文字***`)。一部だけ太字のときは、中の `**` を取ってから全体を太字にします。
 - 装飾したあとも同じ文字を選んだままなので、続けて別の装飾もかけられます。何も選んでいないときは、記号の組を入れて、カーソルを真ん中に置きます。1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。
@@ -639,14 +663,14 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **行の書式**
 
-- メニューの「編集」→「書式」→「引用」「箇条書き」「番号付きの箇条書き」「コードブロック」(編集画面の右クリックメニューにもあります)で、選択がかかっている行すべてを、選んでいなければカーソルのある行を、まとめてその書式にします。選択の終わりが行の先頭ちょうどのときは、その行は含めません。
+- メニューの「編集」→「書式」→「引用」「箇条書き」「番号付きの箇条書き」「コードブロック」(「テキスト」表示の右クリックメニューにもあります)で、選択がかかっている行すべてを、選んでいなければカーソルのある行を、まとめてその書式にします。選択の終わりが行の先頭ちょうどのときは、その行は含めません。
 - 引用は各行の先頭に `> ` を付けます(空の行には `>` を付けて、引用が途切れないようにします)。箇条書きと番号付きは、字下げの後に `- ` や `1. `・`2. `… を付け、空の行は飛ばします。箇条書きと番号付きは互いに切り替わります。コードブロックは、対象の行の前後に ```` ``` ```` だけの行を入れます。
 - すべての行がすでにその書式なら、外します(コードブロックは、前後が ```` ``` ```` の行のとき)。表や見出しの行も区別せずに処理します。
-- 1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。編集画面で使えます。
+- 1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。「テキスト」表示と、プレビューでかたまりを編集している間に使えます。
 
 **キーボードショートカット**
 
-- 「編集」→「キーボードショートカット…」で、メニューのすべての操作とそのキーを、メニューごと(ファイル、ファイル › エクスポート、編集、編集 › 書式、表示、ヘルプ)に一覧で出します。上の欄に入力すると、操作の名前やキー(例: `ctrl+shift`)で絞り込めます。
+- 「編集」→「キーボードショートカット…」で、メニューのすべての操作とそのキーを、メニューごと(ファイル、ファイル › エクスポート、編集、編集 › 書式、編集 › 表、表示、ヘルプ)に一覧で出します。上の欄に入力すると、操作の名前やキー(例: `ctrl+shift`)で絞り込めます。
 - キーを変えるには、操作をダブルクリックするか、選んで Enter を押すか「キーを変える」を押してから、割り当てたいキーを押します。押したキーが枠の中に出ます。Enter で決め、Esc でやめます。キーを押している間は、メニューのショートカットは効きません。既定でキーの無い操作(「ファイル」→「エクスポート」→「HTML…」など)にも割り当てられます。
 - 割り当てられるのは、Ctrl か Alt(macOS では ⌘・⌃・⌥)を含むキーか、F1〜F24 です。英字・数字・F キー・矢印キー・Home / End / Page Up / Page Down・Insert・Delete・Backspace・Space・Enter・Tab・テンキーを使えます。キーボードの配列によって文字が変わる記号のキー(`;` や `@` など)は割り当てられません。文字の入力や編集、システムの操作に使うキーも割り当てられません: Ctrl+Z / Y / X / C / V / A、Ctrl と矢印・Home・End・Backspace・Delete の組み合わせ、F3、Alt+F4、F10(macOS では ⌘Q、⌘H、⌘W、⌘M、⌥ と英字・数字の組み合わせ、⌃A、⌃E などの文字の編集のキー)。
 - ほかの操作がすでに使っているキーを押すと、どの操作で使っているかを出します。Enter を押すと、そのキーをこちらに移し、ほかの操作はキーなしになります。
@@ -655,9 +679,9 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **画像・ファイルの添付**
 
-- 編集画面で、コピーした画像(スクリーンショットなど)を貼り付けるか、ファイルをウィンドウへドラッグ&ドロップするか、「添付」ボタンでファイルを選びます。カーソルの位置に `![名前](attach:…)`(画像)や `[名前](attach:…)`(ファイル)が入り、プレビューと履歴の「Markdown表示」で画像やファイルへのリンクとして表示されます。表の行の中に貼ると、そのセルに入ります(複数のときは横に並びます)。画像やリンクをクリックすると開きます。実行ファイルなどは開かず、保存先のフォルダで場所を示します。
+- 「テキスト」表示で、コピーした画像(スクリーンショットなど)を貼り付けるか、ファイルをウィンドウへドラッグ&ドロップするか、「添付」ボタンでファイルを選びます。カーソルの位置に `![名前](attach:…)`(画像)や `[名前](attach:…)`(ファイル)が入り、プレビューと履歴の「Markdown表示」で画像やファイルへのリンクとして表示されます。表の行の中に貼ると、そのセルに入ります(複数のときは横に並びます)。画像やリンクをクリックすると開きます。実行ファイルなどは開かず、保存先のフォルダで場所を示します。
 - ファイルの実体は、そのメモの `.files` フォルダに保存されます。**本文から消しても、履歴の古い版で見られるように、ファイルは削除しません。** 同じ内容のファイルは1つだけ保存します。1ファイル 50MB までです。
-- 添付を削除するときは、編集画面の下の添付の一覧(またはプレビューの画像)を右クリックして「ごみ箱に入れる…」を選びます。確認のあと、ファイルをごみ箱に入れ、本文からその添付へのリンクを1回の編集で消します。リンクは「元に戻す」(`Ctrl+Z`)で戻せ、ファイルをごみ箱から元に戻すと、また表示されます。その添付を使っている過去の版では「(画像が見つかりません)」と表示されます。古い履歴を削除して、どの版にも出てこなくなった添付も、ごみ箱に入れます(「表示と履歴」を見てください)。
+- 添付を削除するときは、「テキスト」表示の下の添付の一覧(またはプレビューの画像)を右クリックして「ごみ箱に入れる…」を選びます。確認のあと、ファイルをごみ箱に入れ、本文からその添付へのリンクを1回の編集で消します。リンクは「元に戻す」(`Ctrl+Z`)で戻せ、ファイルをごみ箱から元に戻すと、また表示されます。その添付を使っている過去の版では「(画像が見つかりません)」と表示されます。古い履歴を削除して、どの版にも出てこなくなった添付も、ごみ箱に入れます(「表示と履歴」を見てください)。
 - `attach:` の前の「名前」の部分は自由に書き換えられます(`|`、`[`、`]` は使わないでください)。添付の記法を別のメモにコピーしても、そのメモにはファイルの実体がないので表示されません。ファイルを貼り付け直してください。
 - 本文の下に、そのメモで使っている添付の一覧(サムネイル)が表示されます。
 - 画像を右クリックすると(プレビュー、履歴の「Markdown表示」、添付の一覧)、「画像をコピー」「画像を開く」「画像の場所を開く」「名前をつけて画像を保存…」のメニューが出ます。ファイルへのリンクを右クリックすると「ファイルを開く」「ファイルの場所を開く」が出ます。添付の一覧とプレビューでは「ごみ箱に入れる…」も出ます。左クリックすると、これまでどおり開きます。
@@ -718,14 +742,14 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **その他**
 
-- 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」は編集画面だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(編集画面と、編集から入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「編集」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。読み取り専用のメモでは、「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」「この版より古い履歴を削除…」がグレーアウトします(「検索と置換…」は、検索だけとして使えます)。
+- 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「画像・ファイルを添付…」「メモへのリンクを挿入…」は「テキスト」表示だけ、「書式」は「テキスト」表示と、プレビューでかたまりを編集している間だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(「テキスト」表示と、そこから入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「テキスト」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。読み取り専用のメモでは、「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」「この版より古い履歴を削除…」がグレーアウトします(「検索と置換…」は、検索だけとして使えます)。
 - 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・LaTeX・EverPad アーカイブ。最新の版を書き出します)「読み取り専用」「プロパティ…」「削除…」(読み取り専用のメモでは押せません)です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
 - プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前、脚注の文)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
-- 編集画面(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
+- 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
 - 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(編集・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
-- 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。編集画面だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
+- 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョン、メモの保存先、EverPad の公開場所([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/))も表示され、「GitHub で開く」でブラウザで開けます。
 - **更新の確認**: 起動して数秒後に、GitHub に新しいバージョンがあるかを確かめます。メニューの「ヘルプ」→「更新を確認…」で、いつでも確かめられます。新しいバージョンがあるときは「ダウンロードページを開く」で GitHub の最新のリリースのページを開きます(まだ配布していない macOS と Linux では、リポジトリのページを開きます)。EverPad が自分でダウンロードやインストールをすることはありません。起動時は、新しいバージョンがあるときだけ知らせ、「バージョン x.y.z は今後知らせない」にチェックすると、その版は知らせません。起動時の確認をやめるときは、「ヘルプ」→「起動時に更新を確認する」のチェックを外します。
@@ -832,15 +856,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.32.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.33.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.32.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.33.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.32.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.33.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -849,12 +873,12 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.32.0.AppImage`(x64)
+- Linux: `EverPad-0.33.0.AppImage`(x64)
 
 **macOS**
 
 - メニューは Mac の形です。一番左に「EverPad」メニュー(EverPad について、サービス、EverPad を隠す、EverPad を終了など)があり、「ウインドウ」メニューもあります。
-- ショートカットキーは Ctrl の代わりに ⌘ を使います(⌘N、⌘F など)。Windows のキーを Mac が別の操作に使っているため、次のものは違います: 前に見たメモに戻る ⌘[、プロパティ ⌘I、検索と置換 ⌥⌘F、引用 ⌘'、斜体 ⇧⌘I(⌘H は「隠す」、⇧⌘Q は「ログアウト」、⌘I は「プロパティ」)。やり直しは ⇧⌘Z、編集画面で他のメモへのリンクを開くのは ⌘+クリックです。
+- ショートカットキーは Ctrl の代わりに ⌘ を使います(⌘N、⌘F など)。Windows のキーを Mac が別の操作に使っているため、次のものは違います: 前に見たメモに戻る ⌘[、プロパティ ⌘I、検索と置換 ⌥⌘F、引用 ⌘'、斜体 ⇧⌘I(⌘H は「隠す」、⇧⌘Q は「ログアウト」、⌘I は「プロパティ」)。やり直しは ⇧⌘Z、「テキスト」表示で他のメモへのリンクを開くのは ⌘+クリックです。
 - ウィンドウを閉じても EverPad は終わらず、Dock に残ります。Dock のアイコンを押すと、ウィンドウがまた開きます。終えるときは ⌘Q です。書きかけの編集は、ウィンドウを閉じたときに保存します。EverPad が動いている間は、保存先の印が残ります(「メモの保存先と形式」を見てください)。
 - `.everpad` ファイルは、Finder でダブルクリック、「このアプリケーションで開く」、Dock のアイコンへのドラッグで開けます。テキストファイルは、ウィンドウへのドラッグか、「ファイル」→「インポート…」で取り込みます。
 - 設定は `~/Library/Application Support/EverPad` に、メモは `~/書類/EverPad`(`~/Documents/EverPad`)に保存します。初めて起動したとき、書類フォルダへのアクセスを許可するかを Mac が尋ねます。
@@ -865,7 +889,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.32.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.33.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。

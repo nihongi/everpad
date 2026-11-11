@@ -291,6 +291,19 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 /* プレビューと、プレビューから入った履歴の表示も、段落・リスト・表などのかたまりごとに、画面の外は描画を省く
    (かたまりが数千あると、読み上げの仕組みが動いているときに数秒止まることがあった)。高さの見積もりは1行分で、一度描いたら覚える */
 #preview > *, #hvBody > .md > * { content-visibility: auto; contain-intrinsic-size: auto 1.6em; }
+/* プレビューでの編集: クリックしたかたまりは、その場で元の文の編集欄に、表のセルは1行の入力欄になる */
+#preview.pe-on [data-line]:not(.math):not(.diagram) { cursor: text; }
+#preview.pe-on li > input[type=checkbox] { cursor: pointer; }
+.pe-edit { display: block; width: 100%; box-sizing: border-box; margin: 4px 0; padding: 6px 10px; resize: none; overflow: hidden;
+  font: 15px/1.4 var(--mono); color: var(--fg); background: var(--surface); border: 1px solid var(--accent); border-radius: 6px; outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+li.pe-li { list-style: none; }
+/* 空のセルも1行分の高さにする(挿入した空の表のセルをクリックしやすく) */
+#preview :is(td, th):empty::before { content: '\200b'; }
+/* 編集欄は描画を省かない(省くと、高さが1行分と見積もられて、文が入りきらない) */
+#preview > .pe-edit { content-visibility: visible; contain-intrinsic-size: none; }
+.pe-cell { width: 100%; min-width: 6em; box-sizing: border-box; padding: 2px 4px; font: 14px/1.4 var(--mono); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--accent); border-radius: 4px; outline: none; }
 .dl { display: grid; grid-template-columns: var(--ln-w) minmax(0, 1fr); }
 .dl .n { white-space: nowrap; text-align: right; padding-right: 10px; margin-right: 12px; border-right: 1px solid var(--line); color: var(--fg-2); user-select: none; font-variant-numeric: tabular-nums; }
 .dl .t { min-width: 0; }
@@ -372,6 +385,38 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .modal-body { padding: 4px 20px 8px; overflow: auto; }
 .modal-foot { display: flex; justify-content: flex-end; padding: 10px 20px 16px; }
 .modal .lead { margin: 4px 0 10px; }
+/* 広い窓(数式エディタ) */
+.modal.wide .modal-box { width: min(64rem, 100%); }
+.modal-foot .modal-extra { flex: 1; }
+/* 数式エディタ: 左にパレット、右に LaTeX とプレビュー */
+.mathed { display: grid; grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 14px; min-height: 26rem; }
+.me-left { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.me-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.me-tab { font: inherit; font-size: 12px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg-2); cursor: pointer; }
+.me-tab[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.me-pal { flex: 1; overflow: auto; padding: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(3.2rem, 1fr)); gap: 4px; align-content: start; max-height: 24rem; }
+.me-pal.tpl { display: block; }
+.me-sym { font: inherit; min-height: 2.6rem; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); cursor: pointer; overflow: hidden; }
+.me-sym:hover, .me-tplbtn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.me-sym .katex { font-size: 1em; }
+.me-group { font-size: 12px; color: var(--fg-2); margin: 8px 2px 4px; }
+.me-group:first-child { margin-top: 0; }
+.me-tplbtn { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin: 0 0 4px; padding: 4px 8px; font: inherit; font-size: 12px; text-align: left;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); cursor: pointer; }
+.me-tplbtn .me-name { flex: 0 0 auto; color: var(--fg-2); }
+.me-tplbtn .me-math { min-width: 0; overflow: hidden; text-align: right; font-size: 13px; }
+.me-right { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.me-lbl { font-size: 12px; color: var(--fg-2); }
+.me-tex { width: 100%; box-sizing: border-box; min-height: 7rem; resize: vertical; padding: 8px 10px; font: 15px/1.5 'Cascadia Mono', Consolas, 'Courier New', var(--mono); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; outline: none; }
+.me-tex:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.me-pv { flex: 1; min-height: 7rem; display: flex; align-items: center; justify-content: center; padding: 10px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; font-size: 18px; }
+.me-pv.empty { font-size: 13px; color: var(--fg-2); }
+.me-err { min-height: 1.4em; font-size: 12px; color: var(--del-fg); overflow-wrap: anywhere; }
+.me-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.me-modes { display: flex; gap: 14px; font-size: 13px; }
+.me-mode { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.me-btns { display: flex; gap: 8px; }
 .props { width: 100%; border-collapse: collapse; font-size: 14px; }
 .props th { width: 9.5em; text-align: left; vertical-align: top; color: var(--fg-2); font-weight: 500; padding: 7px 12px 7px 0; white-space: nowrap; }
 .props td { padding: 7px 0; vertical-align: top; overflow-wrap: anywhere; }
