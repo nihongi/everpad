@@ -1598,6 +1598,7 @@
     if (r && r.status === 'copied') toast(T(diagram ? 'diagramCopied' : 'texCopied'));
     else if (r && r.status === 'edit' && m.isConnected) { if (diagram) peDiagramEdit(m); else peMathEdit(m); }
     else if (r && r.status === 'view' && diagram) diagramView(m);
+    else if (r && r.status === 'para' && m.isConnected) peOpenAdd(m);
   });
   document.addEventListener('contextmenu', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
@@ -1829,6 +1830,13 @@
     const ro = isRO(cur());
     pv.classList.toggle('pe-on', !ro);
     pv.querySelectorAll('li > input[type=checkbox]').forEach(cb => { cb.disabled = ro; });
+    // 最後のかたまりの下の何もない所: 押すと、メモの最後に段落を書き足す編集欄を開く(図・数式・表で終わるメモでも書き足せるように)
+    if (!ro && !peBlank()) {
+      const tail = document.createElement('div');
+      tail.className = 'pe-tail';
+      tail.dataset.hint = T('peAddHint');
+      pv.appendChild(tail);
+    }
   }
   function peRerender(anchor, top) {
     const pv = $('preview');
@@ -1880,6 +1888,12 @@
     if (!t.closest || !$('preview').contains(t) || t.closest(PE_SKIP)) return null;
     // 何も書いていないメモ(「空のメモ」の表示だけ)は、どこを押しても空の編集欄にする
     if (peBlank()) return { blank: true };
+    // 最後のかたまりより下(書き足す所): メモの最後に段落を書き足す
+    if (t.closest('.pe-tail')) return { add: true };
+    if (t === $('preview')) {
+      const last = [...t.children].filter(x => !x.matches('.pe-tail, .pe-edit')).pop();
+      return last && e.clientY > last.getBoundingClientRect().bottom ? { add: true } : null;
+    }
     const cell = t.closest('td, th');
     if (cell) { const tr = cell.closest('tr[data-line]'); return tr ? { row: +tr.dataset.line, col: [...tr.children].indexOf(cell) } : null; }
     const el = t.closest('[data-line]');
@@ -1892,6 +1906,7 @@
   function peOpen(d) {
     if (!d || !peAllowed()) return;
     if (d.blank) { const el = peBlank(); if (el) peOpenBlock(el, { at: 'end', blank: true }); return; }
+    if (d.add) { peOpenAdd(null); return; }
     if (d.row != null) {
       const tr = $('preview').querySelector('tr[data-line="' + d.row + '"]');
       const cell = tr && tr.children[Math.max(0, Math.min(tr.children.length - 1, d.col))];
@@ -1919,7 +1934,7 @@
     if (el.tagName === 'LI') { holder = document.createElement('li'); holder.className = 'pe-li'; holder.appendChild(ta); }
     el.before(holder);
     el.hidden = true;
-    Object.assign(pe, { box: ta, holder: holder, el: el, kind: 'block', s: s, e: e, n: e - s, start: n.text, pre: lines.slice(0, s).join('\n'), post: lines.slice(e).join('\n'), hasPost: e < lines.length });
+    Object.assign(pe, { box: ta, holder: holder, el: el, kind: 'block', add: null, s: s, e: e, n: e - s, start: n.text, pre: lines.slice(0, s).join('\n'), post: lines.slice(e).join('\n'), hasPost: e < lines.length });
     peFit(true);
     ta.focus({ preventScroll: true });
     const pos = d && d.at === 'start' ? 0 : d && d.at === 'end' ? src.length : caretFromRendered(src, d ? d.before : '', d ? d.total : 0);
@@ -1927,6 +1942,46 @@
     // 描き終えたあとにもう一度合わせる(フォントや折り返しが決まってから)
     requestAnimationFrame(() => { if (pe.box === ta) peFit(true); });
     sendUiState();
+  }
+  // かたまり el を含む、プレビューのいちばん外側のかたまり(引用・リスト・表の全体)
+  function peTop(el) {
+    let top = el;
+    while (top && top.parentElement && top.parentElement !== $('preview')) top = top.parentElement;
+    return top && top.parentElement === $('preview') ? top : null;
+  }
+  /* 新しい段落を書き足す、空の編集欄を開く(「段落を挿入」・最後のかたまりの下を押したとき)。
+     ref(図・数式・かたまり)があれば、それを含むいちばん外側のかたまりの次に、無ければメモの最後に入れる。
+     書いた文は、まわりと空の行で分けた段落として元の文に入る。何も書かずに閉じれば、元の文は変わらない */
+  function peOpenAdd(ref) {
+    if (!peAllowed()) return;
+    if (pe.box) peClose();
+    const n = cur(), pv = $('preview');
+    if (peBlank()) { peOpenBlock(peBlank(), { at: 'end', blank: true }); return; }
+    const top = ref && ref.isConnected ? peTop(ref) : null;
+    const after = top ? peBlockEnd(top) : n.text.split('\n').length;
+    const ta = document.createElement('textarea');
+    ta.className = 'pe-edit';
+    ta.spellcheck = false;
+    if (top) top.after(ta);
+    else {
+      const next = pv.querySelector(':scope > .footnotes, :scope > .pe-tail');
+      if (next) next.before(ta); else pv.appendChild(ta);
+    }
+    const line = top ? [top].concat([...top.querySelectorAll('[data-line]')]).filter(x => x.dataset.line != null).map(x => +x.dataset.line)[0] : null;
+    Object.assign(pe, { box: ta, holder: ta, el: null, kind: 'block', add: { after: after, ref: top, line: line == null ? null : line }, s: after + 1, e: after + 1, n: 1, start: n.text });
+    peFit(true);
+    ta.focus({ preventScroll: true });
+    requestAnimationFrame(() => { if (pe.box === ta) peFit(true); });
+    sendUiState();
+  }
+  // 書き足す編集欄で、まだ何も入れていない(元の文が開いたときのまま)
+  const peAddEmpty = () => !!(pe.box && pe.add && cur().text === pe.start);
+  // 何も入れていない書き足す編集欄を閉じて、入れる場所の前のかたまり(いちばん外側。メモの最後なら null)を返す。表・図をそこに入れるのに使う
+  function peCloseAdd() {
+    const line = pe.add.line;
+    peClose();
+    const x = line == null ? null : $('preview').querySelector('[data-line="' + line + '"]');
+    return x ? peTop(x) : null;
   }
   function peOpenCell(cell, atEnd) {
     const tr = cell.closest('tr[data-line]');
@@ -1938,7 +1993,7 @@
     inp.spellcheck = false;
     // 中身の \| は | で見せる(書き戻すときに tableEdit がエスケープし直す)
     inp.value = tableCell(cur().text, row, col).replace(/\\\|/g, '|');
-    Object.assign(pe, { box: inp, holder: inp, el: cell, kind: 'cell', row: row, col: col, start: cur().text, html: cell.innerHTML, init: inp.value });
+    Object.assign(pe, { box: inp, holder: inp, el: cell, kind: 'cell', add: null, row: row, col: col, start: cur().text, html: cell.innerHTML, init: inp.value });
     peLastCell = { row: row, col: col };
     cell.innerHTML = '';
     cell.appendChild(inp);
@@ -1965,7 +2020,13 @@
   // 編集欄の中身を元の文に入れる
   function peSync() {
     if (!pe.box || peComposing) return;
-    if (pe.kind === 'block') {
+    if (pe.add) {
+      // 書き足す段落: 開いたときの文の、その場所に入れる(空なら開いたときのまま)
+      const v = pe.box.value, r = v.trim() ? blockInsert(pe.start, pe.add.after, v.split('\n')) : null;
+      pe.s = r ? r.at : pe.add.after + 1;
+      peSetText(r ? r.text : pe.start);
+      peFit();
+    } else if (pe.kind === 'block') {
       peSetText(pe.pre + (pe.s > 0 ? '\n' : '') + pe.box.value + (pe.hasPost ? '\n' + pe.post : ''));
       peFit();
     } else if (pe.box.value !== pe.init || cur().text !== pe.start) {
@@ -1978,14 +2039,18 @@
   function peClose(noRender) {
     if (!pe.box) return 0;
     peSync();
-    const top = pe.holder.getBoundingClientRect().top;
-    const delta = pe.kind === 'block' ? pe.box.value.split('\n').length - pe.n : 0;
-    const anchor = pe.kind === 'block' ? pe.s : pe.row;
+    let top = pe.holder.getBoundingClientRect().top;
+    const lineCount = t => t.split('\n').length;
+    const delta = pe.add ? lineCount(cur().text) - lineCount(pe.start) : pe.kind === 'block' ? pe.box.value.split('\n').length - pe.n : 0;
+    let anchor = pe.kind === 'block' ? pe.s : pe.row;
+    // 何も書かずに閉じた書き足す編集欄は、前のかたまりの位置を保つ
+    if (peAddEmpty()) { anchor = pe.add.line; top = pe.add.ref && pe.add.ref.isConnected ? pe.add.ref.getBoundingClientRect().top : null; }
     peRecord(pe.start, cur().text);
     const wasFocused = pe.holder.contains(document.activeElement);
     pe.box = null;
     pe.holder = null;
     pe.kind = '';
+    pe.add = null;
     peComposing = false;
     if (!noRender && S.mode === 'preview') {
       peRerender(anchor, top);
@@ -1996,7 +2061,7 @@
   }
   // 前後のかたまりの編集に移る(↑ で前、↓ で次。表は行の最初のセル)
   function peMove(dir) {
-    const s = pe.s, end = pe.s + pe.box.value.split('\n').length;
+    const s = pe.s, end = peAddEmpty() ? pe.s : pe.s + pe.box.value.split('\n').length;
     peClose();
     const list = peBlocks();
     const el = dir < 0 ? list.filter(x => +x.dataset.line < s).pop() : list.find(x => +x.dataset.line >= end);
@@ -2092,6 +2157,7 @@
     if (action === 'insert') {
       if (S.mode === 'edit') { textInsertTable(); return; }
       if (S.mode !== 'preview' || isRO(cur())) return;
+      if (peAddEmpty()) { const at = peCloseAdd(); peInsertTable(at ? peAfter(at) : null, at); return; }
       const line = pe.kind === 'block' ? pe.s : null, row = pe.kind === 'cell' ? pe.row : null;
       if (pe.box) peClose();
       const el = line != null ? peBlockAt(line) : row != null ? $('preview').querySelector('tr[data-line="' + row + '"]')
@@ -2130,6 +2196,8 @@
   document.addEventListener('mousedown', e => {
     peNext = null;
     if (!pe.box || pe.holder.contains(e.target)) return;
+    // ダイアログ(数式エディタなど)の中と背景は、編集欄を開いたまま押せる(閉じたあと、編集欄に戻って続けられる)
+    if (!$('modal').hidden) return;
     // 「添付」ボタンは、編集欄を開いたまま押せる(カーソルの位置に入れる)
     if (e.target.closest && e.target.closest('#attBtn')) { e.preventDefault(); return; }
     let d = peDescribe(e);
@@ -2239,9 +2307,10 @@
     }
     let action = null;
     try { action = await api.tableMenu({ inTable: false }); } catch (err) { action = null; }
-    if (action !== 'insert' && action !== 'math' && action !== 'diagram') return;
+    if (action !== 'insert' && action !== 'math' && action !== 'diagram' && action !== 'para') return;
     const el = line != null ? peBlockAt(line) : null;
-    if (action === 'math') peInsertMath(el);
+    if (action === 'para') peOpenAdd(el);
+    else if (action === 'math') peInsertMath(el);
     else if (action === 'diagram') peInsertDiagram(el);
     else peInsertTable(el ? peAfter(el) : null, el);
   });
@@ -2438,6 +2507,7 @@
       const at = mathAt(ta.value, s);
       if (at && (s === e || (s >= at.s && e <= at.e))) {
         openMathEditor({ tex: at.tex.trim(), display: at.display, editing: true }, (tex, disp) => {
+          if (pe.box !== ta) return;   // 開いている間に編集欄が閉じたときは書き換えない
           const r = mathReplace(ta.value, at, tex, disp);
           const op = makeOp(ta.value, r.text, 0);
           peReplace(op.p, op.p + op.d.length, op.i);
@@ -2449,6 +2519,7 @@
       }
       const sel = ta.value.slice(s, e);
       openMathEditor({ tex: sel.indexOf('\n') < 0 ? sel : '', display: false }, (tex, disp) => {
+        if (pe.box !== ta) return;   // 開いている間に編集欄が閉じたときは書き換えない
         const r = mathInsert(ta.value, s, e, tex, disp);
         const op = makeOp(ta.value, r.text, 0);
         peReplace(op.p, op.p + op.d.length, op.i);
@@ -2463,6 +2534,7 @@
       const at = mathAt(inp.value, s);
       if (at && (s === e || (s >= at.s && e <= at.e))) {
         openMathEditor({ tex: at.tex.trim(), display: false, editing: true, inlineOnly: true }, tex => {
+          if (pe.box !== inp) return;
           const op = makeOp(inp.value, mathReplace(inp.value, at, tex, false).text, 0);
           inp.focus();
           inp.setSelectionRange(op.p, op.p + op.d.length);
@@ -2472,6 +2544,7 @@
         return;
       }
       openMathEditor({ tex: inp.value.slice(s, e), display: false, inlineOnly: true }, tex => {
+        if (pe.box !== inp) return;
         inp.focus();
         inp.setSelectionRange(s, e);
         const v = mathInline(tex, inp.value[e]);
@@ -2782,6 +2855,7 @@
     }
     if (S.mode !== 'preview') return;
     let el0 = null;
+    if (peAddEmpty()) { peInsertDiagram(peCloseAdd()); return; }
     if (pe.box) {
       const line = pe.kind === 'block' ? pe.s : pe.row;
       peClose();

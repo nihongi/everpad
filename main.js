@@ -299,6 +299,8 @@ ipcMain.handle('math:menu', (e, tex, kind, canEdit) => {
     // プレビューの数式(編集できるメモ)は、数式エディタで編集できる
     if (kind === 'math' && canEdit) items.unshift({ label: T('mEditMath'), click: () => { chosen = true; resolve({ status: 'edit' }); } }, { type: 'separator' });
     if (kind === 'diagram') items.unshift({ label: T(canEdit ? 'mEditDiagram' : 'mViewDiagram'), click: () => { chosen = true; resolve({ status: canEdit ? 'edit' : 'view' }); } }, { type: 'separator' });
+    // 編集できるメモでは、数式・図の次に段落を書き足せる(図で終わるメモでも、プレビューのまま続きを書けるように)
+    if (canEdit) items.splice(1, 0, { label: T('mInsertPara'), click: () => { chosen = true; resolve({ status: 'para' }); } });
     const menu = Menu.buildFromTemplate(items);
     menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve({ status: 'none' }); }, 300) });
   });
@@ -312,9 +314,10 @@ ipcMain.handle('table:menu', (e, st) => {
     let chosen = false;
     const state = cleanTableState(st) || { head: false, cols: 2, align: '' };
     const items = tableItems(T, id => { chosen = true; resolve(id); }, state, curKeys());
-    // 表の外(何もない所・空のメモも)では、「数式を挿入…」「図を挿入…」も出す(選ぶと 'math'・'diagram')
+    // 表の外(何もない所・空のメモも)では、「段落を挿入」「数式を挿入…」「図を挿入…」も出す(選ぶと 'para'・'math'・'diagram')
     if (state.inTable === false) {
-      items.unshift({ label: T('mInsertMath'), accelerator: curKeys().math || undefined, registerAccelerator: false, click: () => { chosen = true; resolve('math'); } },
+      items.unshift({ label: T('mInsertPara'), click: () => { chosen = true; resolve('para'); } }, { type: 'separator' },
+        { label: T('mInsertMath'), accelerator: curKeys().math || undefined, registerAccelerator: false, click: () => { chosen = true; resolve('math'); } },
         { label: T('mInsertDiagram'), accelerator: curKeys().diagram || undefined, registerAccelerator: false, click: () => { chosen = true; resolve('diagram'); } });
     }
     const menu = Menu.buildFromTemplate(items);

@@ -157,5 +157,5 @@ test('プレビュー: 空のメモはどこを押しても空の編集欄。表
   assert.match(app, /'<p class="empty">' \+ esc\(T\('emptyNote'\)\) \+ '<\/p>'/);
   assert.match(app, /if \(action === 'math'\) peInsertMath\(el\);\n\s+else if \(action === 'diagram'\) peInsertDiagram\(el\);\n\s+else peInsertTable\(el \? peAfter\(el\) : null, el\);/);
   assert.match(app, /function peInsertMath\(el0\) \{\n\s+if \(!peAllowed\(\)\) return;/);
-  assert.match(main, /if \(state\.inTable === false\) \{\n\s+items\.unshift\(\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \},\n\s+\{ label: T\('mInsertDiagram'\), accelerator: curKeys\(\)\.diagram \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('diagram'\); \} \}\);/);
+  assert.match(main, /if \(state\.inTable === false\) \{\n\s+items\.unshift\(\{ label: T\('mInsertPara'\), click: \(\) => \{ chosen = true; resolve\('para'\); \} \}, \{ type: 'separator' \},\n\s+\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \},\n\s+\{ label: T\('mInsertDiagram'\), accelerator: curKeys\(\)\.diagram \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('diagram'\); \} \}\);/);
 });
