@@ -113,7 +113,7 @@ test('パレットとひな型: すべて KaTeX で描け(空の {} も)、名�
 
 test('数式エディタ: 画面・メニュー・キー・右クリックへのつなぎ込みと言葉', () => {
   const app = read('renderer/app.js'), main = read('main.js'), cm = read('contextmenu.js'), html = read('renderer/index.html'), css = read('renderer/styles.css');
-  assert.match(html, /<script src="diagram\.js"><\/script>\n<script src="mathpalette\.js"><\/script>\n<script src="app\.js"><\/script>/);
+  assert.match(html, /<script src="diagram\.js"><\/script>\n<script src="diagramtemplates\.js"><\/script>\n<script src="mathpalette\.js"><\/script>\n<script src="app\.js"><\/script>/);
   // プレビューは、メモと同じ設定(MATH_OPTS)で描く。誤りがあれば挿入できない
   assert.match(app, /katex\.renderToString\(v, Object\.assign\(\{\}, MATH_OPTS, \{ displayMode: display\(\) \}\)\)/);
   assert.match(app, /ok\.disabled = !v\.trim\(\) \|\| !!e;/);
@@ -122,8 +122,8 @@ test('数式エディタ: 画面・メニュー・キー・右クリックへの
   // 「テキスト」表示は frInsert(元に戻せる)、プレビューは peSetText と peRecord
   assert.match(app, /function mathCommand\(\) \{[\s\S]*?frInsert\(op\.p, op\.p \+ op\.d\.length, op\.i\);/);
   assert.match(app, /function peMathEdit\(m\) \{[\s\S]*?if \(peSetText\(r\.text\)\) \{ peRecord\(before, r\.text\); peRerender\(anchor, top\); \}/);
-  // 数式のダブルクリックは編集、図のダブルクリックは「テキスト」表示
-  assert.match(app, /if \(m\.classList\.contains\('math'\) && peAllowed\(\)\) peMathEdit\(m\);\n\s+else if \(m\.classList\.contains\('diagram'\)\) switchBase\('edit'\);/);
+  // 数式のダブルクリックは数式エディタ、図のダブルクリックは図エディタ(読み取り専用のメモでは見るだけ)
+  assert.match(app, /if \(m\.classList\.contains\('math'\)\) \{ if \(peAllowed\(\)\) peMathEdit\(m\); \}\n\s+else if \(peAllowed\(\)\) peDiagramEdit\(m\);\n\s+else diagramView\(m\);/);
   assert.match(app, /else if \(name === 'math'\) mathCommand\(\);/);
   // メニュー・キー・右クリック
   assert.match(main, /\{ label: T\('mInsertMath'\), accelerator: A\('math'\), enabled: !ui\.hist && !ui\.ro, click: \(\) => send\('math'\) \}/);
@@ -141,7 +141,7 @@ test('数式エディタ: 画面・メニュー・キー・右クリックへの
 test('数式エディタ: プレビューで編集しているかたまり・セルの右クリックにも出し、カーソルが数式の中なら編集する', () => {
   const app = read('renderer/app.js'), main = read('main.js');
   assert.match(app, /\} else if \(pe\.box && e\.target === pe\.box && S\.mode === 'preview' && !isRO\(cur\(\)\)\) \{[\s\S]*?math = !!mathAt\(pe\.box\.value, pe\.box\.selectionStart\);/);
-  assert.match(app, /api\.editContext\(\{ table: info, math: math, cell: cell, editable: !!info \}\);/);
+  assert.match(app, /api\.editContext\(\{ table: info, math: math, cell: cell, diagram: diagram, editable: !!info \}\);/);
   assert.match(app, /if \(pe\.kind === 'block'\) \{\n\s+const ta = pe\.box, s = ta\.selectionStart, e = ta\.selectionEnd;\n\s+const at = mathAt\(ta\.value, s\);/);
   assert.match(app, /const op = makeOp\(inp\.value, mathReplace\(inp\.value, at, tex, false\)\.text, 0\);/);
   assert.match(main, /cell: !!st\.cell/);
@@ -155,7 +155,7 @@ test('プレビュー: 空のメモはどこを押しても空の編集欄。表
   assert.match(app, /const s = d && d\.blank \? 0 : \+el\.dataset\.line;\n\s+let e = d && d\.blank \? lines\.length : \+el\.dataset\.end;/);
   // 空のメモの「空のメモ」の表示が、renderPreview の p.empty であること
   assert.match(app, /'<p class="empty">' \+ esc\(T\('emptyNote'\)\) \+ '<\/p>'/);
-  assert.match(app, /if \(action === 'math'\) peInsertMath\(el\);\n\s+else peInsertTable\(el \? peAfter\(el\) : null, el\);/);
+  assert.match(app, /if \(action === 'math'\) peInsertMath\(el\);\n\s+else if \(action === 'diagram'\) peInsertDiagram\(el\);\n\s+else peInsertTable\(el \? peAfter\(el\) : null, el\);/);
   assert.match(app, /function peInsertMath\(el0\) \{\n\s+if \(!peAllowed\(\)\) return;/);
-  assert.match(main, /if \(state\.inTable === false\) items\.unshift\(\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \}\);/);
+  assert.match(main, /if \(state\.inTable === false\) \{\n\s+items\.unshift\(\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \},\n\s+\{ label: T\('mInsertDiagram'\), accelerator: curKeys\(\)\.diagram \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('diagram'\); \} \}\);/);
 });

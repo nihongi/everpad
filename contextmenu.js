@@ -22,6 +22,11 @@ function buildTemplate(params, opts) {
     // 本文のほか、プレビューで編集している表のセル(1行の入力欄。opts.cell)にも出す
     const extra = body || (params.formControlType === 'input-text' && opts && opts.cell);
     if (extra && opts.onMath) fmt.push({ type: 'separator' }, { label: T(opts.inMath ? 'mEditMath' : 'mInsertMath'), accelerator: (opts.keys || keymap.defaults(platform))['math'] || undefined, registerAccelerator: false, click: opts.onMath });
+    // 「図を挿入…」(カーソルが図の中なら「図を編集…」)は本文だけ(表のセルには図を入れられない)
+    if (body && opts.onDiagram) {
+      if (!(extra && opts.onMath)) fmt.push({ type: 'separator' });
+      fmt.push({ label: T(opts.inDiagram ? 'mEditDiagram' : 'mInsertDiagram'), accelerator: (opts.keys || keymap.defaults(platform))['diagram'] || undefined, registerAccelerator: false, click: opts.onDiagram });
+    }
     // カーソルが表の中なら「表」(画面側が右クリックの前に知らせた opts.table)
     if (extra && opts.table && opts.onTable) fmt.push({ type: 'separator' }, { label: T('mTable'), submenu: tableItems(T, opts.onTable, opts.table, opts.keys, platform) });
     return [

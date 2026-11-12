@@ -286,7 +286,8 @@ ipcMain.handle('note:menu', (e, title, ro) => {
   });
 });
 
-// 数式・図を右クリックしたときのメニュー: 元の LaTeX・図の元の文をコピーする(kind: 'math' か 'diagram')。canEdit なら「数式を編集…」も
+// 数式・図を右クリックしたときのメニュー: 元の LaTeX・図の元の文をコピーする(kind: 'math' か 'diagram')。canEdit なら「数式を編集…」「図を編集…」も。
+// 編集できない図(読み取り専用のメモ・履歴の表示)は「図を表示…」(見るだけの図エディタ)
 ipcMain.handle('math:menu', (e, tex, kind, canEdit) => {
   if (!fromOurWindow(e)) return null;
   return new Promise(resolve => {
@@ -297,6 +298,7 @@ ipcMain.handle('math:menu', (e, tex, kind, canEdit) => {
     } }];
     // プレビューの数式(編集できるメモ)は、数式エディタで編集できる
     if (kind === 'math' && canEdit) items.unshift({ label: T('mEditMath'), click: () => { chosen = true; resolve({ status: 'edit' }); } }, { type: 'separator' });
+    if (kind === 'diagram') items.unshift({ label: T(canEdit ? 'mEditDiagram' : 'mViewDiagram'), click: () => { chosen = true; resolve({ status: canEdit ? 'edit' : 'view' }); } }, { type: 'separator' });
     const menu = Menu.buildFromTemplate(items);
     menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve({ status: 'none' }); }, 300) });
   });
@@ -310,8 +312,11 @@ ipcMain.handle('table:menu', (e, st) => {
     let chosen = false;
     const state = cleanTableState(st) || { head: false, cols: 2, align: '' };
     const items = tableItems(T, id => { chosen = true; resolve(id); }, state, curKeys());
-    // 表の外(何もない所・空のメモも)では、「数式を挿入…」も出す(選ぶと 'math')
-    if (state.inTable === false) items.unshift({ label: T('mInsertMath'), accelerator: curKeys().math || undefined, registerAccelerator: false, click: () => { chosen = true; resolve('math'); } });
+    // 表の外(何もない所・空のメモも)では、「数式を挿入…」「図を挿入…」も出す(選ぶと 'math'・'diagram')
+    if (state.inTable === false) {
+      items.unshift({ label: T('mInsertMath'), accelerator: curKeys().math || undefined, registerAccelerator: false, click: () => { chosen = true; resolve('math'); } },
+        { label: T('mInsertDiagram'), accelerator: curKeys().diagram || undefined, registerAccelerator: false, click: () => { chosen = true; resolve('diagram'); } });
+    }
     const menu = Menu.buildFromTemplate(items);
     menu.popup({ window: win, callback: () => setTimeout(() => { if (!chosen) resolve(null); }, 300) });
   });
@@ -320,7 +325,7 @@ ipcMain.handle('table:menu', (e, st) => {
    (本文の右クリックのメニューに「数式を挿入…」「数式を編集…」と「表」を足す) */
 let editCtx = null;
 ipcMain.on('edit:ctx', (e, st) => {
-  editCtx = fromOurWindow(e) && st && st.editable ? { table: cleanTableState(st.table), math: !!st.math, cell: !!st.cell, t: Date.now() } : null;
+  editCtx = fromOurWindow(e) && st && st.editable ? { table: cleanTableState(st.table), math: !!st.math, cell: !!st.cell, diagram: !!st.diagram, t: Date.now() } : null;
   e.returnValue = true;
 });
 
@@ -1007,6 +1012,7 @@ function buildMenu() {
         { label: T('mFormat'), enabled: ui.fmt && !ui.ro, submenu: inlineItems(T, kind => send('fmt:' + kind), process.platform, KM).concat([{ type: 'separator' }], formatItems(T, kind => send('fmt:' + kind), process.platform, KM)).map(x => Object.assign(x, { enabled: ui.fmt && !ui.ro })) },
         { label: T('mInsertLink'), accelerator: A('link'), enabled: ui.edit && !ui.ro, click: () => send('link') },
         { label: T('mInsertMath'), accelerator: A('math'), enabled: !ui.hist && !ui.ro, click: () => send('math') },
+        { label: T('mInsertDiagram'), accelerator: A('diagram'), enabled: !ui.hist && !ui.ro, click: () => send('diagram') },
         { label: T('mTable'), enabled: !ui.hist && !ui.ro, submenu: tableItems(T, id => send('tbl:' + id), null, KM).map(x => (x.type === 'separator' || x.submenu ? x : Object.assign(x, { enabled: !ui.hist && !ui.ro }))) },
         { type: 'separator' },
         { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },
@@ -1237,7 +1243,7 @@ function createWindow() {
   win.webContents.on('context-menu', (_e, params) => {
     const ctx = editCtx && Date.now() - editCtx.t < 3000 ? editCtx : null;
     editCtx = null;
-    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), onTable: id => send('tbl:' + id), table: ctx && ctx.table, onMath: ctx ? () => send('math') : null, inMath: !!(ctx && ctx.math), cell: !!(ctx && ctx.cell), lang: lang, keys: curKeys() });
+    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), onTable: id => send('tbl:' + id), table: ctx && ctx.table, onMath: ctx ? () => send('math') : null, inMath: !!(ctx && ctx.math), onDiagram: ctx ? () => send('diagram') : null, inDiagram: !!(ctx && ctx.diagram), cell: !!(ctx && ctx.cell), lang: lang, keys: curKeys() });
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: win });
   });
 

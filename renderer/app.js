@@ -1593,10 +1593,11 @@
     e.preventDefault();
     const diagram = m.classList.contains('diagram');
     let r = null;
-    const canEdit = !diagram && !!m.closest('#preview') && peAllowed();
+    const canEdit = !!m.closest('#preview') && peAllowed();
     try { r = await api.mathMenu(diagram ? m.dataset.src || '' : m.dataset.tex || '', diagram ? 'diagram' : 'math', canEdit); } catch (err) { r = null; }
     if (r && r.status === 'copied') toast(T(diagram ? 'diagramCopied' : 'texCopied'));
-    else if (r && r.status === 'edit' && m.isConnected) peMathEdit(m);
+    else if (r && r.status === 'edit' && m.isConnected) { if (diagram) peDiagramEdit(m); else peMathEdit(m); }
+    else if (r && r.status === 'view' && diagram) diagramView(m);
   });
   document.addEventListener('contextmenu', e => {
     const t = e.target.closest && e.target.closest('#preview [data-att], #hvBody [data-att], #attStrip [data-att]');
@@ -1811,7 +1812,7 @@
      そのかたまりの元の文(md が付けた data-line〜data-end の行。リストの項目は、その下の項目も含む)を、その場の編集欄にする。
      表はセルごとに、そのセルの中身だけを編集する(core.js の tableEdit)。チェックボックスは押すと [ ] と [x] を切り替える。
      打った文字は「テキスト」表示と同じく、入力ごとに履歴に入る(元の文を直して commit)。書いていない所は変えない。
-     Esc か、ほかの場所をクリックすると閉じて、整形した表示に戻す。数式と図は編集しない(ダブルクリックで「テキスト」表示のその行へ)。
+     Esc か、ほかの場所をクリックすると閉じて、整形した表示に戻す。数式と図はここでは編集しない(ダブルクリックで数式エディタ・図エディタ)。
      読み取り専用のメモでは編集しない。
      元に戻す: 編集欄の中ではその編集欄の Ctrl+Z。閉じたあとは、プレビューでの変更を1回ずつ戻す(peUndo。メモを移ると消える) */
   const PE_SKIP = 'a, img, .math, .diagram, sup.fnref, .fnback, .link-other, .note-link, .att-file, input, button, textarea, .alert-title, .footnotes, .att-missing';
@@ -2148,12 +2149,18 @@
     peNext = null;
     if (!pe.box && window.getSelection().isCollapsed) peOpen(d);
   }, true);
-  // 数式をダブルクリック: 数式エディタで編集。図をダブルクリック: 「テキスト」表示のその行へ
+  // 数式をダブルクリック: 数式エディタで編集。図をダブルクリック: 図エディタで編集(読み取り専用のメモでは見るだけ)
   $('preview').addEventListener('dblclick', e => {
     const m = e.target.closest && e.target.closest('#preview .math, #preview .diagram[data-line]');
     if (!m || pe.box || !$('preview').contains(m)) return;
-    if (m.classList.contains('math') && peAllowed()) peMathEdit(m);
-    else if (m.classList.contains('diagram')) switchBase('edit');
+    if (m.classList.contains('math')) { if (peAllowed()) peMathEdit(m); }
+    else if (peAllowed()) peDiagramEdit(m);
+    else diagramView(m);
+  });
+  // 履歴の表示の図をダブルクリック: 見るだけの図エディタ
+  $('hvBody').addEventListener('dblclick', e => {
+    const m = e.target.closest && e.target.closest('.diagram[data-src]');
+    if (m && $('hvBody').contains(m)) diagramView(m);
   });
   $('preview').addEventListener('input', e => { if (e.target === pe.box) peSync(); });
   $('preview').addEventListener('compositionstart', e => { if (e.target === pe.box) peComposing = true; });
@@ -2232,27 +2239,29 @@
     }
     let action = null;
     try { action = await api.tableMenu({ inTable: false }); } catch (err) { action = null; }
-    if (action !== 'insert' && action !== 'math') return;
+    if (action !== 'insert' && action !== 'math' && action !== 'diagram') return;
     const el = line != null ? peBlockAt(line) : null;
     if (action === 'math') peInsertMath(el);
+    else if (action === 'diagram') peInsertDiagram(el);
     else peInsertTable(el ? peAfter(el) : null, el);
   });
   // 「テキスト」表示と、プレビューで編集しているかたまり・セルの右クリック: メニューに「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」を足す
   // (カーソルが表の中なら表の操作、外なら「表を挿入」だけ。main.js に先に知らせる)
   document.addEventListener('contextmenu', e => {
-    let info = null, math = false, cell = false;
+    let info = null, math = false, cell = false, diagram = false;
     if (e.target === $('editor') && S.mode === 'edit' && !isRO(cur())) {
       const ed = $('editor'), at = tableCaret(ed.value, ed.selectionStart);
       const t = at && tableAt(ed.value, at.row);
       info = t ? { inTable: true, head: at.row === t.head || at.row === t.delim, cols: t.cols, align: t.align[at.col] || '' } : { inTable: false };
       math = !!mathAt(ed.value, ed.selectionStart);
+      diagram = !!diagramBlock(ed.value, ed.value.slice(0, ed.selectionStart).split('\n').length - 1);
     } else if (pe.box && e.target === pe.box && S.mode === 'preview' && !isRO(cur())) {
       cell = pe.kind === 'cell';
       const t = cell && tableAt(cur().text, pe.row);
       info = t ? { inTable: true, head: pe.row === t.head, cols: t.cols, align: t.align[pe.col] || '' } : { inTable: false };
       math = !!mathAt(pe.box.value, pe.box.selectionStart);
     }
-    api.editContext({ table: info, math: math, cell: cell, editable: !!info });
+    api.editContext({ table: info, math: math, cell: cell, diagram: diagram, editable: !!info });
   }, true);
 
   /* ---------- 数式エディタ ----------
@@ -2514,6 +2523,309 @@
     });
   }
 
+  /* ---------- 図エディタ ----------
+     「編集」→「図を挿入…」(Ctrl+Shift+D)、右クリック、プレビューの図のダブルクリックで開く窓。
+     左はひな型(diagramtemplates.js)、中は Mermaid の文、右はビューア(入力が止まって少しすると描き直す)。
+     ビューアは、ドラッグで動かし、ホイール(タッチパッドのピンチも)でマウスの場所を中心に拡大・縮小し、ダブルクリックで全体を表示する。
+     動かすまでは図の全体が入る大きさに合わせ続け、動かしたあとは、描き直しても拡大の具合と場所を保つ。
+     書き方に誤りがあれば誤りの内容を出し、最後に描けた図を薄くして残す(誤りがあっても入れられる。プレビューでは元の文が赤く出る)。
+     読み取り専用のメモと履歴の表示では、見るだけ(view)。入れる・置き換えるのは core.js の diagramInsert・diagramReplace(1回の編集) */
+  let diagRefresh = null;
+  Diagrams.onThemeChange(() => { if (diagRefresh) diagRefresh(); });
+  /* ビューアの移動と拡大縮小。図(stage の中の SVG)を transform で動かす。onZoom(倍率) で倍率を知らせる */
+  function panZoom(view, stage, onZoom) {
+    const z = { k: 1, x: 0, y: 0, w: 0, h: 0, fitted: true };
+    const clamp = k => Math.min(16, Math.max(0.05, k));
+    const apply = () => { stage.style.transform = 'translate(' + z.x + 'px, ' + z.y + 'px) scale(' + z.k + ')'; onZoom(z.k); };
+    function fit() {
+      z.fitted = true;
+      const vw = view.clientWidth, vh = view.clientHeight;
+      if (!z.w || !z.h || !vw || !vh) return;
+      z.k = clamp(Math.min((vw - 32) / z.w, (vh - 32) / z.h, 1));
+      z.x = (vw - z.w * z.k) / 2;
+      z.y = (vh - z.h * z.k) / 2;
+      apply();
+    }
+    function zoomAt(k, cx, cy) {
+      if (!z.w) return;
+      k = clamp(k);
+      z.x = cx - (cx - z.x) * k / z.k;
+      z.y = cy - (cy - z.y) * k / z.k;
+      z.k = k;
+      z.fitted = false;
+      apply();
+    }
+    const zoomBy = f => zoomAt(z.k * f, view.clientWidth / 2, view.clientHeight / 2);
+    const pan = (dx, dy) => { if (!z.w) return; z.x += dx; z.y += dy; z.fitted = false; apply(); };
+    view.addEventListener('wheel', e => {
+      e.preventDefault();
+      const r = view.getBoundingClientRect();
+      const d = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+      // タッチパッドのピンチは Ctrl 付きの小さなホイールで来るので、よく効くようにする
+      zoomAt(z.k * Math.exp(-d * (e.ctrlKey ? 0.01 : 0.002)), e.clientX - r.left, e.clientY - r.top);
+    }, { passive: false });
+    let drag = null;
+    view.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      view.focus({ preventScroll: true });
+      drag = { id: e.pointerId, px: e.clientX, py: e.clientY, x: z.x, y: z.y };
+      view.setPointerCapture(e.pointerId);
+      view.classList.add('dragging');
+    });
+    view.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id || !z.w) return;
+      const dx = e.clientX - drag.px, dy = e.clientY - drag.py;
+      if (!dx && !dy) return;
+      z.x = drag.x + dx;
+      z.y = drag.y + dy;
+      z.fitted = false;
+      apply();
+    });
+    const end = e => { if (drag && e.pointerId === drag.id) { drag = null; view.classList.remove('dragging'); } };
+    view.addEventListener('pointerup', end);
+    view.addEventListener('pointercancel', end);
+    view.addEventListener('lostpointercapture', end);
+    view.addEventListener('dblclick', e => { e.preventDefault(); fit(); });
+    view.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const step = e.shiftKey ? 160 : 40;
+      const k = { ArrowLeft: () => pan(step, 0), ArrowRight: () => pan(-step, 0), ArrowUp: () => pan(0, step), ArrowDown: () => pan(0, -step),
+        '+': () => zoomBy(1.25), '=': () => zoomBy(1.25), ';': () => zoomBy(1.25), '-': () => zoomBy(0.8), '0': fit, '1': () => zoomAt(1, view.clientWidth / 2, view.clientHeight / 2) }[e.key];
+      if (k) { e.preventDefault(); k(); }
+    });
+    // 窓の大きさが変わったら、全体を表示しているときは合わせ直す
+    const ro = new ResizeObserver(() => { if (z.fitted) fit(); });
+    ro.observe(view);
+    return {
+      // 図の大きさ(初めての図か、全体を表示しているときは全体を表示する。そうでなければ今の倍率と場所のまま)
+      size(w, h) { const first = !z.w; z.w = w; z.h = h; if (first || z.fitted) fit(); else apply(); },
+      clear() { z.w = z.h = 0; z.fitted = true; },
+      fit, zoomBy,
+      actual: () => zoomAt(1, view.clientWidth / 2, view.clientHeight / 2),
+      stop: () => ro.disconnect()
+    };
+  }
+  /* init: { src, editing, view }。onOK(元の文) */
+  function openDiagramEditor(init, onOK) {
+    const L = LANG === 'en' ? 'en' : 'ja';
+    const view = !!init.view;
+    const box = el('div', 'diaged' + (view ? ' view' : ''));
+    const ta = el('textarea', 'de-src');
+    ta.spellcheck = false;
+    ta.wrap = 'off';
+    ta.value = init.src || '';
+    ta.readOnly = view;
+    ta.placeholder = T('diagPlaceholder');
+    ta.setAttribute('aria-label', T('diagSrcLabel'));
+    // ひな型: 選ぶと、書いた文と置き換える(入力として入れるので Ctrl+Z で戻せる)
+    if (!view) {
+      const left = el('div', 'de-left'), list = el('div', 'de-tpls');
+      list.setAttribute('role', 'list');
+      for (const t of window.DIAGRAM_TEMPLATES || []) {
+        const b = el('button', 'de-tpl', t[L]);
+        b.type = 'button';
+        b.addEventListener('click', () => {
+          ta.focus();
+          ta.setSelectionRange(0, ta.value.length);
+          let done = false;
+          try { done = document.execCommand('insertText', false, t.src[L]); } catch (x) { done = false; }
+          if (!done) ta.setRangeText(t.src[L], 0, ta.value.length, 'end');
+          ta.setSelectionRange(0, 0);
+          ta.scrollTop = 0;
+          pz.clear();
+          changed(true);
+        });
+        list.append(b);
+      }
+      left.append(el('div', 'de-lbl', T('diagTemplates')), list, el('div', 'de-hint', T('diagTplHint')));
+      box.append(left);
+    }
+    const mid = el('div', 'de-mid');
+    mid.append(el('div', 'de-lbl', T('diagSrcLabel')), ta);
+    const right = el('div', 'de-right'), bar = el('div', 'de-bar');
+    const zb = (text, title, f, cls) => {
+      const b = el('button', 'de-zb' + (cls ? ' ' + cls : ''), text);
+      b.type = 'button';
+      b.title = title;
+      b.setAttribute('aria-label', title);
+      b.addEventListener('click', f);
+      return b;
+    };
+    const vw = el('div', 'de-view'), stage = el('div', 'de-stage'), msg = el('div', 'de-msg'), err = el('div', 'de-err');
+    vw.tabIndex = 0;
+    vw.title = T('diagViewHint');
+    vw.setAttribute('aria-label', T('diagViewLabel') + '. ' + T('diagViewHint'));
+    vw.append(stage, msg);
+    const pct = zb('100%', T('diagActual'), () => pz.actual(), 'de-pct');
+    const zbs = el('div', 'de-zbs');
+    zbs.append(zb('−', T('diagZoomOut'), () => pz.zoomBy(0.8)), pct, zb('+', T('diagZoomIn'), () => pz.zoomBy(1.25)), zb(T('diagFit'), T('diagFitTitle'), () => pz.fit(), 'de-fit'));
+    bar.append(el('div', 'de-lbl', T('diagViewLabel')), el('div', 'de-vhint', T('diagViewHint')), zbs);
+    right.append(bar, vw, err);
+    box.append(mid, right);
+    const pz = panZoom(vw, stage, k => { pct.textContent = Math.round(k * 100) + '%'; });
+    // 下: キャンセル・挿入(見るだけなら「閉じる」だけ)
+    const foot = el('div', 'de-foot'), btns = el('div', 'de-btns');
+    const cancel = el('button', 'btn' + (view ? ' primary' : ''), T(view ? 'close' : 'cancel'));
+    const ok = el('button', 'btn primary', T(init.editing ? 'mathReplaceBtn' : 'mathInsertBtn'));
+    cancel.type = ok.type = 'button';
+    btns.append(cancel);
+    if (!view) btns.append(ok);
+    foot.append(btns);
+    // 描く: 入力が止まって 0.3 秒(ひな型を選んだときはすぐ)。古い入力の図は捨てる
+    let seq = 0, timer = 0, hasSvg = false, alive = true;
+    async function draw() {
+      clearTimeout(timer);
+      const my = ++seq, src = ta.value;
+      if (!src.trim()) {
+        stage.textContent = '';
+        hasSvg = false;
+        pz.clear();
+        msg.textContent = T(view ? 'diagNothing' : 'diagEmpty');
+        msg.hidden = false;
+        err.textContent = '';
+        vw.classList.remove('stale');
+        return;
+      }
+      let r;
+      try { r = await Diagrams.svgOf(src); } catch (x) { r = { error: String((x && x.message) || x) }; }
+      if (!alive || my !== seq) return;
+      if (r.svg) {
+        stage.innerHTML = r.svg;
+        const svg = stage.querySelector('svg');
+        const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+        svg.removeAttribute('style');
+        let w = vb[2], h = vb[3];
+        if (!(w > 0 && h > 0)) { const b = svg.getBoundingClientRect(); w = b.width; h = b.height; }
+        svg.setAttribute('width', w);
+        svg.setAttribute('height', h);
+        hasSvg = true;
+        msg.hidden = true;
+        err.textContent = '';
+        vw.classList.remove('stale');
+        pz.size(w, h);
+      } else {
+        err.textContent = r.error ? T('diagError', { msg: r.error }) : T('diagLoadFail');
+        if (hasSvg) vw.classList.add('stale');
+        else { stage.textContent = ''; msg.hidden = true; }
+      }
+    }
+    function changed(now) {
+      ok.disabled = !ta.value.trim();
+      clearTimeout(timer);
+      if (now) draw(); else timer = setTimeout(draw, 300);
+    }
+    ta.addEventListener('input', () => changed(false));
+    ta.addEventListener('keydown', e => {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!view) ok.click(); return; }
+      if (view || e.ctrlKey || e.altKey || e.metaKey) return;
+      const v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
+      let r = null;
+      // Tab / Shift+Tab: 字下げ(Mermaid の図には、字下げで形が決まるものがある)。Enter: 前の行と同じだけ字下げする
+      if (e.key === 'Tab') r = tabEdit(v, s, en, EDIT.indentWidth, e.shiftKey);
+      else if (e.key === 'Enter' && !e.shiftKey) {
+        const ind = /^[ \t]*/.exec(v.slice(v.lastIndexOf('\n', s - 1) + 1, s))[0];
+        r = { from: s, to: en, insert: '\n' + ind, selStart: s + 1 + ind.length, selEnd: s + 1 + ind.length };
+      } else return;
+      e.preventDefault();
+      if (!r) return;
+      ta.setSelectionRange(r.from, r.to);
+      let done = false;
+      try { done = document.execCommand('insertText', false, r.insert); } catch (x) { done = false; }
+      if (!done) { ta.setRangeText(r.insert, r.from, r.to, 'end'); changed(false); }
+      ta.setSelectionRange(r.selStart, r.selEnd);
+    });
+    cancel.addEventListener('click', closeModal);
+    ok.addEventListener('click', () => {
+      const src = diagramNorm(ta.value);
+      if (!src) return;
+      closeModal();
+      onOK(src);
+    });
+    diagRefresh = () => draw();
+    openModal(T(view ? 'diagViewTitle' : init.editing ? 'diagEditTitle' : 'diagInsertTitle'), box, () => {
+      alive = false;
+      clearTimeout(timer);
+      pz.stop();
+      diagRefresh = null;
+    }, { wide: true, full: true, foot: foot, focus: view ? vw : ta });
+    ta.setSelectionRange(0, 0);
+    ta.scrollTop = 0;
+    changed(true);
+  }
+  /* 「図を挿入…」: 「テキスト」表示では、カーソルが図の中ならその図を編集、外ならカーソルの行の次(表・コード・数式の中ならその後ろ)に入れる。
+     プレビューでは、編集中のかたまり・セル(表全体)の次か、クリックしたかたまりの次(図をクリックしていればその図を編集。どこでもなければメモの最後) */
+  function diagramCommand() {
+    const n = cur();
+    if (!n || !$('modal').hidden) return;
+    if (isRO(n)) { roBlocked(); return; }
+    if (S.mode === 'edit') {
+      const ed = $('editor'), text = ed.value;
+      const b = diagramBlock(text, text.slice(0, ed.selectionStart).split('\n').length - 1);
+      const apply = r => {
+        if (ed.value !== text) return;
+        const op = makeOp(ed.value, r.text, 0);
+        frInsert(op.p, op.p + op.d.length, op.i);
+        // カーソルは図の閉じの行の終わりに
+        const lines = ed.value.split('\n');
+        let p = 0;
+        for (let i = 0; i < r.end - 1 && i < lines.length; i++) p += lines[i].length + 1;
+        p = Math.min(ed.value.length, p + (lines[r.end - 1] || '').length);
+        ed.focus();
+        ed.setSelectionRange(p, p);
+        queueStatus();
+      };
+      if (b) openDiagramEditor({ src: b.src, editing: true }, src => apply(diagramReplace(ed.value, b, src)));
+      else openDiagramEditor({ src: '' }, src => apply(diagramInsert(ed.value, tableInsertAfter(ed.value, ed.selectionStart), src)));
+      return;
+    }
+    if (S.mode !== 'preview') return;
+    let el0 = null;
+    if (pe.box) {
+      const line = pe.kind === 'block' ? pe.s : pe.row;
+      peClose();
+      el0 = peBlockAt(line);
+    } else if (lastClick && lastClick.el && lastClick.el.isConnected && $('preview').contains(lastClick.el)) el0 = lastClick.el;
+    if (el0 && el0.matches('.diagram')) { peDiagramEdit(el0); return; }
+    peInsertDiagram(el0);
+  }
+  /* プレビュー(編集欄を開いていないとき): かたまり el0 の次に図を入れる(el0 が無ければメモの最後) */
+  function peInsertDiagram(el0) {
+    if (!peAllowed()) return;
+    openDiagramEditor({ src: '' }, src => {
+      const before = cur().text;
+      const el = el0 && el0.isConnected && $('preview').contains(el0) ? el0 : null;
+      const r = diagramInsert(before, el ? peAfter(el) : before.split('\n').length, src);
+      const top = el ? el.getBoundingClientRect().top : null;
+      if (!peSetText(r.text)) return;
+      peRecord(before, r.text);
+      peRerender(el ? +el.dataset.line : r.line, top);
+      const d = $('preview').querySelector('.diagram[data-line="' + r.line + '"]');
+      if (d) d.scrollIntoView({ block: 'nearest' });
+    });
+  }
+  /* プレビューの図を編集する(ダブルクリック・右クリックの「図を編集…」) */
+  function peDiagramEdit(m) {
+    if (!peAllowed() || !$('modal').hidden) return;
+    if (pe.box) peClose();
+    const text = cur().text, line = +m.dataset.line;
+    const b = diagramBlock(text, line);
+    if (!b || b.line !== line) { toast(T('diagNotFound')); return; }
+    openDiagramEditor({ src: b.src, editing: true }, src => {
+      const before = cur().text;
+      if (before !== text) return;   // 開いている間に変わったときは書き換えない
+      const r = diagramReplace(before, b, src);
+      const blk = $('preview').querySelector('.diagram[data-line="' + line + '"]'), top = blk ? blk.getBoundingClientRect().top : null;
+      if (peSetText(r.text)) { peRecord(before, r.text); peRerender(line, top); }
+    });
+  }
+  /* 図を見るだけ(読み取り専用のメモ・履歴の表示) */
+  function diagramView(m) {
+    if (!$('modal').hidden || !m.dataset.src) return;
+    openDiagramEditor({ src: m.dataset.src, view: true });
+  }
+
   api.onMenu(name => {
     if (name === 'new') createNote();
     else if (name === 'selectall') selectAllScoped();
@@ -2527,6 +2839,7 @@
     else if (name.indexOf('fmt:') === 0) applyFormat(name.slice(4));
     else if (name.indexOf('tbl:') === 0) tableMenuAction(name.slice(4));
     else if (name === 'math') mathCommand();
+    else if (name === 'diagram') diagramCommand();
     else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name.indexOf('keys:') === 0) { try { Object.assign(KEYD, JSON.parse(name.slice(5))); applyKeyTitles(); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name === 'keys') showKeys();
@@ -2669,6 +2982,7 @@
     const b = $('modalBody'); b.textContent = ''; b.appendChild(body);
     const o = opts || {};
     $('modal').classList.toggle('wide', !!o.wide);
+    $('modal').classList.toggle('full', !!o.full);
     const foot = $('modalClose').parentElement;
     foot.querySelectorAll('.modal-extra').forEach(x => x.remove());
     $('modalClose').hidden = !!o.foot;
@@ -2680,14 +2994,17 @@
     if ($('modal').hidden) return;
     if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); }
     $('modal').hidden = true;
-    $('modal').classList.remove('wide');
+    $('modal').classList.remove('wide', 'full');
     $('modalClose').parentElement.querySelectorAll('.modal-extra').forEach(x => x.remove());
     $('modalClose').hidden = false;
     $('modalBody').textContent = '';
     if (modalBack && modalBack.focus) modalBack.focus({ preventScroll: true });
   }
   $('modalClose').addEventListener('click', closeModal);
-  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+  // 外側を押したら閉じる。中で押して外で離したとき(文字の選択や図のドラッグ)は閉じない
+  let modalDown = null;
+  $('modal').addEventListener('mousedown', e => { modalDown = e.target; });
+  $('modal').addEventListener('click', e => { if (e.target === $('modal') && modalDown === $('modal')) closeModal(); modalDown = null; });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) { e.preventDefault(); e.stopPropagation(); closeModal(); } }, true);
   const el = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; };
   const fmtSize = b => (b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB');

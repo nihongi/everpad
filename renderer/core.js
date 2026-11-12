@@ -1594,6 +1594,56 @@ function caretFromRendered(src, before, total) {
   return Math.min(src.length, guess);
 }
 
+/* ---------- 図(Mermaid)の挿入と編集(図エディタ) ----------
+   図のかたまりは ```mermaid(~~~mermaid も)のコードブロック。範囲は md が付けた行の範囲(blockRanges の 'diagram')で知る */
+/* 図の文を整える: 改行を \n に、前の空の行と終わりの空白を取る(1行目の字下げは残す) */
+const diagramNorm = src => String(src == null ? '' : src).replace(/\r\n?/g, '\n').replace(/^(?:[ \t]*\n)+/, '').replace(/\s+$/, '');
+/* 囲みの記号: ch(` か ~)を、図の文の中にある同じ文字の並び(行の頭)より長く。最短は min */
+function diagramFence(src, ch, min) {
+  let n = Math.max(3, min || 0);
+  const re = ch === '~' ? /^\s*(~{3,})/gm : /^\s*(`{3,})/gm;
+  for (const m of String(src).matchAll(re)) n = Math.max(n, m[1].length + 1);
+  return (ch === '~' ? '~' : '`').repeat(n);
+}
+/* 元の文の line 行目を含む図のかたまり: { line, end(閉じの行の次。閉じが無ければ最後の行の次), pre(引用の > や字下げ), fence, closed, src } か null */
+function diagramBlock(text, line) {
+  const src = String(text).replace(/\r\n?/g, '\n');
+  const b = blockRanges(src).find(x => x.kind === 'diagram' && line >= x.s && line < x.e);
+  if (!b) return null;
+  const lines = src.split('\n');
+  const first = lines[b.s] || '';
+  const pre = /^((?:[ \t]*>[ \t]?)*[ \t]*)/.exec(first)[1];
+  const ws = /^[ \t]*$/.test(pre);
+  const strip = l => (l.startsWith(pre) ? l.slice(pre.length) : ws ? l.replace(new RegExp('^[ \\t]{0,' + pre.length + '}'), '') : l.replace(/^(?:[ \t]*>[ \t]?)*/, ''));
+  const body = lines.slice(b.s, b.e).map(strip);
+  const f = /^(`{3,}|~{3,})mermaid\s*$/.exec(body[0].trim());
+  if (!f) return null;
+  const closed = body.length > 1 && fenceCloses(body[body.length - 1], f[1]);
+  return { line: b.s, end: b.e, pre: pre, fence: f[1], closed: closed, src: body.slice(1, closed ? -1 : body.length).join('\n') };
+}
+/* 図の文 src を、囲みの行と合わせた行の並びにする(pre は各行の頭に付ける。空の行では終わりの空白を付けない) */
+function diagramLines(src, fence, pre) {
+  const t = diagramNorm(src);
+  const ch = fence ? fence[0] : '`';
+  const f = diagramFence(t, ch, fence ? fence.length : 3);
+  const p = pre || '';
+  return [f + 'mermaid'].concat(t ? t.split('\n') : [], [f]).map(l => (l === '' ? p.replace(/[ \t]+$/, '') : p + l));
+}
+/* 図のかたまり b(diagramBlock の結果)の中身を src にする。囲みの記号と引用の > はそのまま。{ text, line, end } */
+function diagramReplace(text, b, src) {
+  const nl = /\r\n/.test(text) ? '\r\n' : '\n';
+  const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  const block = diagramLines(src, b.fence, b.pre);
+  lines.splice(b.line, b.end - b.line, ...block);
+  return { text: lines.join(nl), line: b.line, end: b.line + block.length };
+}
+/* 図を、元の文の after 行目の次に、新しいかたまりとして入れる(blockInsert)。{ text, line, end } */
+function diagramInsert(text, after, src) {
+  const block = diagramLines(src);
+  const r = blockInsert(text, after, block);
+  return { text: r.text, line: r.at, end: r.at + block.length };
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

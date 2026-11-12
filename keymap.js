@@ -38,6 +38,7 @@ const COMMANDS = [
   { id: 'fmt:code', group: 'mEdit>mFormat', label: 'mFmtCode', def: 'CmdOrCtrl+Shift+K' },
   { id: 'link', group: 'mEdit', label: 'mInsertLink', def: 'CmdOrCtrl+K' },
   { id: 'math', group: 'mEdit', label: 'mInsertMath', def: 'CmdOrCtrl+Shift+M' },
+  { id: 'diagram', group: 'mEdit', label: 'mInsertDiagram', def: 'CmdOrCtrl+Shift+D' },
   // 表の操作(既定はキーなし)
   { id: 'tbl:insert', group: 'mEdit>mTable', label: 'mTblInsert', def: '' },
   { id: 'tbl:rowAbove', group: 'mEdit>mTable', label: 'mTblRowAbove', def: '' },

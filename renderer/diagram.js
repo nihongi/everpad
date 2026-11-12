@@ -39,8 +39,8 @@
     cache.set(key, v);
     if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
   }
-  /* 図を作る。前の図ができるのを待ってから作る(配色の設定を図ごとに変えるため) */
-  function draw(src, theme) {
+  /* 図を作る。前の図ができるのを待ってから作る(配色の設定を図ごとに変えるため)。keep が false なら作った図を覚えない(図エディタの入力中の図) */
+  function draw(src, theme, keep) {
     const key = theme + '\n' + src;
     const p = queue.then(async () => {
       if (cache.has(key)) return cache.get(key);
@@ -55,7 +55,7 @@
       }
       // 作るときに使った一時的な要素が残っていれば消す
       for (const x of [id, 'd' + id]) { const el = document.getElementById(x); if (el && !el.closest('.diagram')) el.remove(); }
-      remember(key, v);
+      if (keep !== false) remember(key, v);
       return v;
     });
     queue = p.catch(() => {});
@@ -94,6 +94,13 @@
       apply(el, v, theme);
     }
   }
+  /* 図エディタのビューア用: 元の文 src の図を作る。{ svg(ID は新しくしたもの) } か { error }。メモの図の覚えには入れない */
+  async function svgOf(src, opts) {
+    if (!(await load())) return { error: '' };
+    const theme = themeOf(opts);
+    const v = cache.get(theme + '\n' + src) || await draw(src, theme, false);
+    return v.svg ? { svg: v.svg.split(v.id).join(newId()), theme: theme } : { error: v.error || '', theme: theme };
+  }
   /* SVG の図を PNG にする(Word に書き出すため)。{ png: base64, w, h }(w・h は画面の大きさ)。できなければ null */
   async function toPng(svgEl) {
     try {
@@ -128,5 +135,5 @@
   if (darkMq.addEventListener) darkMq.addEventListener('change', () => listeners.forEach(f => f()));
   const onThemeChange = f => listeners.push(f);
 
-  window.Diagrams = { render, toPng, onThemeChange };
+  window.Diagrams = { render, svgOf, toPng, onThemeChange, themeOf };
 })();
