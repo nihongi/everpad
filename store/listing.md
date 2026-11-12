@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.34.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.35.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -30,7 +30,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・選んだ文字を、右クリックで太字・斜体・取り消し線・コードにできます。  
 ・GitHub と同じ書き方で、絵文字(:smile: など。打つと候補が出ます)、色付きの注意書き(アラート)、脚注を書けます。  
 ・LaTeX の数式と化学式を、整った数式として表示します。数式エディタでは、典型的な数式のひな型や記号を選んで、プレビューを見ながら書けます。  
-・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。  
+・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。図エディタでは、ひな型から始めて、図を拡大・移動しながら書けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
 ・他のメモへのリンクを入れて、メモどうしをつなげられます。  
 ・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、自動インデントに対応しています。  
@@ -57,9 +57,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューで編集している部分や表のセルに、画像(スクリーンショットなど)を貼り付けたり、ファイルをドラッグ&ドロップしたりできるようになりました。カーソルの位置に入ります。  
-・編集していないときは、ドロップした部分の次(文の無い所ならメモの最後)に入ります。「添付」ボタン(Ctrl+Shift+U)も、プレビューのままで使えます。  
-・見出しの行のセルがすべて空の表は、GitHub や VS Code と同じく、見出しの行を細く表示するようにしました。
+・図エディタを加えました。「編集」→「図を挿入…」(Ctrl+Shift+D)で、左に Mermaid のひな型、真ん中に元の文、右にすぐ反映されるビューアの大きな窓が開きます。フローチャート・シーケンス図・ガントチャート・マインドマップなど、12個のひな型から始められます。  
+・ビューアでは、ドラッグで図を動かし、マウスのホイール(タッチパッドではピンチ)で拡大・縮小し、ダブルクリックで全体を表示できます。大きな図も見ながら書けます。  
+・プレビューで図をダブルクリックすると、図エディタで編集できるようになりました。読み取り専用のメモと履歴の表示では、同じビューアで図を見られます。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -124,7 +124,7 @@ WRITE
 • Make selected text bold, italic, struck through or code from the right-click menu.  
 • Use GitHub's emoji shortcodes (such as :smile:, with suggestions as you type), alerts and footnotes.  
 • LaTeX math and chemical formulas are shown as formatted formulas. The formula editor lets you pick templates and symbols and see the result as you type.  
-• Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax.  
+• Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax. The diagram editor lets you start from a template and zoom and move the diagram as you write.  
 • Paste screenshots or drop files to attach images and files to a note.  
 • Link notes to each other.  
 • Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers and automatic indentation.  
@@ -151,9 +151,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• While you edit a part or a table cell in the preview, you can now paste an image (such as a screenshot) or drop a file to insert it at the cursor.  
-• When nothing is being edited, a dropped file is added after the part you drop it on (or at the end of the note). The Attach button (Ctrl+Shift+U) also works in the preview.  
-• When every cell of a table's header row is empty, the preview shows it as a thin row, as GitHub and VS Code do.
+• New diagram editor: Edit > Insert Diagram… (Ctrl+Shift+D) opens a large window with Mermaid templates on the left, the source in the middle and a live viewer on the right. Start from one of 12 templates, such as a flowchart, sequence diagram, Gantt chart or mind map.  
+• In the viewer, drag to move the diagram, use the mouse wheel (or pinch on a touchpad) to zoom, and double-click to fit the whole diagram, so even large diagrams are easy to work on.  
+• Double-click a diagram in the preview to edit it in the diagram editor. In read-only notes and the history, the same viewer lets you look at a diagram.
 
 ### Product features (up to 20, up to 200 characters each)
 
