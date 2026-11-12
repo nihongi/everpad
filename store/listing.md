@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.35.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.36.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -57,9 +57,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・図エディタを加えました。「編集」→「図を挿入…」(Ctrl+Shift+D)で、左に Mermaid のひな型、真ん中に元の文、右にすぐ反映されるビューアの大きな窓が開きます。フローチャート・シーケンス図・ガントチャート・マインドマップなど、12個のひな型から始められます。  
-・ビューアでは、ドラッグで図を動かし、マウスのホイール(タッチパッドではピンチ)で拡大・縮小し、ダブルクリックで全体を表示できます。大きな図も見ながら書けます。  
-・プレビューで図をダブルクリックすると、図エディタで編集できるようになりました。読み取り専用のメモと履歴の表示では、同じビューアで図を見られます。
+・プレビューのまま、段落を書き足せるようになりました。メモの最後の部分より下の何もない所をクリックすると、空の編集欄が出ます。図・数式・表で終わるメモでも、「テキスト」表示に切り替えずに続きを書けます。  
+・図・数式やほかの部分を右クリックして「段落を挿入」を選ぶと、そのすぐ次に段落を書き足せます。  
+・プレビューで編集しているときに「数式を挿入…」を使うと、数式エディタの中をクリックした場合に数式が入らなかったのを直しました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -97,7 +97,7 @@ Copyright (c) 2026 Nobuyoshi NIHONGI
 - プライバシーポリシーの URL: https://github.com/nihongi/everpad/blob/master/PRIVACY.md
 - Web サイト: https://github.com/nihongi/everpad/
 - サポートの連絡先: https://github.com/nihongi/everpad/issues
-- スクリーンショット: 1 枚以上が必要です(1366×768 以上を推奨)。
+- スクリーンショット: 1 枚以上が必要です(1366×768 以上を推奨)。Store には store/screenshots の ja-1〜ja-7 を、この順で載せています(プレビュー、履歴、履歴すべてからの検索、数式エディタ、図エディタ、ダークモードの「テキスト」表示、キーボードショートカット)。
 
 ---
 
@@ -151,9 +151,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• New diagram editor: Edit > Insert Diagram… (Ctrl+Shift+D) opens a large window with Mermaid templates on the left, the source in the middle and a live viewer on the right. Start from one of 12 templates, such as a flowchart, sequence diagram, Gantt chart or mind map.  
-• In the viewer, drag to move the diagram, use the mouse wheel (or pinch on a touchpad) to zoom, and double-click to fit the whole diagram, so even large diagrams are easy to work on.  
-• Double-click a diagram in the preview to edit it in the diagram editor. In read-only notes and the history, the same viewer lets you look at a diagram.
+• Add paragraphs right in the preview: click the empty space below the last part of a note to get an empty box, so you can keep writing below a diagram, formula or table without switching to the Text view.  
+• Right-click a diagram, a formula or another part and choose Insert Paragraph to add a paragraph right after it.  
+• Fixed: while editing in the preview, Insert Formula… did not insert the formula if you clicked inside the formula editor.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -191,4 +191,4 @@ Copyright (c) 2026 Nobuyoshi NIHONGI
 - Privacy policy URL: https://github.com/nihongi/everpad/blob/master/PRIVACY.md
 - Website: https://github.com/nihongi/everpad/
 - Support contact info: https://github.com/nihongi/everpad/issues
-- Screenshots: at least one is required (1366×768 or larger is recommended).
+- Screenshots: at least one is required (1366×768 or larger is recommended). The Store shows en-1 to en-7 from store/screenshots, in this order (preview, history, search in the entire history, formula editor, diagram editor, Text view in dark mode, keyboard shortcuts).
