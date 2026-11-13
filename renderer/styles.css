@@ -172,17 +172,23 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 ::highlight(fr-cur) { background-color: var(--accent); color: var(--accent-fg); }
 #editor { position: relative; z-index: 1; }
 .edwrap { flex: 1; min-height: 0; display: flex; }
-#editor { flex: 1 1 0; width: auto; min-width: 0; min-height: 0; border: 0; resize: none; background: transparent; font: 15px/1.4 var(--mono); padding: 10px 24px 22px; outline: none; }
+/* スクロールバーの幅は、いつも空けておく(本文がちょうど入るかどうかの境目で、スクロールバーが出ると折り返しが変わって消え、
+   また出る…と、一瞬だけ出て消えるのを防ぐ。プレビューと履歴の表示も同じ) */
+#editor { flex: 1 1 0; width: auto; min-width: 0; min-height: 0; border: 0; resize: none; background: transparent; font: 15px/1.4 var(--mono); padding: 10px 24px 22px; outline: none; scrollbar-gutter: stable; }
 .edwrap[data-ln="1"] #editor { padding-left: 16px; }
 /* 行番号(編集): 本文と同じ書式で、スクロールに合わせて動く */
 .gutter { flex: 0 0 var(--ln-w, 3.5rem); overflow: hidden; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); color: var(--fg-2); font: 15px/1.4 var(--mono); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
 .gutter > div { padding: 10px 10px 22px 8px; }
 #editor::placeholder { color: var(--fg-2); }
-.pane { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; }
+.pane { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; scrollbar-gutter: stable; }
 
-.stR { display: inline-flex; align-items: center; gap: 14px; }
-/* 状態表示の左側: カーソル・選択・全体を、区切り線で分けて並べる。選択は色を変えて目立たせる */
-#stLeft { display: inline-flex; flex-wrap: wrap; align-items: center; row-gap: 2px; }
+.stR { display: inline-flex; align-items: center; gap: 14px; flex: none; }
+/* 状態表示の左側: カーソル・選択・全体を、区切り線で分けて並べる。選択は色を変えて目立たせる。
+   状態表示はいつも1行にする(打つたびに「保存中…」やカーソルの位置で幅が変わって2行になると、本文の高さが変わり、
+   スクロールバーが出たり消えたりする)。入りきらないときは、まず「全体」を「…」で縮める(カーソルと選択はなるべくそのまま見せる) */
+#stLeft { display: inline-flex; flex-wrap: nowrap; align-items: center; flex: 0 1 auto; min-width: 0; overflow: hidden; }
+#stLeft > span { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#stLeft > .st-pos, #stLeft > .st-sel { flex-shrink: 0; }
 #stLeft > span + span { border-left: 1px solid var(--line); margin-left: 10px; padding-left: 10px; }
 #stLeft .st-sel { color: var(--accent); font-weight: 700; }
 .tgl { border: 1px solid var(--line); background: transparent; color: var(--fg-2); border-radius: 6px; padding: 0 10px; font-size: 12.5px; line-height: 1.7; cursor: pointer; }
@@ -193,7 +199,7 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 #roBtn { display: inline-flex; align-items: center; gap: 4px; }
 #roBtn svg, .note .ro { width: 12px; height: 12px; fill: currentColor; flex: none; }
 .note .ro { display: inline-block; vertical-align: -1px; margin-right: 4px; color: var(--fg-2); }
-.status { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 7px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.status { display: flex; flex-wrap: nowrap; justify-content: space-between; gap: 2px 16px; padding: 7px 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 
 /* ---- markdown ---- */
 /* 大きさと余白は GitHub の表示に合わせる。段落・リスト・表・引用・コードの下は 16px あけ、段落の中の改行(行の高さ 24px)と区別しやすくする。色は EverPad の配色 */
@@ -277,7 +283,7 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .hv-head button.delta:hover:not(:disabled) { color: var(--accent); }
 .hv-head button.delta:disabled { cursor: default; text-decoration: none; }
 .hv-head button.delta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.hv-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; }
+.hv-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; scrollbar-gutter: stable; }
 #histView[data-past="1"] .hv-body { background: color-mix(in srgb, var(--past-soft) 40%, var(--surface)); }
 .diff { margin: 0; font: 15px/1.4 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .diff ins { background: var(--ins); text-decoration: none; border-radius: 2px; }
