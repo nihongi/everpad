@@ -39,7 +39,8 @@ test('書き足す段落の入る場所: 図で終わるメモの最後・真ん
 test('プレビュー: 最後のかたまりの下を押すと、メモの最後に書き足す空の編集欄', () => {
   const app = read('renderer/app.js'), css = read('renderer/styles.css');
   // 編集できるメモ(空のメモ以外)だけ、最後に書き足す所を置く
-  assert.match(app, /if \(!ro && !peBlank\(\)\) \{\n\s+const tail = document\.createElement\('div'\);\n\s+tail\.className = 'pe-tail';\n\s+tail\.dataset\.hint = T\('peAddHint'\);\n\s+pv\.appendChild\(tail\);/);
+  assert.match(app, /if \(ro \|\| peBlank\(\)\) \{ if \(tail\) tail\.remove\(\); \}\n\s+else if \(!tail\) \{\n\s+const t = document\.createElement\('div'\);\n\s+t\.className = 'pe-tail';\n\s+t\.dataset\.hint = T\('peAddHint'\);\n\s+pv\.appendChild\(t\);/);
+  assert.match(app, /function renderPreview\(\) \{[\s\S]*?peApplyRO\(\);\n  \}/);
   // 書き足す所か、最後のかたまりより下の何もない所を押したとき
   assert.match(app, /if \(t\.closest\('\.pe-tail'\)\) return \{ add: true \};/);
   assert.match(app, /return last && e\.clientY > last\.getBoundingClientRect\(\)\.bottom \? \{ add: true \} : null;/);
@@ -47,6 +48,14 @@ test('プレビュー: 最後のかたまりの下を押すと、メモの最後
   // 書き足す所は、カーソルが文字の形で、指すと案内を出す
   assert.match(css, /#preview > \.pe-tail \{[^}]*cursor: text;/);
   assert.match(css, /#preview > \.pe-tail:hover::before \{ content: attr\(data-hint\);/);
+});
+
+test('読み取り専用の付け外し: プレビューの書き足す所・チェックボックスをすぐ合わせ、編集中の欄は先に閉じる', () => {
+  const app = read('renderer/app.js');
+  // 付け外しのたびに applyRO が呼ばれ、プレビューなら作り直さずに合わせる
+  assert.match(app, /function applyRO\(\) \{[\s\S]*?if \(S\.mode === 'preview' && cur\(\)\) \{\n\s+if \(ro && pe\.box\) peClose\(\);\n\s+peApplyRO\(\);/);
+  // 読み取り専用にする前に、編集中の欄を閉じて中身を元の文に入れる
+  assert.match(app, /if \(on && n\.id === S\.active && pe\.box\) peClose\(\);\n\s+if \(on\) \{ n\.ro = true;/);
 });
 
 test('書き足す編集欄: 空なら元の文を変えず、書いたら段落として入れる。閉じる・移る・ほかの挿入とつなぐ', () => {

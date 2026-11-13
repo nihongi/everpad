@@ -343,6 +343,11 @@
     for (const id of ['frRepl', 'frOne', 'frAll']) $(id).disabled = ro;
     if (ro) emoClose();
     if (S.frOpen) frShow();   // 読み取り専用にしたら置換の行を隠す(戻したら出す)
+    // プレビュー: 読み取り専用にしたら開いている編集欄を閉じ、書き足す所・チェックボックスを今の状態に合わせる
+    if (S.mode === 'preview' && cur()) {
+      if (ro && pe.box) peClose();
+      peApplyRO();
+    }
   }
   // 文字を変えるキー(文字・Enter・Tab・Backspace・Delete、Ctrl+V・X・Z・Y)は、ほかの処理より先に止める
   $('editor').addEventListener('keydown', e => {
@@ -367,6 +372,8 @@
     roBusy = true;
     let ok = false;
     try {
+      // プレビューで編集中なら、先に閉じて中身を元の文に入れる(読み取り専用にしたあとでは書き込めない)
+      if (on && n.id === S.active && pe.box) peClose();
       if (on) { n.ro = true; if (n.id === S.active) applyRO(); }
       await flush();
       try { ok = await api.setReadOnly(id, on); } catch (e) { ok = false; }
@@ -1826,16 +1833,23 @@
     pv.innerHTML = md(cur().text, { lines: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
     lastHydrate = hydrate(pv, cur().id);
     highlight(pv, S.q);
-    // チェックボックスは、編集できるメモでは押せるようにする(押したときは元の文を書き換える)
+    peApplyRO();
+  }
+  /* プレビューの、編集できるかどうかで変わる所を、今のメモの「読み取り専用」に合わせる(作り直さずに。読み取り専用を付け外ししたときにも使う) */
+  function peApplyRO() {
+    const pv = $('preview');
     const ro = isRO(cur());
+    // チェックボックスは、編集できるメモでは押せるようにする(押したときは元の文を書き換える)
     pv.classList.toggle('pe-on', !ro);
     pv.querySelectorAll('li > input[type=checkbox]').forEach(cb => { cb.disabled = ro; });
     // 最後のかたまりの下の何もない所: 押すと、メモの最後に段落を書き足す編集欄を開く(図・数式・表で終わるメモでも書き足せるように)
-    if (!ro && !peBlank()) {
-      const tail = document.createElement('div');
-      tail.className = 'pe-tail';
-      tail.dataset.hint = T('peAddHint');
-      pv.appendChild(tail);
+    const tail = pv.querySelector(':scope > .pe-tail');
+    if (ro || peBlank()) { if (tail) tail.remove(); }
+    else if (!tail) {
+      const t = document.createElement('div');
+      t.className = 'pe-tail';
+      t.dataset.hint = T('peAddHint');
+      pv.appendChild(t);
     }
   }
   function peRerender(anchor, top) {
