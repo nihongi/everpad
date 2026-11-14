@@ -93,3 +93,10 @@ test('段落を書き足す: 言葉(日本語と英語)', () => {
   assert.strictEqual(I18N.DICT.ja.peAddHint, 'クリックして段落を書き足す');
   assert.strictEqual(I18N.DICT.en.peAddHint, 'Click to add a paragraph');
 });
+
+test('Esc で編集欄を閉じたとき: フォーカスはプレビューに戻すが、プレビュー全体に青い枠を付けない', () => {
+  const app = read('renderer/app.js'), css = read('renderer/styles.css');
+  assert.match(app, /if \(wasFocused\) \$\('preview'\)\.focus\(\{ preventScroll: true \}\);/);
+  assert.match(css, /\n:focus-visible \{ outline: 2px solid var\(--accent\);/);
+  assert.match(css, /\n#preview:focus-visible \{ outline: none; \}/);
+});

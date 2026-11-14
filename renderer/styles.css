@@ -300,6 +300,9 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 /* プレビューでの編集: クリックしたかたまりは、その場で元の文の編集欄に、表のセルは1行の入力欄になる */
 #preview.pe-on [data-line]:not(.math):not(.diagram) { cursor: text; }
 #preview.pe-on li > input[type=checkbox] { cursor: pointer; }
+/* Esc で編集欄を閉じると、キーでスクロールできるようにプレビューにフォーカスを戻す。キー操作で移ったフォーカスなので
+   全体の :focus-visible の青い枠がプレビュー全体に付いてしまう。本文の欄(#editor)と同じく、プレビュー自体には枠を付けない */
+#preview:focus-visible { outline: none; }
 /* 最後のかたまりの下: 押すと段落を書き足す。指したときだけ薄く案内を出す */
 #preview > .pe-tail { min-height: 4.5em; cursor: text; content-visibility: visible; contain-intrinsic-size: none;
   display: flex; align-items: flex-start; padding-top: 0.6em; color: var(--fg-2); font-size: 14px; user-select: none; }
