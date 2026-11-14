@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.36.2(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.36.3(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -59,8 +59,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・メモの長さがウィンドウの高さとちょうど同じくらいのとき、打っている途中でスクロールバーが一瞬出て、すぐに消えることがあったのを直しました。  
-・下のステータスバーは、いつも1行にしました。打っている間に高さが変わりません。ウィンドウが狭いときは、まず「全体」を「…」で縮め、カーソルの位置と選択はそのまま見せます。
+・プレビューで編集欄を Esc で閉じたときに、プレビュー全体に青い枠が付かないようにしました。閉じたあとも、今までどおり Page Down などのキーでそのままスクロールできます。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -154,8 +153,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Fixed: when a note was just about the height of the window, the scrollbar could appear for a moment and disappear again while you typed.  
-• The status bar at the bottom now always stays on one line, so its height no longer changes while you type. In a narrow window, the totals are shortened with "…" first; the cursor position and the selection stay in full.
+• In the Preview, closing the edit box with Esc no longer draws a blue frame around the whole Preview. As before, you can keep scrolling with the keyboard (for example, Page Down) right after closing it.
 
 ### Product features (up to 20, up to 200 characters each)
 
