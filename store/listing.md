@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.37.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.38.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -53,13 +53,15 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ■ 安心して使える  
 ・アカウントは不要です。広告も、利用状況の収集もありません。  
 ・EverPad がインターネットに接続することはありません。メモはあなたのパソコンから出ていきません。  
-・画面は日本語と英語に対応しています。ダークモードにも対応しています。
+・画面は日本語と英語に対応しています。ダークモードにも対応し、メモの背景と文字の色も選べます。
 
 EverPad はオープンソース(MIT ライセンス)です。ソースコードは https://github.com/nihongi/everpad/ で公開しています。
 
 ### この版の新機能(1,500 文字まで)
 
-・右下の「読み取り専用」「行番号」ボタンを押しても、フォーカスが本文から移らないようにしました。カーソル行の強調も消えません。これまでは、ボタンで読み取り専用にすると強調が消え、「ファイル」メニューからだと残っていました。
+・設定に「メモの色」を足しました。「ファイル」→「設定…」で、メモの欄(テキスト・プレビュー・履歴)の背景と文字の色を、明るい画面とダークモードで別々に選べます。「標準」「白黒」「カスタム」から選べ、カスタムでは文字の色を背景に合わせて自動で決めることもできます。  
+・「表示」メニューの「言語」をなくしました。言語は「ファイル」→「設定…」で変えます。  
+・「キーボードショートカット…」を、「編集」メニューから「ファイル」メニューの「設定…」の下に移しました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -75,7 +77,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 10. 履歴と添付ファイルごと移せる EverPad アーカイブ
 11. メモは選んだフォルダに普通のファイルとして保存
 12. アカウント不要、インターネットに接続しない
-13. 日本語と英語の画面、ダークモード
+13. 日本語と英語の画面、ダークモード、メモの背景と文字の色の設定
 14. Mermaid の図(フローチャート・シーケンス図など)と、拡大・移動しながら書ける図エディタ
 15. プレビューのままで段落・表・チェックボックスを編集でき、段落の書き足しや、表の行・列の挿入と削除・配置も簡単
 16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
@@ -147,13 +149,15 @@ KEEP AND SHARE
 PRIVATE BY DESIGN  
 • No account, no advertising and no usage tracking.  
 • EverPad never connects to the internet. Your notes do not leave your PC.  
-• The interface is available in English and Japanese, with dark mode.
+• The interface is available in English and Japanese, with dark mode, and you can choose the background and text colors of your notes.
 
 EverPad is open source (MIT License). The source code is at https://github.com/nihongi/everpad/.
 
 ### What's new in this version (up to 1,500 characters)
 
-• Clicking the Read-only or Line numbers button at the bottom right no longer takes the focus away from the note text, so the current-line highlight stays. Before, making a note read-only with the button removed the highlight, while doing it from the File menu kept it.
+• New note colors: in File → Settings…, choose the background and text colors of the note area (Text, Preview and history), separately for light mode and dark mode. Choose Standard, Black and white or Custom; with Custom, the text color can also be chosen automatically to suit the background.  
+• Language has been removed from the View menu. Change the language in File → Settings….  
+• Keyboard Shortcuts… has moved from the Edit menu to the File menu, below Settings….
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -169,7 +173,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 10. EverPad archives that move a note with its history and attachments
 11. Notes saved as ordinary files in a folder you choose
 12. No account, and no internet connection
-13. English and Japanese interface, with dark mode
+13. English and Japanese interface, dark mode, and note background and text colors you can choose
 14. Mermaid diagrams (flowcharts, sequence diagrams and more), with a diagram editor you can zoom and pan
 15. Edit paragraphs, tables and check boxes right in the preview, add paragraphs, and easily change table rows, columns and alignment
 16. Bold, italic, strikethrough and code from the right-click menu
