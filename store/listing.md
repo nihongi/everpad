@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.37.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.37.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -59,10 +59,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・設定の窓を足しました。「ファイル」→「設定…」(Ctrl+,)で、自動インデント・箇条書きを自動で続ける・Tab の字下げの幅・カーソル行の強調・最後の行より下までのスクロール・行番号・言語を、1か所で変えられます。「編集」メニューにあった「自動インデント」「箇条書きを自動で続ける」「字下げの幅(Tab)」は、設定に移しました。  
-・カーソルがある行に薄い色が付くようにしました(テキスト表示の本文と、プレビューの編集欄)。折り返した行は全体に付き、行番号を出しているときは、その行の番号が太字になります。  
-・テキスト表示・プレビュー・履歴の表示で、最後の行が画面の一番上に来るところまでスクロールできるようにしました。書いている行が画面の下端に張り付かずに済みます。  
-・履歴の表示を出す・閉じるときに、見ていた場所がそのままになるようにしました。
+・右下の「読み取り専用」「行番号」ボタンを押しても、フォーカスが本文から移らないようにしました。カーソル行の強調も消えません。これまでは、ボタンで読み取り専用にすると強調が消え、「ファイル」メニューからだと残っていました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -156,10 +153,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• New Settings window: File → Settings… (Ctrl+,) lets you change auto indent, continuing lists, Tab indent width, current-line highlighting, scrolling beyond the last line, line numbers and the language in one place. Auto Indent, Continue Lists Automatically and Indent Width (Tab) have moved from the Edit menu to Settings.  
-• The line with the cursor now has a light background (in the Text view and in the Preview edit box). A wrapped line is highlighted as a whole, and when line numbers are shown, that line's number is bold.  
-• In the Text and Preview views and in the history, you can now scroll until the last line is at the top of the window, so the line you are writing does not have to stay at the bottom edge.  
-• Showing or leaving the history now keeps your place.
+• Clicking the Read-only or Line numbers button at the bottom right no longer takes the focus away from the note text, so the current-line highlight stays. Before, making a note read-only with the button removed the highlight, while doing it from the File menu kept it.
 
 ### Product features (up to 20, up to 200 characters each)
 
