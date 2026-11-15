@@ -23,6 +23,8 @@ const COMMANDS = [
   { id: 'readonly', group: 'mFile', label: 'mReadOnly', def: '' },
   { id: 'props', group: 'mFile', label: 'mProps', def: 'Alt+Enter', mac: 'CmdOrCtrl+I' },
   { id: 'openDir', group: 'mFile', label: 'mOpenDir', def: '' },
+  // 設定(Mac ではアプリ名のメニューに移る。⌘, は Mac の流儀)
+  { id: 'settings', group: 'mFile', label: 'mSettings', def: 'CmdOrCtrl+,' },
   { id: 'attach', group: 'mEdit', label: 'mAttach', def: 'CmdOrCtrl+Shift+U' },
   // Mac の ⌘H は「隠す」なので、置換は ⌘⌥F
   { id: 'replace', group: 'mEdit', label: 'mReplace', def: 'CmdOrCtrl+H', mac: 'CmdOrCtrl+Alt+F' },
@@ -95,7 +97,7 @@ const KEYS = new Set([].concat(
   ['numadd', 'numsub', 'nummult', 'numdiv', 'numdec']
 ));
 // 既定でだけ使う記号のキー(読み込みと表示のため)
-const DEFAULT_ONLY = new Set(['Plus', '-', '[', "'"]);
+const DEFAULT_ONLY = new Set(['Plus', '-', '[', "'", ',']);
 const KEY_ALIAS = { return: 'Enter', esc: 'Escape', escape: 'Escape', space: 'Space', up: 'Up', down: 'Down', left: 'Left', right: 'Right',
   home: 'Home', end: 'End', pageup: 'PageUp', pagedown: 'PageDown', insert: 'Insert', delete: 'Delete', backspace: 'Backspace', enter: 'Enter', tab: 'Tab', plus: 'Plus' };
 

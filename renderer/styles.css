@@ -180,6 +180,18 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .gutter { flex: 0 0 var(--ln-w, 3.5rem); overflow: hidden; border-right: 1px solid var(--line); background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); color: var(--fg-2); font: 15px/1.4 var(--mono); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
 .gutter > div { padding: 10px 10px 22px 8px; }
 #editor::placeholder { color: var(--fg-2); }
+/* カーソル行の強調(app.js の paintLineHl): 欄の背景に、カーソルがある行の帯を描く。local なので、中身と一緒にスクロールする */
+:root { --line-hl: color-mix(in srgb, var(--accent) 7%, transparent); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --line-hl: color-mix(in srgb, var(--accent) 11%, transparent); } }
+:root[data-theme="dark"] { --line-hl: color-mix(in srgb, var(--accent) 11%, transparent); }
+#editor.hl-on, .pe-edit.hl-on { background-image: linear-gradient(var(--line-hl), var(--line-hl)); background-repeat: no-repeat;
+  background-size: 100% var(--hl-h, 0px); background-position: 0 var(--hl-top, 0px); background-attachment: local; }
+.gutter .cur { color: var(--fg); font-weight: 700; }
+/* 最後の行より下までのスクロール(app.js の fitTail): 下の余白・空きを、最後の行が一番上に来るまでの高さにする(テキスト・プレビュー・履歴の表示) */
+body.sp-on #editor { padding-bottom: var(--ed-tail, 22px); }
+body.sp-on #preview > .pe-tail { min-height: max(4.5em, var(--pv-tail, 0px)); }
+body.sp-on #preview:not(:has(> .pe-tail))::after { content: ''; display: block; height: var(--pv-tail, 0px); }
+body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 0px); }
 .pane { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; scrollbar-gutter: stable; }
 
 .stR { display: inline-flex; align-items: center; gap: 14px; flex: none; }
@@ -542,6 +554,22 @@ li.pe-li { list-style: none; }
 .keys-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 .keys-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .keys-none { color: var(--fg-2); padding: 7px 10px; }
+/* 設定の窓 */
+.settings h3 { margin: 16px 0 4px; font-size: 13px; font-weight: 600; color: var(--fg-2); }
+.settings .set-sec:first-child h3 { margin-top: 4px; }
+.set-sec { border-top: 1px solid var(--line); }
+.set-sec:first-child { border-top: 0; }
+.set-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 4px; border-radius: 6px; }
+label.set-row { cursor: pointer; }
+label.set-row:hover { background: var(--surface-2); }
+.set-row input[type=checkbox] { flex: none; margin: 3px 0 0; width: 16px; height: 16px; accent-color: var(--accent); }
+.set-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.set-hint { font-size: 12.5px; color: var(--fg-2); }
+.set-choice { align-items: center; flex-wrap: wrap; padding-left: 30px; }
+.set-opts { display: inline-flex; flex-wrap: wrap; gap: 4px 16px; }
+.set-opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.set-opts input { accent-color: var(--accent); margin: 0; }
+.settings select { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 6px; padding: 4px 8px; font: inherit; }
 
 /* リンクにマウスを重ねている間、行き先を左下に出す(ブラウザの下端の表示と同じ) */
 .link-status { position: absolute; left: 8px; bottom: 36px; z-index: 15; max-width: min(60%, 40rem); padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--fg-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; box-shadow: 0 1px 4px color-mix(in srgb, var(--fg) 15%, transparent); }

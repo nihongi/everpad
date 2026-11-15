@@ -12,7 +12,8 @@
   // Mac では、文中のショートカットキーを Mac の書き方(⌘)にする
   const IS_MAC = query.get('os') === 'darwin';
   // 改行と字下げの設定(「編集」メニューで切り替え、main.js が渡す): 自動インデント・箇条書きを続ける・字下げの幅
-  const EDIT = { autoIndent: query.get('ai') !== '0', autoList: query.get('al') !== '0', indentWidth: query.get('iw') === '2' ? 2 : 4 };
+  const EDIT = { autoIndent: query.get('ai') !== '0', autoList: query.get('al') !== '0', indentWidth: query.get('iw') === '2' ? 2 : 4,
+    lineHl: query.get('hl') !== '0', scrollPast: query.get('sp') !== '0' };
   const T = (key, params) => (IS_MAC ? macKeys(I18N.t(LANG, key, params)) : I18N.t(LANG, key, params));
   document.documentElement.lang = LANG;
   setMdLang(LANG);   // アラートの見出しなど、Markdown の表示に出す言葉
@@ -288,6 +289,7 @@
     }
     $('gin').innerHTML = out;
     syncGutterScroll();
+    queueLineHl();   // 番号を作り直したので、カーソル行の番号の印も付け直す
   }
   function setLines(on, persist) {
     S.lines = !!on;
@@ -303,6 +305,99 @@
   $('editor').addEventListener('input', queueGutter);
   if (window.ResizeObserver) new ResizeObserver(queueGutter).observe($('editor'));
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueGutter);
+
+  /* ---------- カーソル行の強調(「設定」→「カーソル行を強調」) ----------
+     本文の欄とプレビューの編集欄で、カーソルがある行(折り返した部分も含めた1行)の背景に薄い帯を描く(Notepad++ と同じ)。
+     帯は欄の背景(background-attachment: local)なので、スクロールしても中身と一緒に動き、ずれない。
+     位置は、行番号と同じ見えない複製で測る。帯は、その欄にフォーカスがあるときだけ出す。行番号を出しているときは、その番号も濃くする */
+  let hlRaf = 0, hlTa = null;
+  function queueLineHl() { if (!hlRaf) hlRaf = requestAnimationFrame(paintLineHl); }
+  // 欄 ta の、カーソルがある行の縦の位置(欄の中身の上からの位置)と、何行目か
+  function lineHlBox(ta) {
+    const v = ta.value, p = ta.selectionDirection === 'backward' ? ta.selectionStart : ta.selectionEnd;
+    const s = v.lastIndexOf('\n', p - 1) + 1;
+    let e = v.indexOf('\n', p);
+    if (e < 0) e = v.length;
+    let idx = 0;
+    for (let q = v.indexOf('\n'); q >= 0 && q < s; q = v.indexOf('\n', q + 1)) idx++;
+    const cs = getComputedStyle(ta), pt = parseFloat(cs.paddingTop) || 0, lh = parseFloat(cs.lineHeight) || 21;
+    let total = idx;
+    for (let q = v.indexOf('\n', s); q >= 0; q = v.indexOf('\n', q + 1)) total++;
+    if (total >= 20000) return { top: pt + idx * lh, h: lh, idx: idx };   // 行が多すぎるときは折り返しを無視する(行番号と同じ)
+    fitMirror(ta, cs);
+    mirror.textContent = '';
+    if (s > 0) {
+      // 前の行まで(最後の改行は除く。空の行で終わるときは、その行の高さが出るように幅のない文字を足す)
+      let before = v.slice(0, s - 1);
+      if (!before || before.endsWith('\n')) before += '​';
+      mirror.appendChild(document.createTextNode(before));
+    }
+    const d = document.createElement('div');
+    d.textContent = v.slice(s, e) || '​';
+    mirror.appendChild(d);
+    const m0 = mirror.getBoundingClientRect().top, r = d.getBoundingClientRect();
+    mirror.textContent = '';
+    return { top: pt + r.top - m0, h: r.height || lh, idx: idx };
+  }
+  function paintLineHl() {
+    hlRaf = 0;
+    const a = document.activeElement;
+    const ta = EDIT.lineHl && a && a.tagName === 'TEXTAREA' && (a.id === 'editor' || a.classList.contains('pe-edit')) && a.clientWidth ? a : null;
+    if (hlTa && hlTa !== ta) hlTa.classList.remove('hl-on');
+    hlTa = ta;
+    let idx = -1;
+    if (ta) {
+      const b = lineHlBox(ta);
+      ta.style.setProperty('--hl-top', b.top + 'px');
+      ta.style.setProperty('--hl-h', b.h + 'px');
+      ta.classList.add('hl-on');
+      if (ta.id === 'editor') idx = b.idx;
+    }
+    const gin = $('gin'), old = gin.querySelector('.cur'), now = S.lines && idx >= 0 ? gin.children[idx] : null;
+    if (old && old !== now) old.classList.remove('cur');
+    if (now) now.classList.add('cur');
+  }
+  document.addEventListener('selectionchange', queueLineHl);
+  document.addEventListener('focusin', queueLineHl);
+  document.addEventListener('focusout', queueLineHl);
+  $('editor').addEventListener('input', queueLineHl);
+  window.addEventListener('resize', queueLineHl);
+  if (window.ResizeObserver) new ResizeObserver(queueLineHl).observe($('editor'));
+
+  /* ---------- 最後の行より下までのスクロール(「設定」→「最後の行より下までスクロール」) ----------
+     本文の欄の下の余白と、プレビューの最後の空き(最後のかたまりの下を押すと段落を書き足す所)と、履歴の表示の最後の空きを、
+     「欄の高さ − 上下の余白 − 1行分」にして、最後の行が画面の一番上に来るところまでスクロールできるようにする(VS Code と同じ)。
+     高さはウィンドウの大きさで変わるので、変わるたびに測り直す(CSS の % の余白は、高さでなく幅が基準なので使えない) */
+  function fitTail() {
+    document.body.classList.toggle('sp-on', !!EDIT.scrollPast);
+    if (!EDIT.scrollPast) return;
+    const ta = $('editor'), pv = $('preview');
+    if (ta.clientHeight) {
+      const cs = getComputedStyle(ta);
+      const v = Math.max(22, Math.round(ta.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.lineHeight) || 21)));
+      if (ta.style.getPropertyValue('--ed-tail') !== v + 'px') ta.style.setProperty('--ed-tail', v + 'px');
+    }
+    if (pv.clientHeight) {
+      // 最後のかたまりの1行(約1.5em)と、その下の余白(16px)を残す
+      const cs = getComputedStyle(pv), fs = parseFloat(cs.fontSize) || 16;
+      const v = Math.max(0, Math.round(pv.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0) - fs * 1.5 - 16));
+      if (pv.style.getPropertyValue('--pv-tail') !== v + 'px') pv.style.setProperty('--pv-tail', v + 'px');
+    }
+    const hv = $('hvBody');
+    if (hv.clientHeight) {
+      // 履歴の表示: 文字の表示(.diff)は1行分、プレビューの表示(.md)はプレビューと同じだけ残す
+      const cs = getComputedStyle(hv), inner = hv.firstElementChild;
+      let last = 21;
+      if (inner && inner.classList.contains('md')) last = (parseFloat(getComputedStyle(inner).fontSize) || 16) * 1.5 + 16;
+      else if (inner) last = parseFloat(getComputedStyle(inner).lineHeight) || 21;
+      const v = Math.max(0, Math.round(hv.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0) - last));
+      if (hv.style.getPropertyValue('--hv-tail') !== v + 'px') hv.style.setProperty('--hv-tail', v + 'px');
+    }
+  }
+  fitTail();
+  if (window.ResizeObserver) { const ro = new ResizeObserver(fitTail); ro.observe($('editor')); ro.observe($('preview')); ro.observe($('hvBody')); }
+  // 設定を変えたとき(main.js から prefs: で届く)に、見た目に関わるものを今の画面に当てる
+  function applyViewPrefs() { fitTail(); queueLineHl(); }
 
   /* ---------- 編集 ---------- */
   let composing = false;
@@ -625,7 +720,8 @@
     const m = ln.match(/^\s*(?:(?:>\s?)+\s*)?(?:(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?|#{1,6}\s+)?/);
     return p + (m ? m[0].length : 0);
   }
-  function syncApply(a) {
+  function syncApply(a, quiet) {
+    fitTail();   // 切り替えたばかりで、下の空きをまだ測っていないことがある(いちばん下に合わせるときに要る)
     const sc = viewEl();
     if (S.mode === 'edit') {
       const ta = sc;
@@ -634,14 +730,14 @@
       if (a.edge === 'top') ta.scrollTop = 0;
       else if (a.edge === 'bottom') ta.scrollTop = ta.scrollHeight;
       else ta.scrollTop = Math.max(0, lineToY(anchors, a.line) - a.offset);
-      if (!a.edge) flashEditorLine(anchorAt(anchors, a.line));
+      if (!a.edge && !quiet) flashEditorLine(anchorAt(anchors, a.line));
       return;
     }
     const anchors = domAnchors(sc);
     if (a.edge === 'top') sc.scrollTop = 0;
     else if (a.edge === 'bottom') sc.scrollTop = sc.scrollHeight;
     else sc.scrollTop = Math.max(0, lineToY(anchors, a.line) - a.offset);
-    const an = a.edge ? null : anchorAt(anchors, a.line);
+    const an = a.edge || quiet ? null : anchorAt(anchors, a.line);
     if (an) {
       an.el.classList.remove('sync-flash');
       void an.el.offsetWidth;   // 続けて切り替えたときも、初めから光らせる
@@ -721,7 +817,15 @@
     if (a) { try { syncApply(a); } catch (e) { /* 合わせられなくても切り替えは済んでいる */ } }
   }
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => switchBase(b.dataset.mode)));
-  const toggleHistory = () => (S.mode === 'history' ? setMode(S.hbase, true) : setMode('history'));
+  /* 履歴の表示を出す・閉じる。見ていた場所(カーソルの行か上端の行と、その高さ)を、切り替えたあとも同じ高さに出す。
+     中身はほぼ同じなので、「編集」「プレビュー」の切り替えと違って光らせず、カーソルも動かさない */
+  function toggleHistory() {
+    let a = null;
+    if (cur()) { try { a = syncCapture(); } catch (e) { a = null; } }
+    if (S.mode === 'history') setMode(S.hbase, true);
+    else setMode('history');
+    if (a) { a.caretLine = -1; try { syncApply(a, true); } catch (e) { /* 合わせられなくても切り替えは済んでいる */ } }
+  }
   $('histBtn').addEventListener('click', toggleHistory);
 
   let selTok = 0;
@@ -832,6 +936,7 @@
     $('bPlay').disabled = N === 0;
     // 検索のバーを開いていれば、この版の中の一致に色を付け直し、「前の変化」「次の変化」を押せるかを合わせる
     if (S.frOpen && S.mode === 'history') { pvRefresh(frRegex()); hbButtons(); }
+    fitTail();   // 文字の表示とプレビューの表示で、残す1行の高さが違う
   }
 
   let timer = null;
@@ -2928,9 +3033,10 @@
     else if (name.indexOf('tbl:') === 0) tableMenuAction(name.slice(4));
     else if (name === 'math') mathCommand();
     else if (name === 'diagram') diagramCommand();
-    else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } }
+    else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } applyViewPrefs(); }
     else if (name.indexOf('keys:') === 0) { try { Object.assign(KEYD, JSON.parse(name.slice(5))); applyKeyTitles(); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name === 'keys') showKeys();
+    else if (name === 'settings') showSettings();
     else if (name.indexOf('open:') === 0) openNoteById(name.slice(5), 'noteDeleted');
     else if (name === 'back') goBack();
     else if (name === 'recent:clear') clearRecent();
@@ -3352,6 +3458,71 @@
     input.focus();
   }
 
+  /* ---------- 設定(「ファイル」→「設定…」。Mac ではアプリ名のメニュー) ----------
+     編集・表示・そのほかの設定を1つの窓にまとめる。変えるとすぐに効く(「OK」は無い)。
+     編集の設定・言語・起動時の更新の確認は main.js が config.json に覚え、行番号は画面の側で覚える(localStorage)。
+     言語を変えると画面を読み直すので、読み直したあとにこの窓を開き直す(saveView・restoreView) */
+  let settingsOpen = false;
+  async function showSettings() {
+    let P = await api.prefsGet();
+    if (!P) return;
+    const box = el('div', 'settings');
+    const setPref = async (k, v) => { const r = await api.prefsSet(k, v); if (r) P = r; };
+    const section = title => { const sec = el('section', 'set-sec'); sec.appendChild(el('h3', null, title)); box.appendChild(sec); return sec; };
+    const text = (label, hint, labelTag) => {
+      const t = el('span', 'set-txt');
+      const l = el(labelTag || 'span', 'set-label', label);
+      t.appendChild(l);
+      if (hint) t.appendChild(el('span', 'set-hint', hint));
+      return { t, l };
+    };
+    const check = (sec, label, hint, on, fn) => {
+      const row = el('label', 'set-row');
+      const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!on;
+      cb.addEventListener('change', () => fn(cb.checked));
+      row.append(cb, text(label, hint).t);
+      sec.appendChild(row);
+      return cb;
+    };
+    const ed = section(T('setEdit'));
+    const first = check(ed, T('setAutoIndent'), T('setAutoIndentHint'), P.editor.autoIndent, v => setPref('autoIndent', v));
+    check(ed, T('setAutoList'), T('setAutoListHint'), P.editor.autoList, v => setPref('autoList', v));
+    const iw = el('div', 'set-row set-choice');
+    const iwText = text(T('setIndentWidth'));
+    iwText.l.id = 'setIwLabel';
+    const opts = el('span', 'set-opts');
+    opts.setAttribute('role', 'radiogroup'); opts.setAttribute('aria-labelledby', 'setIwLabel');
+    for (const n of [2, 4]) {
+      const l = el('label'), r = el('input');
+      r.type = 'radio'; r.name = 'setIw'; r.value = String(n); r.checked = P.editor.indentWidth === n;
+      r.addEventListener('change', () => { if (r.checked) setPref('indentWidth', n); });
+      l.append(r, document.createTextNode(T(n === 2 ? 'setIndent2' : 'setIndent4')));
+      opts.appendChild(l);
+    }
+    iw.append(iwText.t, opts);
+    ed.appendChild(iw);
+    const vw = section(T('setView'));
+    check(vw, T('setLineHl'), T('setLineHlHint'), P.editor.lineHl, v => setPref('lineHl', v));
+    check(vw, T('setScrollPast'), T('setScrollPastHint'), P.editor.scrollPast, v => setPref('scrollPast', v));
+    check(vw, T('setLines'), T('setLinesHint'), S.lines, v => setLines(v, true));
+    const lr = el('div', 'set-row set-choice');
+    const lt = text(T('mLanguage'), T('setLangHint'), 'label');
+    const sel = el('select'); sel.id = 'setLang'; lt.l.htmlFor = 'setLang';
+    for (const x of P.langs) { const o = el('option', null, x.label); o.value = x.id; o.selected = x.id === P.lang; sel.appendChild(o); }
+    sel.addEventListener('change', () => { api.prefsSet('lang', sel.value); });
+    lr.append(lt.t, sel);
+    vw.appendChild(lr);
+    const ot = section(T('setOther'));
+    if (P.update) check(ot, T('setCheckOnStart'), null, P.update.checkOnStart, v => setPref('checkOnStart', v));
+    const kr = el('div', 'set-row set-choice');
+    const kb = el('button', 'btn', T('mKeys')); kb.type = 'button';
+    kb.addEventListener('click', () => { closeModal(); showKeys(); });
+    kr.append(text(T('setKeysHint')).t, kb);
+    ot.appendChild(kr);
+    settingsOpen = true;
+    openModal(T('setTitle'), box, () => { settingsOpen = false; }, { focus: first });
+  }
+
   /* ---------- テキストの取り込み・書き出し ----------
      取り込み: main.js が読んで文字コードを見分けたテキストを、1ファイル1つの新しいメモにする(最初の行が題名)。
      読めなかったファイルは、まとめて一覧で知らせる。 */
@@ -3451,7 +3622,8 @@
       frOpen: S.frOpen, frFind: $('frFind').value, frRepl: $('frRepl').value,
       selS: ed.selectionStart, selE: ed.selectionEnd,
       scroll: { editor: ed.scrollTop, preview: $('preview').scrollTop, hvBody: $('hvBody').scrollTop },
-      focus: fe && fe.id && fe !== document.body ? fe.id : ''
+      focus: fe && fe.id && fe !== document.body ? fe.id : '',
+      settings: settingsOpen   // 設定の窓で言語を変えたときは、読み直したあとも開いておく
     };
     try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(v)); } catch (e) { /* 引き継げなくても動く */ }
   }
@@ -3481,6 +3653,7 @@
       const fe = v.focus && $(v.focus);
       if (fe && !fe.closest('[hidden]')) fe.focus({ preventScroll: true });
       else if (S.mode === 'edit') ed.focus({ preventScroll: true });
+      if (v.settings) showSettings().then(() => { const l = $('setLang'); if (l) l.focus(); });
     }, 0);
   }
   window.addEventListener('pagehide', saveView);

@@ -861,18 +861,41 @@ async function changeFolder() {
   app.quit();
 }
 
-/* ---------- 改行と字下げの設定(「編集」メニュー) ----------
-   自動インデント・箇条書きを自動で続ける(どちらも既定はオン)、Tab での字下げの幅(2 か 4、既定は 4)。config.json に覚える */
+/* ---------- 編集の設定(「設定」の窓) ----------
+   自動インデント・箇条書きを自動で続ける(どちらも既定はオン)、Tab での字下げの幅(2 か 4、既定は 4)、
+   カーソル行の強調・最後の行より下までのスクロール(どちらも既定はオン)。config.json に覚える */
 function editPrefs() {
   const c = readConfig().editor || {};
-  return { autoIndent: c.autoIndent !== false, autoList: c.autoList !== false, indentWidth: c.indentWidth === 2 ? 2 : 4 };
+  return { autoIndent: c.autoIndent !== false, autoList: c.autoList !== false, indentWidth: c.indentWidth === 2 ? 2 : 4,
+    lineHl: c.lineHl !== false, scrollPast: c.scrollPast !== false };
 }
 function setEditPref(key, value) {
   const p = Object.assign(editPrefs(), { [key]: value });
   try { writeConfig(Object.assign(readConfig(), { editor: p })); } catch (e) { /* 覚えられなくても、今回は使う */ }
-  buildMenu();
   if (win && !win.isDestroyed()) win.webContents.send('menu', 'prefs:' + JSON.stringify(p));
 }
+
+/* ---------- 設定(「ファイル」→「設定…」。Mac ではアプリ名のメニュー) ----------
+   画面の「設定」の窓が読み書きする。編集の設定(上)・言語・起動時の更新の確認(Store 版には無い)。
+   行番号の表示は、画面の側で覚えている(localStorage) */
+function prefsAll() {
+  return {
+    editor: editPrefs(),
+    lang: lang,
+    langs: [{ id: 'ja', label: '日本語' }, { id: 'en', label: 'English' }],
+    update: isStore ? null : { checkOnStart: updater.updatePrefs(readConfig()).checkOnStart }
+  };
+}
+const EDIT_BOOL = ['autoIndent', 'autoList', 'lineHl', 'scrollPast'];
+ipcMain.handle('prefs:get', e => (fromOurWindow(e) ? prefsAll() : null));
+ipcMain.handle('prefs:set', async (e, key, value) => {
+  if (!fromOurWindow(e)) return null;
+  if (EDIT_BOOL.includes(key) && typeof value === 'boolean') setEditPref(key, value);
+  else if (key === 'indentWidth' && (value === 2 || value === 4)) setEditPref(key, value);
+  else if (key === 'checkOnStart' && typeof value === 'boolean' && !isStore) setUpdatePref({ checkOnStart: value });
+  else if (key === 'lang' && I18N.LANGS.includes(value)) { setLang(value); return null; }   // 画面を読み直す
+  return prefsAll();
+});
 
 /* ---------- キーボードショートカット(「編集」→「キーボードショートカット…」) ----------
    キーの一覧と判定は keymap.js。変えたキーは config.json の keys に覚える(パソコンごと。メモのフォルダには入れない)。
@@ -968,7 +991,6 @@ function onCaptureInput(e, input) {
 }
 
 function buildMenu() {
-  const ep = editPrefs();
   const KM = curKeys();
   const A = id => KM[id] || undefined;   // メニューのキー(キーなしは undefined)
   const template = [
@@ -1001,6 +1023,8 @@ function buildMenu() {
         { label: T('mChangeDir'), click: changeFolder },
         ...(process.platform === 'win32' && !isStore ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
         { type: 'separator' },
+        { id: 'settings', label: T('mSettings'), accelerator: A('settings'), click: () => send('settings') },
+        { type: 'separator' },
         { id: 'quit', role: 'quit', label: T('mQuit') }
       ]
     },
@@ -1018,12 +1042,6 @@ function buildMenu() {
         { label: T('mInsertDiagram'), accelerator: A('diagram'), enabled: !ui.hist && !ui.ro, click: () => send('diagram') },
         { label: T('mTable'), enabled: !ui.hist && !ui.ro, submenu: tableItems(T, id => send('tbl:' + id), null, KM).map(x => (x.type === 'separator' || x.submenu ? x : Object.assign(x, { enabled: !ui.hist && !ui.ro }))) },
         { type: 'separator' },
-        { label: T('mAutoIndent'), type: 'checkbox', checked: ep.autoIndent, click: item => setEditPref('autoIndent', item.checked) },
-        { label: T('mAutoList'), type: 'checkbox', checked: ep.autoList, click: item => setEditPref('autoList', item.checked) },
-        { label: T('mIndentWidth'), submenu: [
-          { label: T('mIndent2'), type: 'radio', checked: ep.indentWidth === 2, click: () => setEditPref('indentWidth', 2) },
-          { label: T('mIndent4'), type: 'radio', checked: ep.indentWidth === 4, click: () => setEditPref('indentWidth', 4) }
-        ] },
         { label: T('mKeys'), click: () => send('keys') },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
@@ -1063,7 +1081,6 @@ function buildMenu() {
         { type: 'separator' },
         ...(isStore ? [] : [
           { label: T('mCheckUpdate'), click: () => checkForUpdates(true) },
-          { label: T('mCheckOnStart'), type: 'checkbox', checked: updater.updatePrefs(readConfig()).checkOnStart, click: item => setUpdatePref({ checkOnStart: item.checked }) },
           { type: 'separator' }
         ]),
         { id: 'about', label: T('mAbout'), click: showAbout }
@@ -1089,8 +1106,8 @@ async function setLang(l) {
 }
 // os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
 const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform, kd: JSON.stringify(keyShown()) }, editQuery()) }); };
-// 画面に渡す改行と字下げの設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅)
-const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth) }; };
+// 画面に渡す編集の設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅、hl: カーソル行の強調、sp: 最後の行より下までスクロール)
+const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth), hl: p.lineHl ? '1' : '0', sp: p.scrollPast ? '1' : '0' }; };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
@@ -1139,7 +1156,7 @@ async function showAbout() {
 }
 
 /* ---------- 更新の確認(updatecheck.js) ----------
-   起動時(「ヘルプ」→「起動時に更新を確認する」がオンのとき)と、「ヘルプ」→「更新を確認…」で、GitHub の最新の release を調べる。
+   起動時(「設定」の「起動時に更新を確認する」がオンのとき)と、「ヘルプ」→「更新を確認…」で、GitHub の最新の release を調べる。
    net.fetch は Chromium の通信を使うので、Windows のシステムのプロキシ設定(PAC や自動検出を含む)がそのまま使われる。
    起動時は、新しい版があるときだけ知らせる(つながらないときは何も出さない)。手動のときは、結果をいつも出す */
 let startupCheckScheduled = false;
