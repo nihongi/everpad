@@ -458,6 +458,9 @@
     $('editor').addEventListener(type, e => { if (isRO(cur())) { e.preventDefault(); e.stopImmediatePropagation(); roBlocked(); } }, true);
   }
   $('roBtn').addEventListener('click', () => { if (S.active) toggleReadOnly(S.active); });
+  /* 右下の「読み取り専用」「行番号」は、マウスで押してもフォーカスを移さない(本文のカーソルとカーソル行の強調をそのままにし、
+     続けてキーで操作できるように)。Tab で移って Space・Enter で押すときは、今までどおり */
+  for (const id of ['roBtn', 'lnBtn']) $(id).addEventListener('mousedown', e => { if (e.button === 0) e.preventDefault(); });
   /* 読み取り専用を付け外しする。付けるときは先に入力を止め、書き込み待ちの編集を書き出してから、ファイルの1行目を書き換える */
   let roBusy = false;
   async function toggleReadOnly(id) {

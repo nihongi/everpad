@@ -107,3 +107,11 @@ test('最後の行より下までのスクロール: 履歴の表示にも付け
   assert.match(app, /if \(!a\.edge && !quiet\) flashEditorLine/);
   assert.match(app, /const an = a\.edge \|\| quiet \? null : anchorAt\(anchors, a\.line\);/);
 });
+
+test('カーソル行の強調: 右下の「読み取り専用」「行番号」をマウスで押しても、本文のフォーカス(と帯)はそのまま', () => {
+  const app = read('renderer/app.js');
+  assert.match(app, /for \(const id of \['roBtn', 'lnBtn'\]\) \$\(id\)\.addEventListener\('mousedown', e => \{ if \(e\.button === 0\) e\.preventDefault\(\); \}\);/);
+  // 帯は読み取り専用かどうかでは変えない(フォーカスだけで決める)
+  const p = app.slice(app.indexOf('function paintLineHl()'), app.indexOf('function paintLineHl()') + 400);
+  assert.ok(!/readOnly|isRO/.test(p));
+});
