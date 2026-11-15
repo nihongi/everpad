@@ -1,10 +1,10 @@
 'use strict';
 /* Mac 用のメニュー(Electron に依存しないので、テストできる)。
    main.js が作る Windows の形のメニューを、Mac の流儀に組み替える。
-   - 一番左にアプリ名のメニュー(EverPad について/設定/サービス/隠す/終了)を足し、「終了」「EverPad について」「設定…」をそこへ移す
+   - 一番左にアプリ名のメニュー(EverPad について/設定/キーボードショートカット/サービス/隠す/終了)を足し、「終了」「EverPad について」「設定…」「キーボードショートカット…」をそこへ移す
    - 「ウインドウ」メニューを足す
    Mac で別の意味があるショートカット(⌘H は「隠す」など)は、keymap.js の Mac の既定のキーで変えてある。
-   項目は id で探す: quit / about / settings */
+   項目は id で探す: quit / about / settings / keys */
 
 /* items から id の項目を取り除いて返す */
 function takeOut(items, id) {
@@ -27,19 +27,20 @@ function tidy(items) {
 function macTemplate(template, o) {
   const T = o.T;
   const tpl = template.map(m => Object.assign({}, m, { submenu: Array.isArray(m.submenu) ? m.submenu.slice() : m.submenu }));
-  let about = null, settings = null;
+  let about = null, settings = null, keys = null;
   for (const m of tpl) {
     if (!Array.isArray(m.submenu)) continue;
     takeOut(m.submenu, 'quit');
     about = takeOut(m.submenu, 'about') || about;
     settings = takeOut(m.submenu, 'settings') || settings;
+    keys = takeOut(m.submenu, 'keys') || keys;
     m.submenu = tidy(m.submenu);
   }
   const appMenu = {
     label: o.appName,
     submenu: [
       ...(about ? [about, { type: 'separator' }] : []),
-      ...(settings ? [settings, { type: 'separator' }] : []),
+      ...(settings || keys ? [settings, keys].filter(Boolean).concat({ type: 'separator' }) : []),
       { role: 'services', label: T('mServices') },
       { type: 'separator' },
       { role: 'hide', label: T('mHide') },

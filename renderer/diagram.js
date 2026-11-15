@@ -73,8 +73,11 @@
       el.innerHTML = '<pre class="diagram-src"><code>' + esc(el.dataset.src) + '</code></pre>';
     }
   }
-  const themeOf = opts => (opts && opts.light) || !darkMq.matches ? 'default' : 'dark';
-  /* root の中の図を描く。描き終わるまで待てる(印刷と書き出しで使う)。opts.light: 明るい配色にする */
+  const themeOf = opts => (opts && opts.light ? 'default'
+    : opts && typeof opts.dark === 'boolean' ? (opts.dark ? 'dark' : 'default')
+    : darkMq.matches ? 'dark' : 'default');
+  /* root の中の図を描く。描き終わるまで待てる(印刷と書き出しで使う)。
+     opts.light: 明るい配色にする。opts.dark: 画面のダークモードでなく、これで決める(メモの色で、メモの欄の明るさが画面と違うとき) */
   async function render(root, opts) {
     if (!root) return;
     const els = [...root.querySelectorAll('.diagram[data-src]')];

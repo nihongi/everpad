@@ -22,24 +22,27 @@ test('設定: 「ファイル」→「設定…」の既定のキーは Ctrl+,(M
   assert.match(read('renderer/app.js'), /else if \(name === 'settings'\) showSettings\(\);/);
 });
 
-test('設定: Mac では「設定…」をアプリ名のメニューの「EverPad について」の次に移す', () => {
+test('設定: Mac では「設定…」「キーボードショートカット…」をアプリ名のメニューの「EverPad について」の次に移す', () => {
   const T = key => I18N.t('ja', key, { app: 'EverPad' });
   const tpl = [
-    { label: 'ファイル', submenu: [{ label: '新しいメモ' }, { type: 'separator' }, { id: 'settings', label: '設定…' }, { type: 'separator' }, { id: 'quit', role: 'quit', label: '終了' }] },
+    { label: 'ファイル', submenu: [{ label: '新しいメモ' }, { type: 'separator' }, { id: 'settings', label: '設定…' }, { id: 'keys', label: 'キーボードショートカット…' }, { type: 'separator' }, { id: 'quit', role: 'quit', label: '終了' }] },
     { id: 'help', label: 'ヘルプ', submenu: [{ label: 'Markdown の書き方' }, { type: 'separator' }, { id: 'about', label: 'EverPad について' }] }
   ];
   const m = macTemplate(tpl, { T, appName: 'EverPad' });
   const app = m[0].submenu;
-  assert.deepStrictEqual(app.slice(0, 4).map(x => x.id || x.type), ['about', 'separator', 'settings', 'separator']);
+  assert.deepStrictEqual(app.slice(0, 5).map(x => x.id || x.type), ['about', 'separator', 'settings', 'keys', 'separator']);
   const file = m[1].submenu;
   assert.deepStrictEqual(file.map(x => x.label), ['新しいメモ']);   // 残りに区切り線だけが残らない
 });
 
-test('設定: 編集の設定と更新の確認は、メニューから設定の窓へ移した(行番号と言語はメニューにも残す)', () => {
+test('設定: 編集の設定・更新の確認・言語・「送る」への登録は、メニューから設定の窓へ移した(行番号はメニューにも残す)', () => {
   const main = read('main.js');
-  for (const k of ['mAutoIndent', 'mAutoList', 'mIndentWidth', 'mCheckOnStart']) assert.ok(!main.includes("T('" + k + "')"), k);
+  for (const k of ['mAutoIndent', 'mAutoList', 'mIndentWidth', 'mCheckOnStart', 'mLanguage', 'mSendTo']) assert.ok(!main.includes("T('" + k + "')"), k);
+  // 「キーボードショートカット…」は「ファイル」の「設定…」のすぐ下(「編集」には無い)
+  assert.match(main, /\{ id: 'settings', label: T\('mSettings'\), accelerator: A\('settings'\), click: \(\) => send\('settings'\) \},\n        \{ id: 'keys', label: T\('mKeys'\), click: \(\) => send\('keys'\) \},/);
+  assert.strictEqual(main.split("T('mKeys')").length, 2);
+  assert.ok(!main.includes("click: () => setLang("), '表示メニューの言語');
   assert.match(main, /label: T\('mLines'\)/);
-  assert.match(main, /label: T\('mLanguage'\)/);
   assert.match(main, /label: T\('mKeys'\), click: \(\) => send\('keys'\)/);
 });
 
@@ -66,6 +69,10 @@ test('設定の窓: 項目と、言語を変えて読み直したあとに開き
   for (const k of ['setAutoIndent', 'setAutoList', 'setIndentWidth', 'setLineHl', 'setScrollPast', 'setLines', 'mLanguage', 'setCheckOnStart', 'mKeys']) assert.ok(body.includes("T('" + k + "'"), k);
   assert.match(body, /check\(vw, T\('setLines'\), T\('setLinesHint'\), S\.lines, v => setLines\(v, true\)\);/);
   assert.match(body, /if \(P\.update\) check\(ot, T\('setCheckOnStart'\)/);
+  // 「送る」メニューへの登録は、使える版だけ(main.js が null を返す Store 版・Mac・Linux には出さない)。作れなかったら実際の状態に戻す
+  assert.match(body, /if \(P\.sendTo !== null && P\.sendTo !== undefined\) \{/);
+  assert.match(body, /await setPref\('sendTo', v\); st\.checked = !!P\.sendTo;/);
+  for (const l of ['ja', 'en']) for (const k of ['setSendTo', 'setSendToHint']) assert.notStrictEqual(I18N.t(l, k), k, l + ':' + k);
   assert.match(app, /settings: settingsOpen/);
   assert.match(app, /if \(v\.settings\) showSettings\(\)/);
   for (const l of ['ja', 'en']) for (const k of ['setTitle', 'setEdit', 'setView', 'setOther', 'setLineHlHint', 'setScrollPastHint', 'mSettings']) assert.notStrictEqual(I18N.t(l, k), k, l + ':' + k);
@@ -114,4 +121,81 @@ test('カーソル行の強調: 右下の「読み取り専用」「行番号」
   // 帯は読み取り専用かどうかでは変えない(フォーカスだけで決める)
   const p = app.slice(app.indexOf('function paintLineHl()'), app.indexOf('function paintLineHl()') + 400);
   assert.ok(!/readOnly|isRO/.test(p));
+});
+
+const NoteColor = require('../renderer/notecolor');
+
+test('メモの色: 受け取った値を決まった形に直す(知らない値は標準・自動に戻す)', () => {
+  const d = NoteColor.DEFAULTS();
+  assert.deepStrictEqual(NoteColor.sanitize(undefined), d);
+  assert.deepStrictEqual(NoteColor.sanitize('x'), d);
+  assert.deepStrictEqual(d.light, { mode: 'std', bg: '#fafbfe', fg: 'auto' });
+  assert.deepStrictEqual(d.dark, { mode: 'std', bg: '#131a33', fg: 'auto' });
+  const s = NoteColor.sanitize({ light: { mode: 'custom', bg: '#FFEECC', fg: '#123456', extra: 1 }, dark: { mode: 'evil', bg: 'red', fg: 'url(x)' } });
+  assert.deepStrictEqual(s.light, { mode: 'custom', bg: '#ffeecc', fg: '#123456' });
+  assert.deepStrictEqual(s.dark, { mode: 'std', bg: '#131a33', fg: 'auto' });
+});
+
+test('メモの色: 標準は色を付けない。白黒は明るい画面で白地に黒、ダークで黒地に白', () => {
+  const p = { light: { mode: 'bw' }, dark: { mode: 'bw' } };
+  assert.strictEqual(NoteColor.resolve(NoteColor.DEFAULTS(), 'light'), null);
+  assert.strictEqual(NoteColor.resolve(NoteColor.DEFAULTS(), 'dark'), null);
+  assert.deepStrictEqual(NoteColor.resolve(p, 'light'), { bg: '#ffffff', fg: '#000000', dark: false });
+  assert.deepStrictEqual(NoteColor.resolve(p, 'dark'), { bg: '#000000', fg: '#ffffff', dark: true });
+  // 見本は標準の色も出す
+  assert.deepStrictEqual(NoteColor.sample(NoteColor.DEFAULTS(), 'dark'), { bg: '#131a33', fg: '#e3e9f8', dark: true });
+});
+
+test('メモの色: カスタムの文字色の「自動」は、背景の明るさで濃い文字か明るい文字。配色も背景に合わせる', () => {
+  const light = NoteColor.resolve({ light: { mode: 'custom', bg: '#f5ecd7', fg: 'auto' } }, 'light');
+  assert.deepStrictEqual(light, { bg: '#f5ecd7', fg: '#141b33', dark: false });
+  // 明るい画面で暗い背景を選んだら、欄の配色をダーク用にする
+  const dark = NoteColor.resolve({ light: { mode: 'custom', bg: '#202830', fg: 'auto' } }, 'light');
+  assert.deepStrictEqual(dark, { bg: '#202830', fg: '#e3e9f8', dark: true });
+  const own = NoteColor.resolve({ dark: { mode: 'custom', bg: '#1e1e1e', fg: '#d4b06a' } }, 'dark');
+  assert.deepStrictEqual(own, { bg: '#1e1e1e', fg: '#d4b06a', dark: true });
+  const v = NoteColor.cssVars(own);
+  assert.strictEqual(v['--surface'], '#1e1e1e');
+  assert.strictEqual(v['--fg'], '#d4b06a');
+  assert.strictEqual(v['--fg-2'], 'color-mix(in srgb, #d4b06a 70%, #1e1e1e)');
+});
+
+test('メモの色: コントラスト比(読みにくい色を知らせる基準 4.5)', () => {
+  assert.strictEqual(Math.round(NoteColor.contrast('#ffffff', '#000000')), 21);
+  assert.strictEqual(NoteColor.contrast('#777777', '#777777'), 1);
+  assert.ok(NoteColor.contrast('#ffffff', '#aaaaaa') < 4.5);
+  for (const k of ['light', 'dark']) assert.ok(NoteColor.contrast(NoteColor.STD[k].bg, NoteColor.STD[k].fg) >= 4.5, k);
+});
+
+test('メモの色: 標準の色は styles.css の --surface と --fg と同じ。欄の配色は styles.css の配色と同じ', () => {
+  const css = read('renderer/styles.css');
+  const block = sel => css.slice(css.indexOf(sel + ' {'), css.indexOf('}', css.indexOf(sel + ' {')));
+  const root = block(':root'), dk = block(':root[data-theme="dark"]');
+  const v = (b, name) => (b.match(new RegExp('--' + name + ':[ ]*(#[0-9A-Fa-f]{6})')) || [])[1].toLowerCase();
+  assert.strictEqual(v(root, 'surface'), NoteColor.STD.light.bg);
+  assert.strictEqual(v(root, 'fg'), NoteColor.STD.light.fg);
+  assert.strictEqual(v(dk, 'surface'), NoteColor.STD.dark.bg);
+  assert.strictEqual(v(dk, 'fg'), NoteColor.STD.dark.fg);
+  const ncl = block('.nc-light'), ncd = block('.nc-dark');
+  for (const n of ['accent', 'accent-fg', 'accent-soft', 'past', 'past-soft', 'ins', 'del', 'del-fg', 'hit', 'al-note', 'al-tip', 'al-important', 'al-warning', 'al-caution']) {
+    assert.strictEqual(v(ncl, n), v(root, n), 'light ' + n);
+    assert.strictEqual(v(ncd, n), v(dk, n), 'dark ' + n);
+  }
+});
+
+test('メモの色: main.js が確かめて覚え、画面に nc で渡す。画面はメモの欄にだけ付け、図の配色も合わせる', () => {
+  const main = read('main.js'), app = read('renderer/app.js'), html = read('renderer/index.html'), dg = read('renderer/diagram.js');
+  assert.match(main, /noteColor: NoteColor\.sanitize\(c\.noteColor\)/);
+  assert.match(main, /key === 'noteColor' && value && typeof value === 'object'\) setEditPref\(key, NoteColor\.sanitize\(value\)\)/);
+  assert.match(main, /nc: JSON\.stringify\(p\.noteColor\)/);
+  assert.ok(html.indexOf('<script src="notecolor.js">') > 0 && html.indexOf('<script src="notecolor.js">') < html.indexOf('<script src="app.js">'));
+  assert.match(app, /for \(const id of \['edwrap', 'preview', 'hvBody'\]\)/);
+  assert.match(app, /function applyViewPrefs\(\) \{ fitTail\(\); queueLineHl\(\); applyNoteColors\(\); \}/);
+  assert.match(app, /return Diagrams\.render\(root, diagramOpts \|\| noteDiag\(\)\)/);
+  assert.match(app, /Diagrams\.onThemeChange\(\(\) => \{ applyNoteColors\(true\);/);
+  assert.match(dg, /opts && typeof opts\.dark === 'boolean' \? \(opts\.dark \? 'dark' : 'default'\)/);
+  const body = app.slice(app.indexOf('function noteColorRows'), app.indexOf('/* ---------- テキストの取り込み'));
+  for (const k of ['setNoteColor', 'setNoteColorHint', 'setNcNow', 'setNcSample', 'setNcBg', 'setNcFg', 'setNcAuto', 'setNcAutoHint', 'setNcLow']) assert.ok(body.includes("T('" + k + "'"), k);
+  for (const k of ['setNcLight', 'setNcDark', 'setNcStd', 'setNcBw', 'setNcCustom']) assert.ok(body.includes("'" + k + "'"), k);
+  for (const l of ['ja', 'en']) for (const k of ['setNcLight', 'setNcDark', 'setNcStd', 'setNcBw', 'setNcCustom']) assert.notStrictEqual(I18N.t(l, k), k, l + ':' + k);
 });

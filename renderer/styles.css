@@ -184,6 +184,21 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 :root { --line-hl: color-mix(in srgb, var(--accent) 7%, transparent); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --line-hl: color-mix(in srgb, var(--accent) 11%, transparent); } }
 :root[data-theme="dark"] { --line-hl: color-mix(in srgb, var(--accent) 11%, transparent); }
+/* メモの色(設定の「メモの色」。app.js の applyNoteColors と renderer/notecolor.js): メモの欄(本文・プレビュー・履歴)だけ、選んだ背景と文字の色にする。
+   配色は、選んだ背景の明るさに合うほう(nc-light / nc-dark)を使う。背景・文字・薄い字・枠線・コードの背景は、欄に直接付ける変数で上書きする */
+.nc { background: var(--surface); color: var(--fg); }
+.nc-light {
+  --accent: #2D4DA8; --accent-fg: #FFFFFF; --accent-soft: #D9E4F8;
+  --past: #8A4B00; --past-soft: #F5E3C8; --ins: #C9EBD3; --del: #F6D2CD; --del-fg: #8A2B23; --hit: #FFE08A;
+  --al-note: #0969DA; --al-tip: #1A7F37; --al-important: #8250DF; --al-warning: #9A6700; --al-caution: #D1242F;
+  --line-hl: color-mix(in srgb, var(--accent) 7%, transparent); color-scheme: light;
+}
+.nc-dark {
+  --accent: #7FA6F5; --accent-fg: #0A1330; --accent-soft: #1B2A58;
+  --past: #EDAA55; --past-soft: #33260F; --ins: #1B4731; --del: #4A2220; --del-fg: #F2A9A1; --hit: #7A5F12;
+  --al-note: #4493F8; --al-tip: #3FB950; --al-important: #AB7DF8; --al-warning: #D29922; --al-caution: #F85149;
+  --line-hl: color-mix(in srgb, var(--accent) 11%, transparent); color-scheme: dark;
+}
 #editor.hl-on, .pe-edit.hl-on { background-image: linear-gradient(var(--line-hl), var(--line-hl)); background-repeat: no-repeat;
   background-size: 100% var(--hl-h, 0px); background-position: 0 var(--hl-top, 0px); background-attachment: local; }
 .gutter .cur { color: var(--fg); font-weight: 700; }
@@ -570,6 +585,18 @@ label.set-row:hover { background: var(--surface-2); }
 .set-opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .set-opts input { accent-color: var(--accent); margin: 0; }
 .settings select { border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 6px; padding: 4px 8px; font: inherit; }
+.set-nc-head { padding-left: 30px; }
+.set-nc-name { min-width: 7.5em; }
+.set-now { font-size: 12.5px; color: var(--fg-2); margin-left: 4px; }
+.nc-sample { display: inline-block; min-width: 5.5em; padding: 2px 10px; border: 1px solid var(--line); border-radius: 6px; font-family: var(--mono); text-align: center; }
+.set-nc-custom { padding-left: calc(30px + 7.5em + 10px); }
+.set-nc-custom[hidden] { display: none; }
+.set-nc-custom label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.set-nc-custom input[type=color] { width: 2.6em; height: 1.8em; padding: 1px 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; }
+.set-nc-custom input[type=color]:disabled { opacity: 0.45; cursor: default; }
+.set-nc-custom input[type=checkbox] { accent-color: var(--accent); margin: 0; }
+.set-warn { flex-basis: 100%; font-size: 12.5px; color: var(--al-warning); }
+.set-warn[hidden] { display: none; }
 
 /* リンクにマウスを重ねている間、行き先を左下に出す(ブラウザの下端の表示と同じ) */
 .link-status { position: absolute; left: 8px; bottom: 36px; z-index: 15; max-width: min(60%, 40rem); padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--fg-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; box-shadow: 0 1px 4px color-mix(in srgb, var(--fg) 15%, transparent); }

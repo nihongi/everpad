@@ -8,7 +8,7 @@
 
 EverPad is a note-taking app for Windows. You write in plain text or Markdown (tables included), every single edit is kept in the history, and a time slider lets you rewind a note and watch how it was written. It is built with Electron.
 
-The user interface is available in English and Japanese. The language follows the Windows display language (English for anything other than Japanese), and can be changed at any time from View → Language (言語) or File → Settings….
+The user interface is available in English and Japanese. The language follows the Windows display language (English for anything other than Japanese), and can be changed at any time from File → Settings… (Language).
 
 This program was created with the help of Claude Code.
 
@@ -22,7 +22,7 @@ This program was created with the help of Claude Code.
 - **Find and replace**: with case sensitivity, whole-word and regular-expression options.
 - **Images and attachments**: paste screenshots or drop files into a note.
 - **Print and export**: print a note, or save it as a PDF or as one web page file (HTML or MHTML) with the images included, with the same formatting as the preview. A note can also be saved as AsciiDoc, as a Word document (`.docx`) or as LaTeX (`.tex`), keeping its headings, lists, tables, images and formulas.
-- **Keyboard shortcuts you can change**: assign the keys you like from Edit → Keyboard Shortcuts….
+- **Keyboard shortcuts you can change**: assign the keys you like from File → Keyboard Shortcuts….
 - **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
 
@@ -41,7 +41,7 @@ EverPad for Windows comes in three versions. The app itself is almost the same; 
 
 #### Microsoft Store version
 
-In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and File has no Add to the "Send to" Menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
+In the Microsoft Store version, updates come from the Microsoft Store, so Help has no update check, and Settings has no Add to the "Send to" menu. Notes are saved in the same place as in the installed version (by default, Documents\EverPad). Windows keeps its settings in a folder for the app, which is deleted when the app is uninstalled (if the installed version is also on the PC, the settings it already has are used).
 
 #### Installer version
 
@@ -51,10 +51,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.37.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.38.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.37.1.exe
+EverPad 0.38.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -131,10 +131,11 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - The note text widens to fit the window. Line numbers count a wrapped line as one line and are also shown in the history. These settings are remembered.
 - The line with the cursor has a light background, in the Text view and in the edit box of the preview. As in Notepad++, a wrapped line is highlighted as a whole. When line numbers are shown, the number of that line is bold. Turn this off in File → Settings… (Highlight the current line).
 - In the Text and Preview views and in the history, you can scroll until the last line is at the top of the window, so the line you are writing does not have to stay at the bottom edge (as in VS Code). Even a short note can be scrolled. In the preview, clicking anywhere in the space below the last part adds a paragraph. Turn this off in File → Settings… (Scroll beyond the last line).
+- **Note colors**: in File → Settings… (Note colors), choose the background and text colors of the note area (Text, Preview and history), separately for light mode and dark mode: Standard (the usual colors), Black and white (black text on white; white text on black in dark mode) or Custom. For Custom, pick the background and the text color. With Auto (on at first), the text is dark or light to suit the background, and the window tells you when the text would be hard to read. If you choose a dark background in light mode (or a light one in dark mode), links, code, the history colors and diagrams in the note switch to the matching colors. The rest of the window, printouts and exported files keep their usual colors.
 
 **Read-only notes**
 
-- To protect a note from accidental changes, choose File → Read-Only, right-click the note in the note list and choose Read-Only, or press the Read-only button at the bottom right. Do the same again to make it editable. A read-only note has a lock before its title in the note list, and the Read-only button is highlighted while it is open. No shortcut key is set at first; you can assign one in Edit → Keyboard Shortcuts….
+- To protect a note from accidental changes, choose File → Read-Only, right-click the note in the note list and choose Read-Only, or press the Read-only button at the bottom right. Do the same again to make it editable. A read-only note has a lock before its title in the note list, and the Read-only button is highlighted while it is open. No shortcut key is set at first; you can assign one in File → Keyboard Shortcuts….
 - A read-only note cannot be changed: typing, pasting, cutting, formatting, replacing, attaching images or files, moving an attachment to the Recycle Bin, Restore this version, deleting old history and deleting the note are all turned off (trying to type shows a message). You can still view it, look through its history, search it, copy from it, print it and export it. Properties shows whether a note is read-only.
 - The setting is saved in the note's history file (`ro` in the header), so it is kept when you copy the data folder or move the note with an EverPad archive. Older versions of EverPad ignore it and let you edit the note.
 - Importing an archive with the same ID as a read-only note still asks what to do, and the question says that the existing note is read-only.
@@ -173,7 +174,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Where the diagram goes: in the Text view, on the line after the cursor (after the table, code block or formula when the cursor is in one); in the preview, after the part you are editing or clicked (at the end of the note if you have not clicked anything). When the cursor is inside a diagram in the Text view, the command edits that diagram instead. In the preview, double-click a diagram, or right-click it and choose Edit Diagram…, to edit it; the fence (```` ``` ```` or `~~~`) and `>` in a block quote are kept. The change is one edit in the history and can be undone.
 - In a read-only note and in the history, double-click a diagram (or right-click it and choose View Diagram…) to see it in the same viewer, without editing.
 - Diagrams are shown in the preview, the history's Markdown view, printouts, PDFs, HTML and MHTML files. In Word documents and LaTeX files they become pictures, and AsciiDoc files keep the source in a `[mermaid]` block (drawn as a diagram where Asciidoctor Diagram is installed). The Text view and search keep the source as text.
-- The colors follow dark mode. Printouts and exported files always use light colors.
+- The colors follow dark mode (or the background of the note, when you choose one in Note colors in Settings). Printouts and exported files always use light colors.
 - A diagram with an error is shown as its source in red; hover over it to see the error. Right-click a diagram and choose Copy Diagram Source to copy its source.
 - Diagrams are drawn with Mermaid, which is bundled with the app (no internet connection is used). It is loaded the first time a note with a diagram is shown, so the first diagram can take about a second to appear. Clicks and links in diagrams are disabled.
 
@@ -204,7 +205,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Keyboard shortcuts**
 
-- Edit → Keyboard Shortcuts… lists every menu command with its key, grouped by menu (File, File › Export, Edit, Edit › Format, Edit › Table, View, Help). Type in the box at the top to filter by command name or key (for example `ctrl+shift`).
+- File → Keyboard Shortcuts… lists every menu command with its key, grouped by menu (File, File › Export, Edit, Edit › Format, Edit › Table, View, Help). Type in the box at the top to filter by command name or key (for example `ctrl+shift`).
 - To change a key, double-click the command (or select it and press Enter, or press Change), then press the keys you want: the box shows them as you press them. Press Enter to set it, or Esc to cancel. While you are pressing keys, the menu shortcuts do nothing. Commands that have no key by default (such as File → Export → HTML…) can be given one too.
 - A key must use Ctrl or Alt (on macOS, ⌘, ⌃ or ⌥), or be one of F1–F24. Letters, digits, F keys, arrow keys, Home / End / Page Up / Page Down, Insert, Delete, Backspace, Space, Enter, Tab and the numeric keypad can be used. Keys whose character depends on the keyboard layout (such as `;` and `@`) cannot be assigned. Keys used for typing, editing or the system cannot be assigned either: Ctrl+Z / Y / X / C / V / A, Ctrl with the arrow keys, Home, End, Backspace or Delete, F3, Alt+F4 and F10 (on macOS, ⌘Q, ⌘H, ⌘W, ⌘M, ⌥ with a letter or digit, ⌃A, ⌃E and the other text-editing keys).
 - If the key is already used by another command, EverPad says which one. Press Enter to use the key here instead; the other command then has no key.
@@ -245,7 +246,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **Importing text files**
 
 - Each text file becomes a new note; its first line becomes the title.
-- In Explorer, select files and choose Send to → EverPad to import them. EverPad starts if it is not running. To add EverPad to the "Send to" menu, check the box in the installer, or choose File → Add to the "Send to" Menu at any time (choose it again to remove it). Dropping files onto the EverPad icon also imports them. Dropping files onto the EverPad window still attaches them.
+- In Explorer, select files and choose Send to → EverPad to import them. EverPad starts if it is not running. To add EverPad to the "Send to" menu, check the box in the installer, or check Add to the "Send to" menu in File → Settings… at any time (uncheck it to remove it). Dropping files onto the EverPad icon also imports them. Dropping files onto the EverPad window still attaches them.
 - The encoding is detected automatically: UTF-8 (with or without BOM), UTF-16, Shift_JIS, EUC-JP and ISO-2022-JP. Line breaks are converted to LF. Files larger than 10 MB, files that are not text, and files with data that cannot be read as text are not imported; the reason is shown, including where the unreadable data is (for example, "Read as Shift_JIS, line 12, character 5 … (0x82 0xFF)").
 - An imported note belongs to EverPad and has no link to the original file; EverPad does not record where it was imported from.
 - File → Export → Text File… (`Ctrl+Shift+E`) saves the current note as a `.txt` or `.md` file (UTF-8 without BOM, CRLF line breaks). While the history is shown, the version being viewed is exported. Attachments are not included.
@@ -282,8 +283,8 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the Text view (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the Text view, the menu also has text formatting (bold and so on), line formatting (quote and so on), Insert Formula… (Edit Formula… when the cursor is in a formula) and Table. In the preview, right-click a table cell for the table commands, a formula or diagram to edit or copy it or to insert a paragraph after it, or another place to insert a paragraph, a formula, a diagram or a table. While you edit a part or a table cell in the preview, its right-click menu also has Insert Formula… (Edit Formula… when the cursor is in a formula) and Table. In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
-- **Settings**: File → Settings… (`Ctrl+,`) collects the settings in one window: Editing (auto indent, continuing lists, Tab indent width), Display (highlighting the current line, scrolling beyond the last line, line numbers, language) and Other (checking for updates at startup, which the Microsoft Store version does not have, and a button that opens Keyboard Shortcuts…). Changes take effect at once and are remembered.
-- To change the interface language, choose View → Language (言語) → English or 日本語 (or Language in File → Settings…). The setting is remembered, and the current view (Text, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
+- **Settings**: File → Settings… (`Ctrl+,`) collects the settings in one window: Editing (auto indent, continuing lists, Tab indent width), Display (highlighting the current line, scrolling beyond the last line, line numbers, note colors, language) and Other (checking for updates at startup and adding EverPad to the "Send to" menu, which the Microsoft Store version does not have, and a button that opens Keyboard Shortcuts…). Keyboard Shortcuts… is also just below Settings… in the File menu. Changes take effect at once and are remembered.
+- To change the interface language, choose English or 日本語 in Language (言語) in File → Settings…. The setting is remembered, and the current view (Text, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
 - The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Text view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
 - Choose Help → Markdown Guide for the Markdown you can use, with each example shown next to its result. See also "Markdown syntax" below.
 - To check the version you are running, choose Help → About EverPad from the menu. It also shows the Electron version, the data folder and the address where EverPad is published ([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/)); Open on GitHub opens it in your browser.
@@ -391,15 +392,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.37.1.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.38.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.37.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.38.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.37.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.38.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -408,11 +409,11 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.37.1.AppImage` (x64)
+- Linux: `EverPad-0.38.0.AppImage` (x64)
 
 **macOS**
 
-- The menus follow the macOS layout: an EverPad menu (About EverPad, Settings… (⌘,), Services, Hide EverPad, Quit EverPad and so on) on the left, and a Window menu.
+- The menus follow the macOS layout: an EverPad menu (About EverPad, Settings… (⌘,), Keyboard Shortcuts…, Services, Hide EverPad, Quit EverPad and so on) on the left, and a Window menu.
 - Shortcuts use ⌘ instead of Ctrl (⌘N, ⌘F and so on). These differ, because macOS uses the Windows keys for something else: Back to Previous Note ⌘[, Properties ⌘I, Find and replace ⌥⌘F, Quote ⌘', Italic ⇧⌘I (⌘H hides the app, ⇧⌘Q logs out and ⌘I is Properties). Redo is ⇧⌘Z, and a link to another note opens with ⌘-click in the Text view.
 - Closing the window does not quit EverPad: it stays in the Dock, and clicking the Dock icon opens the window again. Quit with ⌘Q. Unsaved edits are saved when the window closes. While EverPad is running, its data folder stays locked (see "Where notes are stored").
 - `.everpad` files can be opened by double-clicking them in Finder, with Open With, or by dragging them onto the Dock icon. Import text files by dragging them into the window, or with File → Import….
@@ -424,7 +425,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.37.1.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.38.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -499,7 +500,7 @@ The emoji list in `renderer/emoji.js` is made from [gemoji](https://github.com/w
 
 EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表を含む)で書けて、1回ごとの編集がすべて履歴に残り、タイムスライダーで巻き戻して書いた過程を見られます。Electron で作っています。
 
-画面は日本語と英語に対応しています。最初は Windows の表示言語に合わせ(日本語以外のときは英語)、メニューの「表示」→「言語 (Language)」か「ファイル」→「設定…」で、いつでも切り替えられます。
+画面は日本語と英語に対応しています。最初は Windows の表示言語に合わせ(日本語以外のときは英語)、「ファイル」→「設定…」の「言語 (Language)」で、いつでも切り替えられます。
 
 このプログラムは Claude Code を活用して作成しました。
 
@@ -513,8 +514,8 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **検索と置換**: 大文字/小文字の区別、単語単位、正規表現を選べます。
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
 - **印刷・エクスポート**: メモを、プレビューと同じ整形した見た目で印刷したり、PDF や、画像も入った1つの Web ページのファイル(HTML・MHTML)として保存したりできます。見出し・リスト・表・画像・数式を保ったまま、AsciiDoc、Word 文書(`.docx`)、LaTeX(`.tex`)としても保存できます。
-- **キーボードショートカットを変えられる**: 「編集」→「キーボードショートカット…」で、好きなキーを割り当てられます。
-- **日本語と英語**: 画面の言語をメニューから切り替えられます。
+- **キーボードショートカットを変えられる**: 「ファイル」→「キーボードショートカット…」で、好きなキーを割り当てられます。
+- **日本語と英語**: 画面の言語を設定から切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
 
 ### ダウンロード
@@ -532,7 +533,7 @@ Windows 版には3種類あります。アプリの機能はほぼ同じで、�
 
 #### Microsoft Store 版
 
-Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、「ファイル」に「「送る」メニューに登録」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
+Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、設定に「「送る」メニューに登録する」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
 
 #### インストーラー版
 
@@ -542,10 +543,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.37.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.38.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.37.1.exe
+EverPad 0.38.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -622,10 +623,11 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - メモの本文はウィンドウの幅に合わせて広がります。行番号は、折り返した行も1行として数え、履歴の表示にも付きます。これらの設定は次回も使われます。
 - 「テキスト」表示の本文と、プレビューの編集欄では、カーソルがある行に薄い色が付きます。Notepad++ と同じく、折り返した行は全体に付きます。行番号を出しているときは、その行の番号が太字になります。「ファイル」→「設定…」の「カーソル行を強調する」で切り替えられます。
 - 「テキスト」表示とプレビューと履歴の表示では、最後の行が画面の一番上に来るところまでスクロールできます(VS Code と同じ)。書いている行が画面の下端に張り付かずに済みます。短いメモでもスクロールできます。プレビューでは、最後のかたまりの下の空いている所のどこを押しても、段落を書き足せます。「ファイル」→「設定…」の「最後の行より下までスクロールする」で切り替えられます。
+- **メモの色**: 「ファイル」→「設定…」の「メモの色」で、メモの欄(テキスト・プレビュー・履歴)の背景と文字の色を、明るい画面とダークモードで別々に選べます。「標準」(今までの色)・「白黒」(白い背景に黒い文字。ダークモードでは黒い背景に白い文字)・「カスタム」の3つです。カスタムでは、背景と文字の色を選びます。「自動」(初めはオン)なら、文字は背景に合わせて濃い色か明るい色になります。文字が読みにくい色のときは、設定の窓に出ます。明るい画面で暗い背景(ダークモードで明るい背景)を選んだときは、メモの中のリンク・コード・履歴の色・図も、背景に合う配色になります。そのほかの画面と、印刷・書き出しは、今までの色のままです。
 
 **読み取り専用のメモ**
 
-- うっかり書き換えないように、メモを読み取り専用にできます。「ファイル」→「読み取り専用」を選ぶか、左のメモ一覧でメモを右クリックして「読み取り専用」を選ぶか、右下の「読み取り専用」ボタンを押します。もう一度同じ操作をすると、編集できるように戻ります。読み取り専用のメモは、メモ一覧の題名の前に鍵の印が付き、開いている間は右下の「読み取り専用」ボタンが色付きになります。ショートカットキーは初めは付いていません。「編集」→「キーボードショートカット…」で割り当てられます。
+- うっかり書き換えないように、メモを読み取り専用にできます。「ファイル」→「読み取り専用」を選ぶか、左のメモ一覧でメモを右クリックして「読み取り専用」を選ぶか、右下の「読み取り専用」ボタンを押します。もう一度同じ操作をすると、編集できるように戻ります。読み取り専用のメモは、メモ一覧の題名の前に鍵の印が付き、開いている間は右下の「読み取り専用」ボタンが色付きになります。ショートカットキーは初めは付いていません。「ファイル」→「キーボードショートカット…」で割り当てられます。
 - 読み取り専用のメモは変えられません。入力・貼り付け・切り取り・書式・置換・画像やファイルの添付・添付をごみ箱に入れる・「この版に戻す」・古い履歴の削除・メモの削除ができなくなります(入力しようとすると、知らせが出ます)。表示・履歴の表示・検索・コピー・印刷・エクスポートは今までどおりできます。読み取り専用かどうかは、プロパティにも出ます。
 - この設定はメモの履歴ファイル(ヘッダーの `ro`)に入るので、保存先フォルダをコピーしても、EverPad アーカイブで移しても、読み取り専用のままです。古いバージョンの EverPad はこの項目を無視するので、そのまま編集できます。
 - 読み取り専用のメモと同じ ID のアーカイブをインポートするときも、今までどおりどうするかを尋ね、いまあるメモが読み取り専用であることも知らせます。
@@ -664,7 +666,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 入る場所: 「テキスト」表示では、カーソルの行の次(表・コードブロック・数式の中なら、その後ろ)です。プレビューでは、編集している部分・クリックした部分の次(どこもクリックしていなければメモの最後)です。「テキスト」表示でカーソルが図の中にあるときは、その図の編集になります。プレビューでは、図をダブルクリックするか、右クリックして「図を編集…」を選ぶと編集できます。囲みの記号(```` ``` ```` や `~~~`)と引用の `>` は、そのまま残します。1回の編集として履歴に残り、元に戻せます。
 - 読み取り専用のメモと履歴の表示では、図をダブルクリックする(または右クリックして「図を表示…」を選ぶ)と、同じビューアで図を見られます(書き換えはできません)。
 - 図は、プレビュー、履歴の「Markdown表示」、印刷・PDF・HTML・MHTML で表示されます。Word 文書と LaTeX では画像になり、AsciiDoc では `[mermaid]` のブロックに元の文のまま入ります(Asciidoctor Diagram が入っていれば図になります)。「テキスト」表示と検索では、元の文のまま扱います。
-- 図の配色はダークモードに合わせます。印刷と書き出したファイルは、いつも明るい配色です。
+- 図の配色はダークモードに合わせます(設定の「メモの色」で背景を選んだときは、その背景に合わせます)。印刷と書き出したファイルは、いつも明るい配色です。
 - 書き方に誤りのある図は、元の文を赤く表示します。マウスを重ねると誤りの内容が出ます。図を右クリックして「図の元の文をコピー」を選ぶと、元の文をコピーできます。
 - 図の表示には、アプリに同梱した Mermaid を使います(インターネットには接続しません)。図のあるメモを初めて表示したときに読み込むので、最初の図が出るまで1秒ほどかかることがあります。図の中のクリックやリンクは使えません。
 
@@ -695,7 +697,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **キーボードショートカット**
 
-- 「編集」→「キーボードショートカット…」で、メニューのすべての操作とそのキーを、メニューごと(ファイル、ファイル › エクスポート、編集、編集 › 書式、編集 › 表、表示、ヘルプ)に一覧で出します。上の欄に入力すると、操作の名前やキー(例: `ctrl+shift`)で絞り込めます。
+- 「ファイル」→「キーボードショートカット…」で、メニューのすべての操作とそのキーを、メニューごと(ファイル、ファイル › エクスポート、編集、編集 › 書式、編集 › 表、表示、ヘルプ)に一覧で出します。上の欄に入力すると、操作の名前やキー(例: `ctrl+shift`)で絞り込めます。
 - キーを変えるには、操作をダブルクリックするか、選んで Enter を押すか「キーを変える」を押してから、割り当てたいキーを押します。押したキーが枠の中に出ます。Enter で決め、Esc でやめます。キーを押している間は、メニューのショートカットは効きません。既定でキーの無い操作(「ファイル」→「エクスポート」→「HTML…」など)にも割り当てられます。
 - 割り当てられるのは、Ctrl か Alt(macOS では ⌘・⌃・⌥)を含むキーか、F1〜F24 です。英字・数字・F キー・矢印キー・Home / End / Page Up / Page Down・Insert・Delete・Backspace・Space・Enter・Tab・テンキーを使えます。キーボードの配列によって文字が変わる記号のキー(`;` や `@` など)は割り当てられません。文字の入力や編集、システムの操作に使うキーも割り当てられません: Ctrl+Z / Y / X / C / V / A、Ctrl と矢印・Home・End・Backspace・Delete の組み合わせ、F3、Alt+F4、F10(macOS では ⌘Q、⌘H、⌘W、⌘M、⌥ と英字・数字の組み合わせ、⌃A、⌃E などの文字の編集のキー)。
 - ほかの操作がすでに使っているキーを押すと、どの操作で使っているかを出します。Enter を押すと、そのキーをこちらに移し、ほかの操作はキーなしになります。
@@ -736,7 +738,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 **テキストファイルのインポート**
 
 - 1ファイルが1つの新しいメモになり、最初の行が題名になります。
-- エクスプローラーでファイルを選び、「送る」→「EverPad」でも取り込めます。EverPad が起動していなければ起動します。「送る」メニューに追加するには、インストール時にチェックボックスを付けるか、いつでも「ファイル」→「「送る」メニューに登録」を選びます(もう一度選ぶと解除します)。EverPad のアイコンにファイルをドラッグ&ドロップしても取り込めます。EverPad のウィンドウへのドラッグ&ドロップは、これまでどおり添付になります。
+- エクスプローラーでファイルを選び、「送る」→「EverPad」でも取り込めます。EverPad が起動していなければ起動します。「送る」メニューに追加するには、インストール時にチェックボックスを付けるか、いつでも「ファイル」→「設定…」の「「送る」メニューに登録する」にチェックを付けます(外すと解除します)。EverPad のアイコンにファイルをドラッグ&ドロップしても取り込めます。EverPad のウィンドウへのドラッグ&ドロップは、これまでどおり添付になります。
 - 文字コードは自動で見分けます(UTF-8(BOM あり・なし)、UTF-16、Shift_JIS、EUC-JP、ISO-2022-JP)。改行は LF にそろえます。10MB を超えるファイル、テキストでないファイル、文字として読めないデータを含むファイルは取り込まず、理由を表示します。読めないデータがあるときは「Shift_JIS として 12行目の 5文字目…(0x82 0xFF)」のように場所も示します。
 - 取り込んだメモは EverPad のメモで、元のファイルとは関係を持ちません(どこから取り込んだかも記録しません)。
 - 「ファイル」→「エクスポート」→「テキストファイル…」(`Ctrl+Shift+E`)で、今のメモを `.txt` か `.md` のファイルに保存します(UTF-8・BOM なし、改行は CRLF)。履歴の表示中は、見ている版を書き出します。添付は含まれません。
@@ -773,8 +775,8 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。「テキスト」表示では、文字の装飾(太字など)、行の書式(引用など)、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)、「表」も出ます。プレビューでは、表のセルを右クリックすると表の操作、数式・図を右クリックすると編集とコピーと「段落を挿入」、そのほかの場所では「段落を挿入」「数式を挿入…」「図を挿入…」「表を挿入」が出ます。プレビューで編集している部分や表のセルの右クリックにも、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」が出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
-- **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・言語)、「そのほか」(起動時の更新の確認。Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。変えるとすぐに効き、次回も使われます。
-- 画面の言語は、メニューの「表示」→「言語 (Language)」→「日本語」または「English」で切り替えます(「ファイル」→「設定…」の「言語」でも切り替えられます)。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
+- **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「そのほか」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
+- 画面の言語は、「ファイル」→「設定…」の「言語 (Language)」で「日本語」か「English」を選んで切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
 - 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョン、メモの保存先、EverPad の公開場所([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/))も表示され、「GitHub で開く」でブラウザで開けます。
@@ -882,15 +884,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.37.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.38.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.37.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.38.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.37.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.38.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -899,11 +901,11 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.37.1.AppImage`(x64)
+- Linux: `EverPad-0.38.0.AppImage`(x64)
 
 **macOS**
 
-- メニューは Mac の形です。一番左に「EverPad」メニュー(EverPad について、設定…(⌘,)、サービス、EverPad を隠す、EverPad を終了など)があり、「ウインドウ」メニューもあります。
+- メニューは Mac の形です。一番左に「EverPad」メニュー(EverPad について、設定…(⌘,)、キーボードショートカット…、サービス、EverPad を隠す、EverPad を終了など)があり、「ウインドウ」メニューもあります。
 - ショートカットキーは Ctrl の代わりに ⌘ を使います(⌘N、⌘F など)。Windows のキーを Mac が別の操作に使っているため、次のものは違います: 前に見たメモに戻る ⌘[、プロパティ ⌘I、検索と置換 ⌥⌘F、引用 ⌘'、斜体 ⇧⌘I(⌘H は「隠す」、⇧⌘Q は「ログアウト」、⌘I は「プロパティ」)。やり直しは ⇧⌘Z、「テキスト」表示で他のメモへのリンクを開くのは ⌘+クリックです。
 - ウィンドウを閉じても EverPad は終わらず、Dock に残ります。Dock のアイコンを押すと、ウィンドウがまた開きます。終えるときは ⌘Q です。書きかけの編集は、ウィンドウを閉じたときに保存します。EverPad が動いている間は、保存先の印が残ります(「メモの保存先と形式」を見てください)。
 - `.everpad` ファイルは、Finder でダブルクリック、「このアプリケーションで開く」、Dock のアイコンへのドラッグで開けます。テキストファイルは、ウィンドウへのドラッグか、「ファイル」→「インポート…」で取り込みます。
@@ -915,7 +917,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.37.1.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.38.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。

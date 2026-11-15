@@ -95,7 +95,7 @@ test('図: 画面・ヘルプ・main.js・ビルドへのつなぎ込み', () =>
   assert.match(dg, /htmlLabels: false, flowchart: \{ htmlLabels: false \}/);
   assert.match(dg, /maxTextSize: 50000, maxEdges: 500/);
   const app = read('renderer/app.js');
-  assert.match(app, /return Diagrams\.render\(root, diagramOpts\)/);
+  assert.match(app, /return Diagrams\.render\(root, diagramOpts \|\| noteDiag\(\)\)/);   // 印刷・書き出しは明るい配色、画面はメモの色に合わせる
   assert.match(app, /await hydrate\(area, n\.id, \{ light: true \}\)/);
   assert.match(app, /await Diagrams\.render\(box, \{ light: true \}\)/);
   assert.match(app, /closest\('\.math, \.diagram'\)/);

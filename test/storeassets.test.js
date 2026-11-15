@@ -115,7 +115,9 @@ test('main.js: Store 版では更新の確認・「送る」・AppUserModelId �
   const src = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
   assert.match(src, /const isStore = process\.windowsStore === true;/);
   assert.match(src, /if \(!isStore\) scheduleStartupCheck\(\);/);
-  assert.match(src, /process\.platform === 'win32' && !isStore \? \[\{ label: T\('mSendTo'\)/);
+  assert.match(src, /const canSendTo = \(\) => process\.platform === 'win32' && !isStore;/);
+  assert.match(src, /sendTo: canSendTo\(\) \? fs\.existsSync\(sendToLink\(\)\) : null/);
+  assert.match(src, /key === 'sendTo' && typeof value === 'boolean' && canSendTo\(\)\) setSendTo\(value\)/);
   assert.match(src, /\.\.\.\(isStore \? \[\] : \[\s*\{ label: T\('mCheckUpdate'\)/);
   assert.match(src, /process\.platform === 'win32' && !isStore\) app\.setAppUserModelId/);
 });

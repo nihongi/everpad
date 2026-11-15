@@ -11,9 +11,9 @@
   const LANG = I18N.LANGS.includes(qLang) ? qLang : 'ja';
   // Mac では、文中のショートカットキーを Mac の書き方(⌘)にする
   const IS_MAC = query.get('os') === 'darwin';
-  // 改行と字下げの設定(「編集」メニューで切り替え、main.js が渡す): 自動インデント・箇条書きを続ける・字下げの幅
+  // 設定の窓の設定(main.js が config.json から渡す): 自動インデント・箇条書きを続ける・字下げの幅・カーソル行の強調・最後の行より下までのスクロール・メモの色
   const EDIT = { autoIndent: query.get('ai') !== '0', autoList: query.get('al') !== '0', indentWidth: query.get('iw') === '2' ? 2 : 4,
-    lineHl: query.get('hl') !== '0', scrollPast: query.get('sp') !== '0' };
+    lineHl: query.get('hl') !== '0', scrollPast: query.get('sp') !== '0', noteColor: (() => { try { return NoteColor.sanitize(JSON.parse(query.get('nc') || 'null')); } catch (e) { return NoteColor.DEFAULTS(); } })() };
   const T = (key, params) => (IS_MAC ? macKeys(I18N.t(LANG, key, params)) : I18N.t(LANG, key, params));
   document.documentElement.lang = LANG;
   setMdLang(LANG);   // アラートの見出しなど、Markdown の表示に出す言葉
@@ -396,8 +396,33 @@
   }
   fitTail();
   if (window.ResizeObserver) { const ro = new ResizeObserver(fitTail); ro.observe($('editor')); ro.observe($('preview')); ro.observe($('hvBody')); }
+
+  /* ---------- メモの色(設定の「メモの色」。renderer/notecolor.js) ----------
+     メモの欄(本文・プレビュー・履歴)に、いまの画面(明るい・ダーク)の設定の色を付ける。標準なら何も付けない。
+     選んだ背景の明るさが画面と違うときは、欄の配色(リンク・差分・検索の色など)と図の配色も、背景に合うほうにする */
+  const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+  let noteTone = null;   // null(標準) / 'light' / 'dark'
+  const noteDiag = () => (noteTone ? { dark: noteTone === 'dark' } : undefined);
+  function applyNoteColors(noDiagrams) {
+    const r = NoteColor.resolve(EDIT.noteColor, darkMq.matches ? 'dark' : 'light');
+    const vars = r ? NoteColor.cssVars(r) : null;
+    for (const id of ['edwrap', 'preview', 'hvBody']) {
+      const e = $(id);
+      e.classList.toggle('nc', !!r);
+      e.classList.toggle('nc-light', !!r && !r.dark);
+      e.classList.toggle('nc-dark', !!r && r.dark);
+      for (const k of ['--surface', '--fg', '--fg-2', '--surface-2', '--line']) {
+        if (vars) e.style.setProperty(k, vars[k]); else e.style.removeProperty(k);
+      }
+    }
+    const t = r ? (r.dark ? 'dark' : 'light') : null;
+    if (t === noteTone) return;
+    noteTone = t;
+    if (!noDiagrams) { Diagrams.render($('preview'), noteDiag()).catch(() => {}); Diagrams.render($('hvBody'), noteDiag()).catch(() => {}); }
+  }
+  applyNoteColors(true);
   // 設定を変えたとき(main.js から prefs: で届く)に、見た目に関わるものを今の画面に当てる
-  function applyViewPrefs() { fitTail(); queueLineHl(); }
+  function applyViewPrefs() { fitTail(); queueLineHl(); applyNoteColors(); }
 
   /* ---------- 編集 ---------- */
   let composing = false;
@@ -1620,10 +1645,10 @@
       a.dataset.status = n ? T('linkStatusNote', { title: shownTitle(n.title) }) : T('linkStatusMissing');
     });
     // Mermaid の図(diagram.js)。印刷と書き出しは、描き終わるのを待つ
-    return Diagrams.render(root, diagramOpts).catch(() => {});
+    return Diagrams.render(root, diagramOpts || noteDiag()).catch(() => {});
   }
-  // ダークモードが変わったら、プレビューと履歴の図を描き直す
-  Diagrams.onThemeChange(() => { Diagrams.render($('preview')); Diagrams.render($('hvBody')); });
+  // ダークモードが変わったら、メモの色を変えて(明るい画面とダークで別の設定)、プレビューと履歴の図を描き直す
+  Diagrams.onThemeChange(() => { applyNoteColors(true); Diagrams.render($('preview'), noteDiag()); Diagrams.render($('hvBody'), noteDiag()); });
   async function openAttachment(id) {
     let r = 'none';
     try { r = await api.attachOpen(S.active, id); } catch (e) { r = 'none'; }
@@ -3370,7 +3395,7 @@
     input.focus();
   }
 
-  /* ---------- キーボードショートカット(「編集」→「キーボードショートカット…」) ----------
+  /* ---------- キーボードショートカット(「ファイル」→「キーボードショートカット…」) ----------
      一覧と判定は main.js(keymap.js)。行をダブルクリックするか、選んで Enter を押すと、割り当てを始める。
      割り当て中に押したキーは main.js が読んで知らせる(そのあいだ、メニューのキーは効かない)。Enter で決め、Esc でやめる */
   let keysCap = null;          // 割り当て中: { id, accel, shown, error, conflict }
@@ -3508,6 +3533,7 @@
     check(vw, T('setLineHl'), T('setLineHlHint'), P.editor.lineHl, v => setPref('lineHl', v));
     check(vw, T('setScrollPast'), T('setScrollPastHint'), P.editor.scrollPast, v => setPref('scrollPast', v));
     check(vw, T('setLines'), T('setLinesHint'), S.lines, v => setLines(v, true));
+    noteColorRows(vw, P.editor.noteColor, v => setPref('noteColor', v));
     const lr = el('div', 'set-row set-choice');
     const lt = text(T('mLanguage'), T('setLangHint'), 'label');
     const sel = el('select'); sel.id = 'setLang'; lt.l.htmlFor = 'setLang';
@@ -3517,6 +3543,10 @@
     vw.appendChild(lr);
     const ot = section(T('setOther'));
     if (P.update) check(ot, T('setCheckOnStart'), null, P.update.checkOnStart, v => setPref('checkOnStart', v));
+    // 「送る」メニューへの登録(Windows のインストール版と portable 版)。作れなかったときは、実際の状態に戻す
+    if (P.sendTo !== null && P.sendTo !== undefined) {
+      const st = check(ot, T('setSendTo'), T('setSendToHint'), P.sendTo, async v => { await setPref('sendTo', v); st.checked = !!P.sendTo; });
+    }
     const kr = el('div', 'set-row set-choice');
     const kb = el('button', 'btn', T('mKeys')); kb.type = 'button';
     kb.addEventListener('click', () => { closeModal(); showKeys(); });
@@ -3524,6 +3554,76 @@
     ot.appendChild(kr);
     settingsOpen = true;
     openModal(T('setTitle'), box, () => { settingsOpen = false; }, { focus: first });
+  }
+  /* 設定の窓の「メモの色」: 明るい画面とダークモードのそれぞれに、標準・白黒・カスタム(背景と文字の色)。
+     色を選んでいる間は画面にだけ当て(input)、決めたら覚える(change)。文字が読みにくい色(コントラスト比 4.5 未満)は知らせるだけで止めない */
+  function noteColorRows(sec, initial, save) {
+    let nc = NoteColor.sanitize(initial);
+    const head = el('div', 'set-row set-nc-head');
+    const ht = el('span', 'set-txt');
+    const hl = el('span', 'set-label', T('setNoteColor')); hl.id = 'setNcLabel';
+    ht.append(hl, el('span', 'set-hint', T('setNoteColorHint')));
+    head.appendChild(ht);
+    sec.appendChild(head);
+    const preview = () => { EDIT.noteColor = nc; applyNoteColors(); };
+    const now = darkMq.matches ? 'dark' : 'light';
+    for (const k of ['light', 'dark']) {
+      const row = el('div', 'set-row set-choice');
+      row.setAttribute('role', 'group');
+      const name = el('span', 'set-nc-name', T(k === 'dark' ? 'setNcDark' : 'setNcLight'));
+      name.id = 'setNc-' + k;
+      if (k === now) name.appendChild(el('span', 'set-now', T('setNcNow')));
+      row.setAttribute('aria-labelledby', 'setNcLabel setNc-' + k);
+      const opts = el('span', 'set-opts');
+      opts.setAttribute('role', 'radiogroup'); opts.setAttribute('aria-labelledby', 'setNc-' + k);
+      for (const m of ['std', 'bw', 'custom']) {
+        const l = el('label'), r = el('input');
+        r.type = 'radio'; r.name = 'setNc-' + k; r.value = m; r.checked = nc[k].mode === m;
+        r.addEventListener('change', () => { if (!r.checked) return; nc[k].mode = m; preview(); save(nc); update(); });
+        l.append(r, document.createTextNode(T({ std: 'setNcStd', bw: 'setNcBw', custom: 'setNcCustom' }[m])));
+        opts.appendChild(l);
+      }
+      const sample = el('span', 'nc-sample', T('setNcSample'));
+      sample.setAttribute('aria-hidden', 'true');
+      row.append(name, opts, sample);
+      sec.appendChild(row);
+      // カスタムの背景と文字の色
+      const cr = el('div', 'set-row set-choice set-nc-custom');
+      const bgL = el('label'), bg = el('input');
+      bg.type = 'color'; bg.value = nc[k].bg;
+      bgL.append(document.createTextNode(T('setNcBg')), bg);
+      const fgL = el('label'), fg = el('input');
+      fg.type = 'color'; fg.value = nc[k].fg === 'auto' ? NoteColor.sample(nc, k).fg : nc[k].fg;
+      fgL.append(document.createTextNode(T('setNcFg')), fg);
+      const autoL = el('label'), auto = el('input');
+      auto.type = 'checkbox'; auto.checked = nc[k].fg === 'auto';
+      autoL.title = T('setNcAutoHint');
+      autoL.append(auto, document.createTextNode(T('setNcAuto')));
+      const warn = el('span', 'set-warn');
+      warn.setAttribute('role', 'status');
+      const opt = el('span', 'set-opts');
+      opt.append(bgL, fgL, autoL);
+      cr.append(opt, warn);
+      sec.appendChild(cr);
+      const live = () => { nc[k].bg = bg.value; nc[k].fg = auto.checked ? 'auto' : fg.value; preview(); update(); };
+      bg.addEventListener('input', live);
+      fg.addEventListener('input', live);
+      bg.addEventListener('change', () => { live(); save(nc); });
+      fg.addEventListener('change', () => { live(); save(nc); });
+      auto.addEventListener('change', () => { live(); save(nc); });
+      function update() {
+        const s = NoteColor.sample(nc, k);
+        sample.style.background = s.bg; sample.style.color = s.fg;
+        cr.hidden = nc[k].mode !== 'custom';
+        fg.disabled = auto.checked;
+        // 自動のときは、自動で決まった文字色を出しておく(自動を外したときの始まりの色)
+        if (auto.checked) fg.value = s.fg;
+        const ratio = nc[k].mode === 'custom' ? NoteColor.contrast(s.bg, s.fg) : 21;
+        warn.hidden = ratio >= 4.5;
+        warn.textContent = ratio >= 4.5 ? '' : T('setNcLow', { ratio: ratio.toFixed(1) });
+      }
+      update();
+    }
   }
 
   /* ---------- テキストの取り込み・書き出し ----------

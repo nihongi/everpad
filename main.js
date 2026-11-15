@@ -11,6 +11,7 @@ const { titleOf } = require('./renderer/core');
 const { buildTemplate, buildAttachTemplate, formatItems, inlineItems, tableItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
+const NoteColor = require('./renderer/notecolor');
 const { portableLayout, dataDirToConfig, dataDirFromConfig, portableDirFromEnv } = require('./portable');
 const datalock = require('./datalock');
 const { macTemplate } = require('./macmenu');
@@ -659,8 +660,9 @@ function setSendTo(on) {
       if (!shell.writeShortcutLink(link, 'create', { target: t.target, args: t.args, description: APP_NAME, icon: t.target, iconIndex: 0 })) throw new Error('shortcut');
     } else if (fs.existsSync(link)) fs.unlinkSync(link);
   } catch (err) { dialog.showErrorBox(APP_NAME, T('sendToFailed')); }
-  buildMenu();
 }
+// 「送る」メニューへの登録(設定の窓の「そのほか」)。Windows のインストール版と portable 版だけ(Store 版には無い)
+const canSendTo = () => process.platform === 'win32' && !isStore;
 
 /* ---------- 印刷・PDF ----------
    紙面は画面側が用意する(印刷するときだけ本文を出すスタイル)。ここでは印刷ダイアログと PDF の書き出しをする。 */
@@ -863,11 +865,11 @@ async function changeFolder() {
 
 /* ---------- 編集の設定(「設定」の窓) ----------
    自動インデント・箇条書きを自動で続ける(どちらも既定はオン)、Tab での字下げの幅(2 か 4、既定は 4)、
-   カーソル行の強調・最後の行より下までのスクロール(どちらも既定はオン)。config.json に覚える */
+   カーソル行の強調・最後の行より下までのスクロール(どちらも既定はオン)、メモの色(renderer/notecolor.js。既定は標準)。config.json に覚える */
 function editPrefs() {
   const c = readConfig().editor || {};
   return { autoIndent: c.autoIndent !== false, autoList: c.autoList !== false, indentWidth: c.indentWidth === 2 ? 2 : 4,
-    lineHl: c.lineHl !== false, scrollPast: c.scrollPast !== false };
+    lineHl: c.lineHl !== false, scrollPast: c.scrollPast !== false, noteColor: NoteColor.sanitize(c.noteColor) };
 }
 function setEditPref(key, value) {
   const p = Object.assign(editPrefs(), { [key]: value });
@@ -876,14 +878,15 @@ function setEditPref(key, value) {
 }
 
 /* ---------- 設定(「ファイル」→「設定…」。Mac ではアプリ名のメニュー) ----------
-   画面の「設定」の窓が読み書きする。編集の設定(上)・言語・起動時の更新の確認(Store 版には無い)。
+   画面の「設定」の窓が読み書きする。編集の設定(上)・言語・起動時の更新の確認・「送る」メニューへの登録(どちらも Store 版には無い)。
    行番号の表示は、画面の側で覚えている(localStorage) */
 function prefsAll() {
   return {
     editor: editPrefs(),
     lang: lang,
     langs: [{ id: 'ja', label: '日本語' }, { id: 'en', label: 'English' }],
-    update: isStore ? null : { checkOnStart: updater.updatePrefs(readConfig()).checkOnStart }
+    update: isStore ? null : { checkOnStart: updater.updatePrefs(readConfig()).checkOnStart },
+    sendTo: canSendTo() ? fs.existsSync(sendToLink()) : null
   };
 }
 const EDIT_BOOL = ['autoIndent', 'autoList', 'lineHl', 'scrollPast'];
@@ -892,12 +895,14 @@ ipcMain.handle('prefs:set', async (e, key, value) => {
   if (!fromOurWindow(e)) return null;
   if (EDIT_BOOL.includes(key) && typeof value === 'boolean') setEditPref(key, value);
   else if (key === 'indentWidth' && (value === 2 || value === 4)) setEditPref(key, value);
+  else if (key === 'noteColor' && value && typeof value === 'object') setEditPref(key, NoteColor.sanitize(value));
   else if (key === 'checkOnStart' && typeof value === 'boolean' && !isStore) setUpdatePref({ checkOnStart: value });
+  else if (key === 'sendTo' && typeof value === 'boolean' && canSendTo()) setSendTo(value);
   else if (key === 'lang' && I18N.LANGS.includes(value)) { setLang(value); return null; }   // 画面を読み直す
   return prefsAll();
 });
 
-/* ---------- キーボードショートカット(「編集」→「キーボードショートカット…」) ----------
+/* ---------- キーボードショートカット(「ファイル」→「キーボードショートカット…」) ----------
    キーの一覧と判定は keymap.js。変えたキーは config.json の keys に覚える(パソコンごと。メモのフォルダには入れない)。
    キーを割り当てている間は、押したキーをメニューにも画面にも渡さずに main.js が読み(before-input-event)、画面に知らせる */
 let keyMap = null;
@@ -1021,9 +1026,9 @@ function buildMenu() {
         { type: 'separator' },
         { label: T('mOpenDir'), accelerator: A('openDir'), click: () => shell.openPath(store.dir) },
         { label: T('mChangeDir'), click: changeFolder },
-        ...(process.platform === 'win32' && !isStore ? [{ label: T('mSendTo'), type: 'checkbox', checked: fs.existsSync(sendToLink()), click: item => setSendTo(item.checked) }] : []),
         { type: 'separator' },
         { id: 'settings', label: T('mSettings'), accelerator: A('settings'), click: () => send('settings') },
+        { id: 'keys', label: T('mKeys'), click: () => send('keys') },
         { type: 'separator' },
         { id: 'quit', role: 'quit', label: T('mQuit') }
       ]
@@ -1041,8 +1046,6 @@ function buildMenu() {
         { label: T('mInsertMath'), accelerator: A('math'), enabled: !ui.hist && !ui.ro, click: () => send('math') },
         { label: T('mInsertDiagram'), accelerator: A('diagram'), enabled: !ui.hist && !ui.ro, click: () => send('diagram') },
         { label: T('mTable'), enabled: !ui.hist && !ui.ro, submenu: tableItems(T, id => send('tbl:' + id), null, KM).map(x => (x.type === 'separator' || x.submenu ? x : Object.assign(x, { enabled: !ui.hist && !ui.ro }))) },
-        { type: 'separator' },
-        { label: T('mKeys'), click: () => send('keys') },
         { type: 'separator' },
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
@@ -1065,11 +1068,6 @@ function buildMenu() {
         roleItem(KM, 'resetZoom', T('mZoomReset')),
         { type: 'separator' },
         roleItem(KM, 'fullscreen', T('mFullscreen')),
-        { type: 'separator' },
-        { label: T('mLanguage'), submenu: [
-          { label: '日本語', type: 'radio', checked: lang === 'ja', click: () => setLang('ja') },
-          { label: 'English', type: 'radio', checked: lang === 'en', click: () => setLang('en') }
-        ] },
         ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools', label: T('mDevTools') }])
       ]
     },
@@ -1106,8 +1104,8 @@ async function setLang(l) {
 }
 // os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
 const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform, kd: JSON.stringify(keyShown()) }, editQuery()) }); };
-// 画面に渡す編集の設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅、hl: カーソル行の強調、sp: 最後の行より下までスクロール)
-const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth), hl: p.lineHl ? '1' : '0', sp: p.scrollPast ? '1' : '0' }; };
+// 画面に渡す編集の設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅、hl: カーソル行の強調、sp: 最後の行より下までスクロール、nc: メモの色)
+const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth), hl: p.lineHl ? '1' : '0', sp: p.scrollPast ? '1' : '0', nc: JSON.stringify(p.noteColor) }; };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
