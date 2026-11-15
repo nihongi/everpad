@@ -199,3 +199,11 @@ test('メモの色: main.js が確かめて覚え、画面に nc で渡す。画
   for (const k of ['setNcLight', 'setNcDark', 'setNcStd', 'setNcBw', 'setNcCustom']) assert.ok(body.includes("'" + k + "'"), k);
   for (const l of ['ja', 'en']) for (const k of ['setNcLight', 'setNcDark', 'setNcStd', 'setNcBw', 'setNcCustom']) assert.notStrictEqual(I18N.t(l, k), k, l + ':' + k);
 });
+
+test('メニューのキーの名前: Chromium の言語はいつも en-US(英語の画面で「Ctrl+カンマ」にならない)。Windows の言語は getSystemLocale で読む', () => {
+  const main = read('main.js');
+  assert.match(main, /\napp\.commandLine\.appendSwitch\('lang', 'en-US'\);\n/);
+  assert.ok(main.indexOf("appendSwitch('lang', 'en-US')") < main.indexOf('app.whenReady('), '起動の準備より前に指定する');
+  assert.ok(!main.includes('app.getLocale()'), 'getLocale は en-US になるので使わない');
+  assert.ok(main.includes("const paperSize = () => (/[-_](US|CA)\\b/i.test(app.getSystemLocale() + ' ' + (app.getPreferredSystemLanguages()[0] || ''))"), '用紙は Windows の言語で決める');
+});

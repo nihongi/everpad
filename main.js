@@ -25,6 +25,11 @@ const isMac = process.platform === 'darwin';
    Node.js 側(--inspect、NODE_OPTIONS、ELECTRON_RUN_AS_NODE)は package.json の electronFuses で実行ファイルごと無効にしてある。
    画面(Chromium)側の --remote-debugging-* は fuses の対象外なので、ここで取り除き、残っていれば起動しない。 */
 const DEBUG_SWITCHES = ['remote-debugging-port', 'remote-debugging-pipe', 'remote-debugging-address', 'remote-allow-origins'];
+/* Chromium の言語はいつも英語にする。メニューの右端のキーの名前(Ctrl+Comma・Alt+Left Arrow など)は、アプリの言語でなく
+   Chromium の言語で作られ、起動したあとは変えられないため(日本語にすると、英語の画面でも「Ctrl+カンマ」になる)。
+   メニューや画面の文言は EverPad の言語(lang)で出すので、日本語の画面は日本語のまま。
+   Windows の言語が要るところ(用紙の大きさ、初めの言語)は app.getSystemLocale と app.getPreferredSystemLanguages を使う */
+app.commandLine.appendSwitch('lang', 'en-US');
 if (app.isPackaged) {
   for (const sw of DEBUG_SWITCHES) app.commandLine.removeSwitch(sw);
   if (DEBUG_SWITCHES.some(sw => app.commandLine.hasSwitch(sw))) app.exit(1);
@@ -673,7 +678,7 @@ ipcMain.handle('print:print', e => {
   });
 });
 // 用紙: 米国・カナダは Letter、それ以外は A4
-const paperSize = () => (/[-_](US|CA)\b/i.test(app.getLocale() + ' ' + (app.getPreferredSystemLanguages()[0] || '')) ? 'Letter' : 'A4');
+const paperSize = () => (/[-_](US|CA)\b/i.test(app.getSystemLocale() + ' ' + (app.getPreferredSystemLanguages()[0] || '')) ? 'Letter' : 'A4');
 ipcMain.handle('print:pdf', async (e, title) => {
   if (!fromOurWindow(e)) return { status: 'failed' };
   const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.pdf';
@@ -1092,7 +1097,7 @@ function buildMenu() {
 /* ---------- 言語 ---------- */
 function initLang() {
   const saved = readConfig().lang;
-  lang = I18N.LANGS.includes(saved) ? saved : I18N.pick(app.getPreferredSystemLanguages()[0] || app.getLocale());
+  lang = I18N.LANGS.includes(saved) ? saved : I18N.pick(app.getPreferredSystemLanguages()[0] || app.getSystemLocale());
 }
 async function setLang(l) {
   if (l === lang) return;
