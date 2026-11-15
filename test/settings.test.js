@@ -9,7 +9,8 @@ const { macTemplate } = require('../macmenu');
 const I18N = require('../renderer/i18n');
 
 const root = path.join(__dirname, '..');
-const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+// CRLF で取り出したときも同じに読む(正規表現の \n が合うように)
+const read = f => fs.readFileSync(path.join(root, f), 'utf8').replace(/\r\n/g, '\n');
 
 test('設定: 「ファイル」→「設定…」の既定のキーは Ctrl+,(Mac は ⌘,)。変えることもできる', () => {
   for (const p of ['win32', 'darwin', 'linux']) assert.strictEqual(keymap.defaults(p).settings, 'CmdOrCtrl+,');
