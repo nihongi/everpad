@@ -33,7 +33,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。図エディタでは、ひな型から始めて、図を拡大・移動しながら書けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
 ・他のメモへのリンクを入れて、メモどうしをつなげられます。最近見たメモや、前に見たメモにもすぐ戻れます。  
-・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、自動インデントに対応しています。  
+・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、カーソル行の強調、自動インデントに対応しています。  
 ・キーボードショートカットを、好きなキーに変えられます。
 
 ■ 見返す  
@@ -130,7 +130,7 @@ WRITE
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax. The diagram editor lets you start from a template and zoom and move the diagram as you write.  
 • Paste screenshots or drop files to attach images and files to a note.  
 • Link notes to each other, and go straight back to recently viewed notes or the previous note.  
-• Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers and automatic indentation.  
+• Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers, current-line highlighting and automatic indentation.  
 • Change the keyboard shortcuts to the keys you like.
 
 LOOK BACK  
