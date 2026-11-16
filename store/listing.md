@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.38.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.38.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -59,9 +59,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・設定に「メモの色」を足しました。「ファイル」→「設定…」で、メモの欄(テキスト・プレビュー・履歴)の背景と文字の色を、明るい画面とダークモードで別々に選べます。「標準」「白黒」「カスタム」から選べ、カスタムでは文字の色を背景に合わせて自動で決めることもできます。  
-・「表示」メニューの「言語」をなくしました。言語は「ファイル」→「設定…」で変えます。  
-・「キーボードショートカット…」を、「編集」メニューから「ファイル」メニューの「設定…」の下に移しました。
+・メニューの右端に出るキーの名前を、いつも英語で出すようにしました。今までは英語の画面でも「Ctrl+カンマ」のように日本語で出ていましたが、今は日本語の画面でも英語の画面でも「Ctrl+Comma」「Alt+Left Arrow」のように出ます。メニューの項目の名前は、今までどおり画面の言語で出ます。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -155,9 +153,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• New note colors: in File → Settings…, choose the background and text colors of the note area (Text, Preview and history), separately for light mode and dark mode. Choose Standard, Black and white or Custom; with Custom, the text color can also be chosen automatically to suit the background.  
-• Language has been removed from the View menu. Change the language in File → Settings….  
-• Keyboard Shortcuts… has moved from the Edit menu to the File menu, below Settings….
+• Key names in the menus are now always shown in English. With the English interface, some of them were shown in Japanese (such as "Ctrl+カンマ"); they now appear as Ctrl+Comma, Alt+Left Arrow and so on, whatever the interface language. Menu commands are still shown in the interface language.
 
 ### Product features (up to 20, up to 200 characters each)
 
