@@ -3064,6 +3064,7 @@
     else if (name.indexOf('prefs:') === 0) { try { Object.assign(EDIT, JSON.parse(name.slice(6))); } catch (err) { /* 読めなければ今のまま */ } applyViewPrefs(); }
     else if (name.indexOf('keys:') === 0) { try { Object.assign(KEYD, JSON.parse(name.slice(5))); applyKeyTitles(); } catch (err) { /* 読めなければ今のまま */ } }
     else if (name === 'keys') showKeys();
+    else if (name === 'updCanceled') toast(T('updCanceled'));
     else if (name === 'settings') showSettings();
     else if (name.indexOf('open:') === 0) openNoteById(name.slice(5), 'noteDeleted');
     else if (name === 'back') goBack();
@@ -3706,6 +3707,15 @@
   }
 
   api.onFlushRequest(() => { flushSync(); api.flushed(); });
+  // アプリの中からの更新: ダウンロードの進み具合
+  api.onUpdateProgress(p => {
+    const bar = $('updBar');
+    if (!p) { bar.hidden = true; return; }
+    $('updText').textContent = p.text;
+    $('updProg').value = p.frac;
+    bar.hidden = false;
+  });
+  $('updCancel').addEventListener('click', () => api.updateCancel());
   window.addEventListener('pagehide', flushSync);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
   $('openDirBtn').addEventListener('click', () => api.openFolder());

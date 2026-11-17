@@ -1,6 +1,7 @@
 ﻿# Windows 版の起動の確認(GitHub Actions の build.yml から呼ぶ)。
 #  1. portable 版: 別のフォルダにコピーして起動し、落ちないことと、隣に「EverPad Data」ができることを確かめる
 #  2. インストーラー(-SkipInstaller を付けなければ): 画面を出さずにインストール(/S)して起動し、
+#     アプリの中からの更新と同じ動かし方(--updated /S --force-run)で入れ直して、同じ場所の EverPad が起動し直すことを確かめ、
 #     画面を出さずにアンインストール(/S)したあと、設定(%APPDATA%\EverPad)とメモ(ドキュメント\EverPad)が残っていることを確かめる
 # 止めるのは、自分が起動したプロセスとその子だけ(手元で試しても、ほかの EverPad には触れない)。
 # 結果は GitHub Actions の注釈(::notice / ::error)として書く。
@@ -101,6 +102,34 @@ Note 'notice' 'Smoke test (Windows installer)' 'The installed EverPad was runnin
 Stop-Tree $a
 if (-not (Test-Path (Join-Path $settingsDir 'config.json'))) { Fail 'Smoke test (Windows installer)' "settings were not saved in $settingsDir" }
 $notesDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'EverPad'
+
+# アプリの中からの更新と同じ動かし方(EverPad を閉じたあとで、インストーラーを --updated /S --force-run で動かす)。
+# 同じ場所に入れ直し、終わったら EverPad が起動し、設定とメモが残ることを確かめる
+$cfgBefore = Get-Content (Join-Path $settingsDir 'config.json') -Raw
+$t = Get-Date
+$up = Start-Process -FilePath $setup.FullName -ArgumentList '--updated', '/S', '--force-run' -PassThru
+if (-not $up.WaitForExit(300000)) { Fail 'Smoke test (Windows update)' 'the installer did not finish within 5 minutes' }
+if ($up.ExitCode -ne 0) { Fail 'Smoke test (Windows update)' "silent update failed (exit code $($up.ExitCode))" }
+$relaunched = $null
+for ($i = 0; $i -lt 60 -and -not $relaunched; $i++) {
+  Start-Sleep 1
+  $relaunched = Get-CimInstance Win32_Process -Filter "Name = 'EverPad.exe'" | Where-Object { $_.ExecutablePath -eq $exe.FullName -and $_.CreationDate -ge $t } | Where-Object { $p = $_; -not (Get-CimInstance Win32_Process -Filter "ProcessId = $($p.ParentProcessId)" | Where-Object Name -eq 'EverPad.exe') } | Select-Object -First 1
+}
+if (-not $relaunched) { Fail 'Smoke test (Windows update)' "EverPad was not started from $($exe.FullName) after the update" }
+Note 'notice' 'Smoke test (Windows update)' "After the update, EverPad started again from the same place: $($exe.FullName)"
+Start-Sleep 15
+Save-Screenshot (Join-Path $Out 'screenshot-windows-updated.png')
+$u = [pscustomobject]@{ Id = $relaunched.ProcessId; StartTime = $t }
+if (-not (Test-AppRunning $u)) { Fail 'Smoke test (Windows update)' 'EverPad exited within 15 seconds after the update' }
+Stop-Tree $u
+$others = @((Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles) | ForEach-Object { Get-ChildItem $_ -Filter 'EverPad.exe' -Recurse -Depth 2 -ErrorAction SilentlyContinue } | Where-Object { $_.FullName -ne $exe.FullName }
+if ($others) { Fail 'Smoke test (Windows update)' "the update installed another copy: $(($others | ForEach-Object FullName) -join ', ')" }
+if (-not (Test-Path (Join-Path $settingsDir 'config.json'))) { Fail 'Smoke test (Windows update)' 'the update deleted the settings' }
+$cfgAfter = Get-Content (Join-Path $settingsDir 'config.json') -Raw
+if ((ConvertFrom-Json $cfgAfter).dataDir -ne (ConvertFrom-Json $cfgBefore).dataDir) { Fail 'Smoke test (Windows update)' 'the data folder setting changed after the update' }
+if (-not (Test-Path $notesDir)) { Fail 'Smoke test (Windows update)' "the update deleted the data folder $notesDir" }
+Note 'notice' 'Smoke test (Windows update)' 'After the update, the settings and the data folder were kept'
+
 # アンインストーラーは自分を一時フォルダにコピーして動くので、終わるまで EverPad.exe が消えるのを待つ
 $un = Join-Path $exe.DirectoryName 'Uninstall EverPad.exe'
 if (-not (Test-Path $un)) { Fail 'Smoke test (Windows installer)' "uninstaller not found: $un" }

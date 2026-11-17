@@ -60,5 +60,8 @@ contextBridge.exposeInMainWorld('memoApi', {
   onMenu: cb => { ipcRenderer.on('menu', (_e, name) => cb(name)); },
   // ウィンドウを閉じる前に、未保存の編集を書き出すよう求められる
   onFlushRequest: cb => { ipcRenderer.on('app:flush', () => cb()); },
+  // アプリの中からの更新: ダウンロードの進み具合({ text, frac } か、消すときは null)と、やめる
+  onUpdateProgress: cb => { ipcRenderer.on('update:progress', (_e, p) => cb(p)); },
+  updateCancel: () => ipcRenderer.send('update:cancel'),
   flushed: () => ipcRenderer.send('app:flushed')
 });

@@ -28,7 +28,7 @@ test('parseVersion / compareVersions: x.y.z と vx.y.z だけを読み、数と�
 test('checkLatest: 新しい版・同じ版・古い版(開発中)を見分け、固定の API に問い合わせる', async () => {
   const calls = [];
   const r = await U.checkLatest({ fetch: fakeFetch(200, release('v0.22.0'), calls), current: '0.21.0', userAgent: 'EverPad/0.21.0' });
-  assert.deepStrictEqual(r, { status: 'newer', current: '0.21.0', latest: '0.22.0' });
+  assert.deepStrictEqual(r, { status: 'newer', current: '0.21.0', latest: '0.22.0', files: {} });
   assert.strictEqual(calls[0].url, 'https://api.github.com/repos/nihongi/everpad/releases/latest');
   assert.strictEqual(calls[0].init.method, 'GET');
   assert.strictEqual(calls[0].init.headers['User-Agent'], 'EverPad/0.21.0');

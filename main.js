@@ -17,6 +17,8 @@ const datalock = require('./datalock');
 const { macTemplate } = require('./macmenu');
 const keymap = require('./keymap');
 const updater = require('./updatecheck');
+const updget = require('./updatedownload');
+const { spawn } = require('child_process');
 const pageexport = require('./pageexport');
 const docexport = require('./docexport');
 const isMac = process.platform === 'darwin';
@@ -1166,6 +1168,7 @@ let startupCheckScheduled = false;
 let updateChecking = false;
 // 開発中(npm start)だけ、確かめるための別の URL を使える。配布版では使わない
 const updateUrl = () => (!app.isPackaged && process.env.EVERPAD_UPDATE_URL) || updater.LATEST_API;
+const updateDownloadBase = () => (!app.isPackaged && process.env.EVERPAD_UPDATE_DL) || undefined;
 function setUpdatePref(change) {
   try { const c = readConfig(); c.update = Object.assign(updater.updatePrefs(c), change); writeConfig(c); } catch (e) { /* 覚えられなくても動く */ }
   buildMenu();
@@ -1173,6 +1176,7 @@ function setUpdatePref(change) {
 function scheduleStartupCheck() {
   if (startupCheckScheduled) return;
   startupCheckScheduled = true;
+  setTimeout(cleanupUpdateTemp, 60000);   // 前の更新のインストーラーが終わったころに片づける
   if (!updater.updatePrefs(readConfig()).checkOnStart) return;
   setTimeout(() => checkForUpdates(false), 5000);   // 起動の邪魔をしないよう、少し待つ
 }
@@ -1181,7 +1185,7 @@ async function checkForUpdates(manual) {
   updateChecking = true;
   let r;
   try {
-    r = await updater.checkLatest({ fetch: (url, init) => net.fetch(url, init), current: app.getVersion(), url: updateUrl(), userAgent: APP_NAME + '/' + app.getVersion() });
+    r = await updater.checkLatest({ fetch: (url, init) => net.fetch(url, init), current: app.getVersion(), url: updateUrl(), downloadBase: updateDownloadBase(), userAgent: APP_NAME + '/' + app.getVersion() });
   } catch (e) {
     r = { status: 'error', code: 'bad', message: String((e && e.message) || e) };
   } finally {
@@ -1193,19 +1197,26 @@ async function checkForUpdates(manual) {
   if (r.status === 'newer') {
     const prefs = updater.updatePrefs(readConfig());
     if (!manual && !updater.shouldNotifyAtStart(r, prefs)) return;
+    if (updateJob) return;   // ダウンロードしている途中(画面の下に進み具合が出ている)
     const isWin = process.platform === 'win32';
+    // アプリの中から更新できるとき(インストール版・portable 版で、GitHub に SHA-256 の記録があるファイル)
+    const kind = updateKind();
+    const file = kind && r.files && r.files[kind];
+    const buttons = file ? [T(kind === 'installer' ? 'updInstall' : 'updDownload'), T('updOpen'), T('updLater')]
+      : [T(isWin ? 'updOpen' : 'aboutOpenSite'), T('updLater')];
     const res = await box(Object.assign({}, base, {
       type: 'info',
       message: T('updNewer', { latest: r.latest }),
-      detail: T('updCurrent', { current: r.current }) + '\n' + T(isWin ? 'updDetailWin' : 'updDetailOther'),
-      buttons: [T(isWin ? 'updOpen' : 'aboutOpenSite'), T('updLater')],
+      detail: T('updCurrent', { current: r.current }) + '\n' + T(file ? (kind === 'installer' ? 'updDetailInstall' : 'updDetailPortable') : isWin ? 'updDetailWin' : 'updDetailOther'),
+      buttons: buttons,
       defaultId: 0,
-      cancelId: 1,
+      cancelId: buttons.length - 1,
       // 起動時だけ「この版は今後知らせない」を出す(手動で確かめたときは、いつも結果を出す)
       ...(manual ? {} : { checkboxLabel: T('updSkip', { latest: r.latest }), checkboxChecked: false })
     }));
     if (!manual && res.checkboxChecked) setUpdatePref({ skip: r.latest });
-    if (res.response === 0) shell.openExternal(updater.downloadUrl(process.platform));
+    if (file && res.response === 0) startUpdate(kind, r.latest, file);
+    else if (res.response === (file ? 1 : 0)) shell.openExternal(updater.downloadUrl(process.platform));
     return;
   }
   if (!manual) return;
@@ -1213,7 +1224,7 @@ async function checkForUpdates(manual) {
     await box(Object.assign({}, base, { type: 'info', message: T('updLatest'), detail: T('updLatestDetail', { current: r.current }), buttons: ['OK'] }));
     return;
   }
-  const why = r.code === 'rate' ? T('updErrRate') : r.code === 'http' ? T('updErrHttp', { status: r.httpStatus }) : r.code === 'bad' ? T('updErrBad') : r.code === 'timeout' ? T('updErrTimeout') : T('updErrNet');
+  const why = T(updater.errorKey(r), { status: r.httpStatus });
   const res = await box(Object.assign({}, base, {
     type: 'warning',
     message: T('updError'),
@@ -1224,6 +1235,126 @@ async function checkForUpdates(manual) {
     cancelId: 1
   }));
   if (res.response === 0) shell.openExternal(updater.downloadUrl(process.platform));
+}
+
+/* ---------- アプリの中からの更新(updatedownload.js) ----------
+   新しい版があるときの「ダウンロードして更新」(インストール版)と「ダウンロード」(portable 版)。
+   - ファイルは GitHub の release から、版の番号で決まる名前のものだけをダウンロードし、
+     大きさと SHA-256 が GitHub の記録と同じときだけ使う(違えば消して、何も動かさない)
+   - インストール版: 一時フォルダにダウンロードし、確かめたら、EverPad をいつもどおり閉じて(メモを書き出して)から、
+     インストーラーを画面なしの更新として動かす。入れる場所と、自分だけか全ユーザーかは前のインストールのもの
+     (全ユーザーなら Windows の確認が出る)。終わったら新しい EverPad が起動する
+   - portable 版: いまの exe と同じフォルダに「EverPad x.y.z.exe」として保存する(「EverPad Data」はそのまま使える)。
+     動いている exe は置き換えられないので、起動し直すのは自分で
+   - Store 版は Store が更新するので、ここは使わない(更新の確認そのものをしない)
+   開発中(npm start)だけ、EVERPAD_UPDATE_KIND(installer / portable)、EVERPAD_UPDATE_DL(ダウンロードする先)、
+   EVERPAD_UPDATE_DIR(portable 版の保存先と、インストーラーを動かす代わりに書き残す先)で試せる。開発中はインストーラーを動かさない */
+let updateJob = null;          // ダウンロードしている途中: { ctrl, dir?, part }
+let pendingInstaller = null;   // 終わるときに動かすインストーラー
+function updateKind() {
+  if (isStore || process.platform !== 'win32') return null;
+  if (!app.isPackaged) { const k = process.env.EVERPAD_UPDATE_KIND; return k === 'installer' || k === 'portable' ? k : null; }
+  // portable 版: exe の隣に書けるときだけ(書けない場所なら、ダウンロードのページを案内する)
+  if (isPortable) return layout.mode === 'portable' && process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : null;
+  // インストール版: インストーラーが入れたもの(隣にアンインストーラーがある)だけ
+  return fs.existsSync(path.join(path.dirname(process.execPath), 'Uninstall ' + APP_NAME + '.exe')) ? 'installer' : null;
+}
+function portableUpdateDir() {
+  return app.isPackaged ? path.dirname(process.env.PORTABLE_EXECUTABLE_FILE) : process.env.EVERPAD_UPDATE_DIR;
+}
+// 画面の下の進み具合(p が null なら消す)と、タスクバーのボタンの進み具合
+function showUpdateProgress(p) {
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send('update:progress', p);
+  win.setProgressBar(p ? p.frac : -1);
+}
+const mb = n => (n / 1048576).toFixed(1) + ' MB';
+async function startUpdate(kind, latest, f) {
+  if (updateJob || isStore) return;
+  const ctrl = new AbortController();
+  updateJob = { ctrl: ctrl, dir: null, part: null };
+  const parent = () => (win && !win.isDestroyed() ? win : null);
+  const box = opts => (parent() ? dialog.showMessageBox(parent(), opts) : dialog.showMessageBox(opts));
+  const base = { title: T('updTitle'), icon: ICON, noLink: true };
+  let target = null, ready = false;
+  try {
+    if (kind === 'installer') {
+      updateJob.dir = fs.mkdtempSync(path.join(app.getPath('temp'), updget.TEMP_PREFIX));
+      target = path.join(updateJob.dir, APP_NAME + ' Setup ' + latest + '.exe');
+    } else {
+      target = path.join(portableUpdateDir(), APP_NAME + ' ' + latest + '.exe');
+      // 前にダウンロードしてあれば、それを使う(中身が違えば上書きしない)
+      if (fs.existsSync(target)) {
+        if ((await updget.sha256File(target).catch(() => '')) !== f.sha256) throw new updget.DownloadError('exists');
+        ready = true;
+      }
+    }
+    if (!ready) {
+      updateJob.part = target + '.part';
+      let last = 0;
+      const progress = (got, size) => {
+        const now = Date.now();
+        if (got < size && now - last < 200) return;
+        last = now;
+        showUpdateProgress({ text: T('updDownloading', { latest: latest, done: mb(got), total: mb(size) }), frac: size ? got / size : 0 });
+      };
+      progress(0, f.size);
+      // 通信は更新の確認と同じ net.fetch(Windows のプロキシ設定を使う)。会社などのプロキシには、exe を検査し終わるまで
+      // 何も渡さないものがあるので、何も届かなくても2分は待つ(待っている間も「やめる」で止められる)
+      await updget.download({ fetch: (url, init) => net.fetch(url, init), url: f.url, file: target, size: f.size, sha256: f.sha256, signal: ctrl.signal, onProgress: progress, idleMs: 120000, userAgent: APP_NAME + '/' + app.getVersion() });
+    }
+  } catch (e) {
+    showUpdateProgress(null);
+    if (updateJob.dir) { try { fs.rmSync(updateJob.dir, { recursive: true, force: true }); } catch (x) { /* 次の起動で片づける */ } }
+    updateJob = null;
+    if (e && e.code === 'abort') { if (parent()) parent().webContents.send('menu', 'updCanceled'); return; }
+    const err = e instanceof updget.DownloadError ? e : { code: 'net', message: String((e && e.message) || e) };
+    const why = T(updater.errorKey(err), { status: err.httpStatus, file: target, msg: err.message || '' }) + (err.code === 'net' && err.message ? '\n\n' + err.message : '');
+    const res = await box(Object.assign({}, base, { type: 'warning', message: T('updDlError'), detail: why, buttons: [T('updOpen'), 'OK'], defaultId: 1, cancelId: 1 }));
+    if (res.response === 0) shell.openExternal(updater.downloadUrl(process.platform));
+    return;
+  }
+  showUpdateProgress(null);
+  const dir = updateJob.dir;
+  updateJob = null;
+  if (kind === 'installer') {
+    const res = await box(Object.assign({}, base, { type: 'info', message: T('updReady', { latest: latest }), detail: T('updReadyDetail'), buttons: [T('updRestart'), T('updLater')], defaultId: 0, cancelId: 1 }));
+    if (res.response !== 0) { try { fs.rmSync(dir, { recursive: true, force: true }); } catch (x) { /* 次の起動で片づける */ } return; }
+    pendingInstaller = target;
+    await flushRenderer();
+    app.quit();   // ウィンドウはいつもどおり閉じる(位置を覚え、メモを書き出す)。終わったところで、インストーラーを動かす
+  } else {
+    const res = await box(Object.assign({}, base, { type: 'info', message: T('updSaved', { latest: latest }), detail: T('updSavedDetail', { file: target }), buttons: [T('updShowFile'), 'OK'], defaultId: 0, cancelId: 1 }));
+    if (res.response === 0) shell.showItemInFolder(target);
+  }
+}
+ipcMain.on('update:cancel', () => { if (updateJob) updateJob.ctrl.abort(); });
+// アプリが終わったところで、インストーラーを動かす(EverPad が残っていると、インストーラーが少し待ってから閉じる)
+function launchInstaller(file) {
+  if (isStore) return;
+  if (!app.isPackaged) {   // 開発中: 動かさずに、動かすはずだったものを書き残す
+    const out = process.env.EVERPAD_UPDATE_DIR;
+    if (out) { try { fs.writeFileSync(path.join(out, 'installer-launch.json'), JSON.stringify({ file: file, args: updget.INSTALLER_ARGS })); } catch (e) { /* 試験のときだけ */ } }
+    return;
+  }
+  try {
+    const child = spawn(file, updget.INSTALLER_ARGS, { detached: true, stdio: 'ignore' });
+    child.on('error', () => { /* 動かせなかった(次の確認で、もう一度案内する) */ });
+    child.unref();
+  } catch (e) { /* 同上 */ }
+}
+// 前の更新で一時フォルダに残ったもの(インストーラーは動いている間は消せないので、次の起動で消す)
+function cleanupUpdateTemp() {
+  if (isStore || process.platform !== 'win32') return;
+  let names = [];
+  try { names = fs.readdirSync(app.getPath('temp')); } catch (e) { return; }
+  for (const n of names) {
+    if (!n.startsWith(updget.TEMP_PREFIX)) continue;
+    const p = path.join(app.getPath('temp'), n);
+    if (updateJob && updateJob.dir === p) continue;
+    if (pendingInstaller && path.dirname(pendingInstaller) === p) continue;
+    try { fs.rmSync(p, { recursive: true, force: true }); } catch (e) { /* 使われていれば、次の起動で */ }
+  }
 }
 
 /* ---------- ウィンドウ ---------- */
@@ -1326,5 +1457,12 @@ if (!app.requestSingleInstanceLock()) {
   app.on('will-quit', () => {
     try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
     if (store) datalock.releaseLock(store.dir, process.pid);
+    // ダウンロードの途中で終わるときは、書きかけを消す
+    if (updateJob) {
+      updateJob.ctrl.abort();
+      try { if (updateJob.dir) fs.rmSync(updateJob.dir, { recursive: true, force: true }); else if (updateJob.part) fs.rmSync(updateJob.part, { force: true }); } catch (e) { /* 次の起動で片づける */ }
+    }
   });
+  // 終わったところで、ダウンロードして確かめたインストーラーを動かす(メモの書き出しとロックの解除が済んでから)
+  app.on('quit', () => { if (pendingInstaller) launchInstaller(pendingInstaller); });
 }

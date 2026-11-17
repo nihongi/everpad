@@ -51,10 +51,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.38.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.39.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.38.1.exe
+EverPad 0.39.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -289,8 +289,15 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Text view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
 - Choose Help → Markdown Guide for the Markdown you can use, with each example shown next to its result. See also "Markdown syntax" below.
 - To check the version you are running, choose Help → About EverPad from the menu. It also shows the Electron version, the data folder and the address where EverPad is published ([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/)); Open on GitHub opens it in your browser.
-- **Checking for updates**: EverPad checks GitHub for a newer version a few seconds after it starts, and you can check at any time with Help → Check for Updates…. If a newer version is available, Open Download Page opens the latest release page on GitHub (on macOS and Linux, which have no published builds yet, the repository page). EverPad does not download or install anything itself. At startup, nothing is shown unless a newer version is found, and you can tick "Don't remind me about version x.y.z" to skip that version. To turn off the check at startup, clear "Check for updates at startup" in File → Settings….
-- The check reads `https://api.github.com/repos/nihongi/everpad/releases/latest` and compares only the version number. Nothing about you or your notes is sent; like any web request, GitHub sees your IP address and the app's name and version (`EverPad/x.y.z`). It uses the system's proxy settings (on Windows, the Internet Options / Settings → Network & Internet → Proxy, including automatic configuration scripts). This is the only time EverPad connects to the internet by itself.
+- **Checking for updates**: EverPad checks GitHub for a newer version a few seconds after it starts, and you can check at any time with Help → Check for Updates…. If a newer version is available:
+  - Installed version: Download and Update downloads the new installer, checks it, closes EverPad (your notes are saved first), installs the new version in the same place and starts EverPad again. If EverPad is installed for all users, Windows asks for permission.
+  - Portable version: Download saves the new portable exe (`EverPad x.y.z.exe`) in the same folder as the current one. Close EverPad and start the new exe; it uses the same `EverPad Data`. You can delete the old exe afterwards.
+  - The download shows its progress at the bottom right of the window (and on the taskbar button), with a Cancel button. EverPad downloads only the file for that version from the release on GitHub, and uses it only if its size and SHA-256 match what GitHub records for the release; otherwise the file is deleted and nothing is run.
+  - Open Download Page opens the latest release page on GitHub instead (on macOS and Linux, which have no published builds yet, the repository page).
+
+  At startup, nothing is shown unless a newer version is found, and you can tick "Don't remind me about version x.y.z" to skip that version. To turn off the check at startup, clear "Check for updates at startup" in File → Settings….
+- The check reads `https://api.github.com/repos/nihongi/everpad/releases/latest` and compares only the version number. Nothing about you or your notes is sent; like any web request, GitHub sees your IP address and the app's name and version (`EverPad/x.y.z`). It uses the system's proxy settings (on Windows, the Internet Options / Settings → Network & Internet → Proxy, including automatic configuration scripts). Apart from this check, EverPad connects to the internet only to download an update you chose (from GitHub, in the same way).
+- Behind a proxy (for example on a company network), EverPad connects to `api.github.com` (the check), `github.com` and `release-assets.githubusercontent.com` (the download; GitHub forwards downloads there), all over HTTPS. If the proxy refuses one of them, EverPad says so; ask your administrator to allow them, or use Open Download Page. EverPad does not support proxies that ask for a user name and password (proxies that use your Windows sign-in usually work). Some proxies check an `.exe` before passing it on, so a download may wait at 0 MB for a while; EverPad waits up to two minutes without data, and you can cancel at any time.
 
 ### Markdown syntax
 
@@ -393,15 +400,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.38.1.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.39.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.38.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.39.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.38.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.39.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -410,7 +417,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.38.1.AppImage` (x64)
+- Linux: `EverPad-0.39.0.AppImage` (x64)
 
 **macOS**
 
@@ -426,7 +433,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.38.1.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.39.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -446,6 +453,7 @@ portable.js      Where the portable version (and the Linux AppImage) keeps its s
 macmenu.js       The macOS menu layout (testable without Electron)
 keymap.js        Keyboard shortcuts: the default keys (Windows and macOS), checking and saving the keys you set (testable without Electron)
 updatecheck.js   Checking GitHub for a newer version (testable without Electron)
+updatedownload.js  Downloading a new version and checking its SHA-256 for updating from within the app (testable without Electron)
 pageexport.js    Building HTML and MHTML files for File → Export (testable without Electron)
 docexport.js     Building AsciiDoc, Word and LaTeX files for File → Export (testable without Electron)
 datalock.js      The lock that keeps two EverPads from opening the same data folder (testable without Electron)
@@ -470,7 +478,7 @@ test/            Automated tests
 ### Security
 
 - Images are loaded only through the dedicated `everpad-file://` scheme, which cannot read files outside the data folder.
-- The UI cannot connect to the network (Content Security Policy `connect-src 'none'`). The update check runs in the main process, uses only the version number from GitHub's response, and opens only fixed addresses (the release page or the repository page), never a URL taken from the response.
+- The UI cannot connect to the network (Content Security Policy `connect-src 'none'`). The update check runs in the main process, uses only the version number and the size and SHA-256 of the release files from GitHub's response, and opens only fixed addresses (the release page or the repository page), never a URL taken from the response. Updating from within the app downloads only from an address built from the fixed repository address and the version number, runs the installer only after its size and SHA-256 match, and runs it only after EverPad has closed (never in the Microsoft Store version).
 - Mermaid diagrams are drawn in Mermaid's strict mode, which disables clicks, links and scripts in diagrams. The Content Security Policy also keeps the UI from running scripts other than the app's own files.
 - The UI cannot use Node.js directly (`contextIsolation` and `sandbox` are enabled) and cannot navigate away from the app. Only external links are opened, in the default browser.
 - The installed app does not accept debugging connections: `--inspect`, `NODE_OPTIONS` and `ELECTRON_RUN_AS_NODE` are disabled in the executable itself (Electron fuses), and `--remote-debugging-port` and similar switches are ignored. Development runs with `npm start` are not affected.
@@ -544,10 +552,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.38.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.39.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.38.1.exe
+EverPad 0.39.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -782,8 +790,15 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョン、メモの保存先、EverPad の公開場所([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/))も表示され、「GitHub で開く」でブラウザで開けます。
-- **更新の確認**: 起動して数秒後に、GitHub に新しいバージョンがあるかを確かめます。メニューの「ヘルプ」→「更新を確認…」で、いつでも確かめられます。新しいバージョンがあるときは「ダウンロードページを開く」で GitHub の最新のリリースのページを開きます(まだ配布していない macOS と Linux では、リポジトリのページを開きます)。EverPad が自分でダウンロードやインストールをすることはありません。起動時は、新しいバージョンがあるときだけ知らせ、「バージョン x.y.z は今後知らせない」にチェックすると、その版は知らせません。起動時の確認をやめるときは、「ファイル」→「設定…」の「起動時に更新を確認する」のチェックを外します。
-- 確認では `https://api.github.com/repos/nihongi/everpad/releases/latest` を読み、版の番号だけを比べます。あなたやメモについての情報は送りません(通常の Web の通信と同じく、GitHub には IP アドレスと、アプリの名前とバージョン `EverPad/x.y.z` が伝わります)。プロキシは、システムの設定(Windows ではインターネット オプション/「設定」→「ネットワークとインターネット」→「プロキシ」。自動構成スクリプトを含む)を使います。EverPad が自分からインターネットに接続するのは、このときだけです。
+- **更新の確認**: 起動して数秒後に、GitHub に新しいバージョンがあるかを確かめます。メニューの「ヘルプ」→「更新を確認…」で、いつでも確かめられます。新しいバージョンがあるときは、次のようにできます。
+  - インストール版: 「ダウンロードして更新」で、新しいインストーラーをダウンロードして確かめ、EverPad を閉じて(メモは先に保存します)、同じ場所に新しいバージョンを入れ、起動し直します。すべてのユーザー向けに入れているときは、Windows の確認が出ます。
+  - portable 版: 「ダウンロード」で、新しい portable 版(`EverPad x.y.z.exe`)を、いまの exe と同じフォルダに保存します。EverPad を閉じて新しい exe を起動すると、同じ `EverPad Data` をそのまま使います。古い exe は、あとで消してかまいません。
+  - ダウンロードしている間は、ウィンドウの右下(とタスクバーのボタン)に進み具合が出て、「やめる」で止められます。ダウンロードするのは、GitHub のリリースにある、その版のファイルだけです。大きさと SHA-256 が、GitHub がリリースのファイルごとに記録しているものと同じときだけ使い、違えばファイルを消して、何も動かしません。
+  - 「ダウンロードページを開く」では、GitHub の最新のリリースのページを開きます(まだ配布していない macOS と Linux では、リポジトリのページを開きます)。
+
+  起動時は、新しいバージョンがあるときだけ知らせ、「バージョン x.y.z は今後知らせない」にチェックすると、その版は知らせません。起動時の確認をやめるときは、「ファイル」→「設定…」の「起動時に更新を確認する」のチェックを外します。
+- 確認では `https://api.github.com/repos/nihongi/everpad/releases/latest` を読み、版の番号だけを比べます。あなたやメモについての情報は送りません(通常の Web の通信と同じく、GitHub には IP アドレスと、アプリの名前とバージョン `EverPad/x.y.z` が伝わります)。プロキシは、システムの設定(Windows ではインターネット オプション/「設定」→「ネットワークとインターネット」→「プロキシ」。自動構成スクリプトを含む)を使います。EverPad がインターネットに接続するのは、この確認のときと、選んだ更新をダウンロードするとき(GitHub から。同じやり方です)だけです。
+- 会社などでプロキシを通すときは、EverPad は `api.github.com`(確認)、`github.com` と `release-assets.githubusercontent.com`(ダウンロード。GitHub がダウンロードをそこへ転送します)に、どれも HTTPS で接続します。プロキシがどれかを断ると、EverPad がそのことを知らせます。管理者に許可を頼むか、「ダウンロードページを開く」を使ってください。ユーザー名とパスワードを求めるプロキシには対応していません(Windows のサインインで通るプロキシなら、ふつうは使えます)。`.exe` を検査してから渡すプロキシでは、しばらく 0 MB のまま待つことがあります。EverPad は、何も届かなくても2分は待ちます。待っている間も「やめる」で止められます。
 
 ### Markdown の書き方
 
@@ -886,15 +901,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.38.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.39.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.38.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.39.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.38.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストールとアンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.39.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -903,7 +918,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.38.1.AppImage`(x64)
+- Linux: `EverPad-0.39.0.AppImage`(x64)
 
 **macOS**
 
@@ -919,7 +934,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.38.1.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.39.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -939,6 +954,7 @@ portable.js      portable 版(と Linux の AppImage)の設定とメモの保存
 macmenu.js       macOS のメニューの形(Electron なしでテストできる)
 keymap.js        キーボードショートカット: 既定のキー(Windows と macOS)、割り当てたキーの判定と保存(Electron なしでテストできる)
 updatecheck.js   GitHub に新しいバージョンがあるかの確認(Electron なしでテストできる)
+updatedownload.js  アプリの中からの更新のための、新しい版のダウンロードと SHA-256 の確認(Electron なしでテストできる)
 pageexport.js    「エクスポート」の HTML と MHTML のファイルの組み立て(Electron なしでテストできる)
 docexport.js     「エクスポート」の AsciiDoc・Word・LaTeX のファイルの組み立て(Electron なしでテストできる)
 datalock.js      同じ保存先を2つの EverPad で開かないための印(Electron なしでテストできる)
@@ -963,7 +979,7 @@ test/            自動テスト
 ### 安全のための設計
 
 - 画像は専用の `everpad-file://` からだけ読み込み、保存先のフォルダの外のファイルは読めません。
-- 画面からはネットワークに接続できません(Content Security Policy の `connect-src 'none'`)。更新の確認はメインプロセスで行い、GitHub の応答からは版の番号だけを使います。開くのは固定の場所(リリースのページかリポジトリのページ)だけで、応答に含まれる URL は開きません。
+- 画面からはネットワークに接続できません(Content Security Policy の `connect-src 'none'`)。更新の確認はメインプロセスで行い、GitHub の応答からは版の番号と、リリースのファイルの大きさと SHA-256 だけを使います。開くのは固定の場所(リリースのページかリポジトリのページ)だけで、応答に含まれる URL は開きません。アプリの中からの更新では、固定のリポジトリの場所と版の番号から作った場所からだけダウンロードし、大きさと SHA-256 が合ったときだけ、EverPad を閉じたあとでインストーラーを動かします(Microsoft Store 版では動かしません)。
 - Mermaid の図は、Mermaid の strict モードで描き、図の中のクリック・リンク・スクリプトは使えません。Content Security Policy でも、画面はアプリのファイル以外のスクリプトを実行できません。
 - 画面からは Node.js の機能を直接使えない構成(`contextIsolation`、`sandbox`)で、ページの外へ移動することも禁止しています。外部リンクだけは既定のブラウザで開きます。
 - インストールしたアプリは、デバッグ用の接続を受け付けません。`--inspect`、`NODE_OPTIONS`、`ELECTRON_RUN_AS_NODE` は実行ファイル自体で無効にしてあり(Electron の fuses)、`--remote-debugging-port` などの起動オプションは無視します。`npm start` での開発時の起動には影響しません。

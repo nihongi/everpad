@@ -403,6 +403,11 @@ li.pe-li { list-style: none; }
 .att-chip img { width: 44px; height: 44px; object-fit: cover; border-radius: 5px; flex: none; }
 .att-chip .att-ico { width: 44px; text-align: center; font-size: 22px; flex: none; }
 .att-chip span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+/* アプリの中からの更新: ダウンロードの進み具合(右下。ステータスバーの上) */
+.updbar { position: fixed; right: 16px; bottom: calc(44px + env(safe-area-inset-bottom, 0px)); max-width: calc(100% - 32px); display: flex; align-items: center; gap: 10px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 8px 14px; font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, .18); z-index: 29; font-variant-numeric: tabular-nums; }
+.updbar[hidden] { display: none; }
+.updbar progress { width: 140px; flex: none; }
+.updbar .btn { flex: none; padding: 4px 12px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: calc(100% - 32px); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 14px; z-index: 30; }
 .scrim { display: none; }
 
@@ -517,7 +522,7 @@ li.pe-li { list-style: none; }
 .print-area { display: none; }
 @media print {
   html, body { height: auto; overflow: visible; background: #fff; }
-  .app, .toast { display: none !important; }
+  .app, .toast, .updbar { display: none !important; }
   .print-area {
     display: block;
     --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #EEF1F6; --line: #B9C2D3;
