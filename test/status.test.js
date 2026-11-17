@@ -40,14 +40,14 @@ test('履歴の変更位置: 追加は追加し終えた位置、削除は削除
   assert.strictEqual(L.changeEnd(null), 0);
 });
 
-test('スクロールバーが一瞬出て消えない: スクロールバーの幅をいつも空け、状態表示はいつも1行', () => {
+test('スクロールバーが一瞬出て消えない: スクロールバーの幅をいつも空け、ステータスバーはいつも1行', () => {
   const css = require('fs').readFileSync(require('path').join(__dirname, '..', 'renderer', 'styles.css'), 'utf8');
   // 同じ選択子の規則が複数あるときは、まとめて見る
   const esc = s => s.replace(/[.#>]/g, '\\$&');
   const rule = sel => [...css.matchAll(new RegExp('(?:^|\\n)' + esc(sel) + ' \\{([^}]*)\\}', 'g'))].map(m => m[1]).join(' ');
   // 本文・プレビュー・履歴の表示: スクロールバーが出ても折り返しの幅が変わらない
   for (const sel of ['#editor', '.pane', '.hv-body']) assert.match(rule(sel), /scrollbar-gutter: stable;/, sel);
-  // 状態表示: 折り返さない(「保存中…」やカーソルの位置で幅が変わっても、高さが変わらない)。左側は「…」で縮める
+  // ステータスバー: 折り返さない(「保存中…」やカーソルの位置で幅が変わっても、高さが変わらない)。左側は「…」で縮める
   assert.match(rule('.status'), /flex-wrap: nowrap;/);
   assert.match(rule('#stLeft'), /flex-wrap: nowrap;[^]*min-width: 0;[^]*overflow: hidden;/);
   assert.match(rule('#stLeft > span'), /white-space: nowrap; overflow: hidden; text-overflow: ellipsis;/);

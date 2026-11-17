@@ -27,6 +27,11 @@ function buildTemplate(params, opts) {
       if (!(extra && opts.onMath)) fmt.push({ type: 'separator' });
       fmt.push({ label: T(opts.inDiagram ? 'mEditDiagram' : 'mInsertDiagram'), accelerator: (opts.keys || keymap.defaults(platform))['diagram'] || undefined, registerAccelerator: false, click: opts.onDiagram });
     }
+    // 「フロントマター(タグ)を挿入」(もうあれば「…を編集」)も本文だけ。どこで選んでも、メモの先頭に入れる
+    if (body && opts.onFrontMatter) {
+      if (!(extra && opts.onMath) && !opts.onDiagram) fmt.push({ type: 'separator' });
+      fmt.push({ label: T(opts.hasFm ? 'mEditFm' : 'mInsertFm'), accelerator: (opts.keys || keymap.defaults(platform))['frontmatter'] || undefined, registerAccelerator: false, click: opts.onFrontMatter });
+    }
     // カーソルが表の中なら「表」(画面側が右クリックの前に知らせた opts.table)
     if (extra && opts.table && opts.onTable) fmt.push({ type: 'separator' }, { label: T('mTable'), submenu: tableItems(T, opts.onTable, opts.table, opts.keys, platform) });
     return [

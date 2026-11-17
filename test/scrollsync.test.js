@@ -99,3 +99,14 @@ test('目印を光らせる先: 行を含むかたまり。間の空行なら次
   assert.strictEqual(L.anchorAt(A, 50), A[2]);
   assert.strictEqual(L.anchorAt([], 1), null);
 });
+
+test('プレビューを作り直しても位置がずれない: 中身を入れ替えた直後の描画の間だけ、スクロールアンカーを止める', () => {
+  // 検索のたびに作り直すと、Chromium のスクロールアンカー(overflow-anchor)が同じ向きに同じだけ位置をずらしていった
+  const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'renderer', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+  const fn = app.match(/function renderPreview\(\) \{[\s\S]*?\n {2}\}/)[0];
+  const off = fn.indexOf("pv.style.overflowAnchor = 'none';"), html = fn.indexOf('pv.innerHTML = ');
+  assert.ok(off >= 0 && off < html, '入れ替える前に止める');
+  // 2回あとの描画で戻す(続けて作り直したときは、最後の分だけが戻す)
+  assert.match(fn, /requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => \{ if \(tok === pvAnchorTok\) pv\.style\.overflowAnchor = ''; \}\)\);/);
+  assert.match(fn, /const tok = \+\+pvAnchorTok;/);
+});

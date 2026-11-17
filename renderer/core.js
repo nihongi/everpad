@@ -331,7 +331,7 @@ function mdFence(lines, i) {
   return { next: i + 1, html: '<pre><code>' + esc(buf.join('\n')) + '</code></pre>' };
 }
 
-/* ---------- カーソル位置と選択の文字数(状態表示) ----------
+/* ---------- カーソル位置と選択の文字数(ステータスバー) ----------
    文字は、絵文字なども1文字と数える(サロゲートペアを1つに)。 */
 const countChars = s => { let c = 0; for (const _ of s) c++; return c; };
 /* 位置 pos(UTF-16 の位置)が何行目の何文字目か。行は改行で区切った行で、どちらも1から数える */
@@ -692,10 +692,169 @@ function plainLine(s) {
     .replace(/^[#>\s\-*+]+/, '');
   return emojiText(s).replace(/\u0001(\d+)\u0001/g, (_, i) => kept[+i]).trim();
 }
+/* 題名を探すのは、フロントマターより後ろから */
 const titleOf = text => {
-  for (const ln of text.split('\n')) { const t = plainLine(ln); if (t) return t.slice(0, 60); }
+  const fm = frontMatter(text);
+  for (const ln of (fm ? text.slice(fm.next) : text).split('\n')) { const t = plainLine(ln); if (t) return t.slice(0, 60); }
   return '';
 };
+
+/* ---------- フロントマター(メモの先頭の、--- で囲んだ YAML) ----------
+   Obsidian・Jekyll・Hugo・Pandoc などと同じ書き方。1行目がちょうど --- で、閉じの ---(か ...)までの行が、すべて
+   「キー: 値」・字下げした行・- で始まる行(リストの項目)・空行・# のコメントで、キーが1つ以上あるときだけ、フロントマターとみなす
+   (区切り線で始まる今までのメモを、誤って読まないため。キーには空白を含めない)。
+   YAML のライブラリは使わず、読むのは tags だけ(ほかのキーは本文のまま残し、プレビューでは書いたとおりに出す)。
+   tags の書き方: tags: [a, b]、tags: a, b、tags: の次の行から「  - a」の並び。引用符("a b" 'a')と、先頭の # は外す */
+const FM_OPEN_RE = /^---[ \t]*\r?$/;
+const FM_CLOSE_RE = /^(?:---|\.\.\.)[ \t]*\r?$/;
+const FM_KEY_RE = /^([\p{L}\p{N}_][\p{L}\p{N}_.-]*)[ \t]*:(?:[ \t]+(.*?))?[ \t]*\r?$/u;
+const FM_MAX_LINES = 200;
+const TAG_MAX = 100;    // 1つのタグの長さ(これより長いものは使わない)
+const TAGS_MAX = 50;    // 1つのメモのタグの数
+/* lines の先頭のフロントマターの行数(閉じの行まで)。無ければ 0 */
+function frontMatterLines(lines) {
+  if (!lines.length || !FM_OPEN_RE.test(lines[0])) return 0;
+  let keys = 0;
+  for (let i = 1; i < lines.length && i <= FM_MAX_LINES; i++) {
+    const ln = lines[i];
+    if (FM_CLOSE_RE.test(ln)) return keys ? i + 1 : 0;
+    if (/^\s*$/.test(ln) || /^\s*#/.test(ln)) continue;
+    if (FM_KEY_RE.test(ln)) { keys++; continue; }
+    if (keys && (/^[ \t]+\S/.test(ln) || /^-(?:[ \t]|\r?$)/.test(ln))) continue;
+    return 0;
+  }
+  return 0;
+}
+/* 値の文字(str。全文の base 文字目から)を、コンマで分けたタグにする(引用符の中のコンマでは分けない)。
+   split が偽なら分けずに1つとして読む。返すのは { items: [{ name, s, e }], end }
+   (s〜e は全文の中の、タグの文字の位置。end はコメントを除いた値の終わりの位置) */
+function tagItems(str, base, split) {
+  // コメント: 空白の後の # から後ろ(引用符の外)。ただし値の先頭と、コンマの直後の # は、タグの印として外すだけ
+  // (YAML ではコメントだが、「#設計」のように書く人が多いので)
+  let q = '', cut = str.length;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (q) { if (c === q) q = ''; continue; }
+    if (c === '"' || c === "'") q = c;
+    else if (c === '#' && i > 0 && /[ \t]/.test(str[i - 1])) {
+      const before = str.slice(0, i).trimEnd();
+      if (before && !before.endsWith(',')) { cut = i; break; }
+    }
+  }
+  str = str.slice(0, cut);
+  const end = base + str.trimEnd().length;
+  const pieces = [];
+  let from = 0;
+  q = '';
+  for (let i = 0; i <= str.length; i++) {
+    const c = str[i];
+    if (q && i < str.length) { if (c === q) q = ''; continue; }
+    if (c === '"' || c === "'") { q = c; continue; }
+    if (i === str.length || (split && c === ',')) { pieces.push([from, i]); from = i + 1; }
+  }
+  const out = [];
+  for (let [s, e] of pieces) {
+    while (s < e && /\s/.test(str[s])) s++;
+    while (e > s && /\s/.test(str[e - 1])) e--;
+    if (e - s >= 2 && (str[s] === '"' || str[s] === "'") && str[e - 1] === str[s]) { s++; e--; }
+    while (s < e && str[s] === '#') s++;
+    const name = str.slice(s, e).trim();
+    if (name && name.length <= TAG_MAX) out.push({ name: name, s: base + s, e: base + e });
+  }
+  return { items: out, end: end };
+}
+/* text の先頭のフロントマター。無ければ null。
+   { lines: 行数(閉じの行まで), next: 本文が始まる位置, tags: [{ name, s, e }], tagsAt: カーソルを置く位置(tags の値の終わり。tags が無ければ -1),
+     close: 閉じの行の始まりの位置, entries: [{ key, value }](プレビュー用) } */
+function frontMatter(text) {
+  text = String(text == null ? '' : text);
+  if (!text.startsWith('---')) return null;
+  const lines = text.split('\n');
+  const n = frontMatterLines(lines);
+  if (!n) return null;
+  const starts = [];
+  let p = 0;
+  for (let i = 0; i < n; i++) { starts.push(p); p += lines[i].length + 1; }
+  const next = Math.min(text.length, p);
+  const fm = { lines: n, next: next, close: starts[n - 1], tags: [], tagsAt: -1, entries: [] };
+  const seen = new Set();
+  const addTags = list => { for (const t of list) { const k = tagKey(t.name); if (!seen.has(k) && fm.tags.length < TAGS_MAX) { seen.add(k); fm.tags.push(t); } } };
+  for (let i = 1; i < n - 1; i++) {
+    const ln = lines[i].replace(/\r$/, '');
+    const m = ln.match(FM_KEY_RE);
+    if (!m) continue;
+    // このキーに続く行(字下げした行・- の行)
+    let j = i + 1;
+    while (j < n - 1 && !FM_KEY_RE.test(lines[j]) && !/^\s*#/.test(lines[j])) j++;
+    const more = lines.slice(i + 1, j).map(x => x.replace(/\r$/, '')).filter(x => x.trim());
+    const value = m[2] || '';
+    fm.entries.push({ key: m[1], value: value, more: more, tags: m[1].toLowerCase() === 'tags' });
+    if (m[1].toLowerCase() === 'tags' && fm.tagsAt < 0) {
+      // 値の始まりの位置: キーの後の「:」と空白の次(キーには「:」を含まない)
+      const c = ln.indexOf(':'), after = ln.slice(c + 1);
+      const at = starts[i] + c + 1 + (after.length - after.trimStart().length);
+      // カーソルを置く所: [ … ] なら ] の前、そうでなければ値の終わり(コメントの前)、並びなら最後の項目の終わり
+      if (value[0] === '[') {
+        const close = value.lastIndexOf(']');
+        const r = tagItems(value.slice(1, close > 0 ? close : value.length), at + 1, true);
+        addTags(r.items);
+        fm.tagsAt = close > 0 ? at + close : r.end;
+      } else if (value) {
+        const r = tagItems(value, at, true);
+        addTags(r.items);
+        fm.tagsAt = r.end;
+      } else {
+        fm.tagsAt = starts[i] + ln.length;
+        for (let k = i + 1; k < j; k++) {
+          const im = lines[k].match(/^([ \t]*-[ \t]+)(.*?)[ \t]*\r?$/);
+          if (!im) continue;
+          const r = tagItems(im[2], starts[k] + im[1].length, false);
+          addTags(r.items);
+          fm.tagsAt = r.end;
+        }
+      }
+    }
+    i = j - 1;
+  }
+  return fm;
+}
+/* タグを比べるときの形: 全角・半角をそろえ(NFKC)、小文字にし、先頭の # を外す */
+const tagKey = s => String(s).normalize('NFKC').replace(/^#+/, '').trim().toLowerCase();
+/* メモのタグの名前(書いたとおり) */
+const tagsOf = text => { const fm = frontMatter(text); return fm ? fm.tags.map(t => t.name) : []; };
+/* タグ want(tagKey の形)に当たるか: 同じ名前か、その下の階層(「仕事」なら「仕事/会議」も) */
+const tagHit = (name, want) => { const k = tagKey(name); return k === want || k.startsWith(want + '/'); };
+/* メモのタグ(名前の並び)が、探すタグ(tagKey の形の並び)をすべて持っているか */
+const hasTags = (names, wants) => wants.every(w => (names || []).some(n => tagHit(n, w)));
+/* 検索欄の文字を、タグ(tag:名前。空白を含むなら tag:"名前")と、そのほかの検索語に分ける。
+   tag: の後ろが空なら、ふつうの文字として探す。返すのは { text, tags: [tagKey の形] } */
+const TAG_TOKEN_RE = /(^|\s)tag[:：](?:"([^"]+)"|([^\s"]+))(?=\s|$)/gi;
+function parseQuery(q) {
+  const tags = [];
+  const rest = String(q).replace(TAG_TOKEN_RE, (m, sp, quoted, bare) => { const k = tagKey(quoted || bare); if (k && !tags.includes(k)) tags.push(k); return sp; });
+  return tags.length ? { text: rest.replace(/\s{2,}/g, ' ').trim(), tags: tags } : { text: String(q), tags: [] };
+}
+/* フロントマターを入れる(メニューの「フロントマター(タグ)を挿入」)。入れる場所は、カーソルの位置に関係なく、いつもメモの先頭。
+   もうあるときは2つ目を入れず、tags の値の終わりにカーソルを置く(tags が無ければ、閉じの行の前に「tags: 」の行を入れる)。
+   返すのは { text, caret } */
+function frontMatterInsert(text) {
+  text = String(text);
+  const fm = frontMatter(text);
+  if (fm && fm.tagsAt >= 0) return { text: text, caret: fm.tagsAt };
+  if (fm) return { text: text.slice(0, fm.close) + 'tags: \n' + text.slice(fm.close), caret: fm.close + 'tags: '.length };
+  const head = '---\ntags: \n---\n';
+  return { text: head + (text && !/^\s*\n/.test(text) ? '\n' : '') + text, caret: '---\ntags: '.length };
+}
+/* プレビューに出すフロントマター: キーと値の並び。tags は札の形で、押すとそのタグを検索するボタン(app.js の searchTag) */
+function frontMatterHtml(fm, attr) {
+  const rows = fm.entries.map(en => {
+    let v;
+    if (en.tags) v = fm.tags.length ? fm.tags.map(t => '<button type="button" class="tag tag-link" data-tag="' + esc(t.name) + '">' + esc(t.name) + '</button>').join('') : '';
+    else v = esc([en.value].concat(en.more.map(x => x.trim().replace(/^-[ \t]+/, ''))).filter(x => x).join(', '));
+    return '<div class="fm-row' + (en.tags ? ' fm-tags' : '') + '"><span class="fm-k">' + esc(en.key) + '</span><span class="fm-v">' + v + '</span></div>';
+  });
+  return '<div class="fm"' + attr + '>' + rows.join('') + '</div>';
+}
 
 /* ---------- 添付 ---------- */
 const IMG_EXT = /\.(png|jpe?g|gif|webp|bmp|avif)$/i;
@@ -803,14 +962,20 @@ const isDelim = line => line.indexOf('|') >= 0 && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+
 /* Markdown を HTML にする。opts.lines が真なら、かたまりごとに元の文の行の範囲を data-line(最初の行)・data-end(終わりの次の行)で付ける
    (行は 0 から数える)。編集とプレビューを切り替えたときに、同じ場所を見せるために使う(syncAnchors)。
    付けるのは、段落・見出し・コード・数式・図・区切り線・リストの項目・表の行だけで、これらの行の範囲は重ならない。
-   書き出しや印刷では付けない */
+   書き出しや印刷では付けない。
+   先頭のフロントマターは、opts.fm が真なら(プレビューと履歴の表示)キーと値の並びにして出し、そうでなければ(印刷・書き出し)出さない */
 function md(text, opts) {
-  const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
+  const all = String(text).replace(/\r\n?/g, '\n').split('\n');
+  const skip = frontMatterLines(all);
+  const lines = skip ? all.slice(skip) : all;
+  const base = opts && opts.lines ? 0 : -1;
+  const head = skip && opts && opts.fm ? frontMatterHtml(frontMatter(all.join('\n')), lineAttr(base, 0, skip)) : '';
   const prev = FN;
   FN = footnoteDefs(lines);
   try {
-    const html = mdBlocks(lines, opts && opts.lines ? 0 : -1);
-    return FN.order.length ? html + footnotesHtml() : html;
+    const html = mdBlocks(lines, base < 0 ? -1 : skip);
+    const body = FN.order.length ? html + footnotesHtml() : html;
+    return head ? head + (body ? '\n' + body : '') : body;
   } finally { FN = prev; }
 }
 const lineAttr = (base, s, e) => (base < 0 ? '' : ' data-line="' + (base + s) + '" data-end="' + (base + e) + '"');
@@ -1645,5 +1810,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, tagKey, tagHit, hasTags, parseQuery, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

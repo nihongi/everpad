@@ -41,6 +41,7 @@ const COMMANDS = [
   { id: 'link', group: 'mEdit', label: 'mInsertLink', def: 'CmdOrCtrl+K' },
   { id: 'math', group: 'mEdit', label: 'mInsertMath', def: 'CmdOrCtrl+Shift+M' },
   { id: 'diagram', group: 'mEdit', label: 'mInsertDiagram', def: 'CmdOrCtrl+Shift+D' },
+  { id: 'frontmatter', group: 'mEdit', label: 'mInsertFm', def: '' },   // 既定はキーなし(割り当てはできる)
   // 表の操作(既定はキーなし)
   { id: 'tbl:insert', group: 'mEdit>mTable', label: 'mTblInsert', def: '' },
   { id: 'tbl:rowAbove', group: 'mEdit>mTable', label: 'mTblRowAbove', def: '' },

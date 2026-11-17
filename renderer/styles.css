@@ -210,8 +210,8 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 .pane { flex: 1; min-height: 0; overflow: auto; padding: 12px 24px 22px; scrollbar-gutter: stable; }
 
 .stR { display: inline-flex; align-items: center; gap: 14px; flex: none; }
-/* 状態表示の左側: カーソル・選択・全体を、区切り線で分けて並べる。選択は色を変えて目立たせる。
-   状態表示はいつも1行にする(打つたびに「保存中…」やカーソルの位置で幅が変わって2行になると、本文の高さが変わり、
+/* ステータスバーの左側: カーソル・選択・全体を、区切り線で分けて並べる。選択は色を変えて目立たせる。
+   ステータスバーはいつも1行にする(打つたびに「保存中…」やカーソルの位置で幅が変わって2行になると、本文の高さが変わり、
    スクロールバーが出たり消えたりする)。入りきらないときは、まず「全体」を「…」で縮める(カーソルと選択はなるべくそのまま見せる) */
 #stLeft { display: inline-flex; flex-wrap: nowrap; align-items: center; flex: 0 1 auto; min-width: 0; overflow: hidden; }
 #stLeft > span { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -222,7 +222,7 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 .tgl:hover:not(:disabled) { background: var(--surface-2); }
 .tgl:disabled { opacity: .45; cursor: default; }
 .tgl[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 700; }
-/* 読み取り専用: 状態表示のボタン(鍵の印つき)と、メモ一覧の題名の前の鍵 */
+/* 読み取り専用: ステータスバーのボタン(鍵の印つき)と、メモ一覧の題名の前の鍵 */
 #roBtn { display: inline-flex; align-items: center; gap: 4px; }
 #roBtn svg, .note .ro { width: 12px; height: 12px; fill: currentColor; flex: none; }
 .note .ro { display: inline-block; vertical-align: -1px; margin-right: 4px; color: var(--fg-2); }
@@ -256,6 +256,19 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 .md blockquote > :last-child { margin-bottom: 0; }
 .md hr { box-sizing: content-box; height: .25em; padding: 0; margin: 24px 0; border: 0; background: var(--line); }
 .md a { color: var(--accent); text-underline-offset: 3px; }
+/* フロントマター(プレビューと履歴の表示だけ。印刷・書き出しには出さない): キーと値の並び。tags は札の形 */
+.md .fm { margin: 0 0 16px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 13.5px; line-height: 1.6; }
+.md .fm-row { display: flex; gap: 12px; align-items: baseline; }
+.md .fm-k { flex: none; min-width: 4em; font-family: var(--mono); color: var(--fg-2); }
+.md .fm-v { min-width: 0; overflow-wrap: anywhere; }
+.md .fm-tags .fm-v { display: flex; flex-wrap: wrap; gap: 4px; }
+/* タグの札(プレビューのフロントマターと、タグの検索結果) */
+.tag { display: inline-block; padding: 0 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12.5px; line-height: 1.6; }
+.tag mark { background: var(--hit); color: inherit; border-radius: 2px; }
+/* プレビューのフロントマターの札は、押すとそのタグを検索するボタン */
+.tag-link { border: 0; margin: 0; font-family: inherit; cursor: pointer; }
+.tag-link:hover { background: color-mix(in srgb, var(--accent) 20%, var(--accent-soft)); }
+.tag-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .md .tblwrap { overflow-x: auto; }
 .md table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .md th, .md td { border: 1px solid var(--line); padding: 6px 13px; vertical-align: top; overflow-wrap: normal; }

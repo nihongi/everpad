@@ -20,7 +20,7 @@
   LangString EverPadSendToText 1033 "Add EverPad to the $\"Send to$\" menu (text files sent to it become new notes)"
   LangString EverPadSendToText 1041 "「送る」メニューに EverPad を追加する(送ったテキストファイルが新しいメモになります)"
   LangString EverPadSendToNote 1033 "You can change this later in EverPad with File > Settings… (Other)."
-  LangString EverPadSendToNote 1041 "あとから EverPad の「ファイル」→「設定…」(「そのほか」)でも変更できます。"
+  LangString EverPadSendToNote 1041 "あとから EverPad の「ファイル」→「設定…」(「その他」)でも変更できます。"
 
   !macro customPageAfterChangeDir
     Page custom EverPadSendToCreate EverPadSendToLeave

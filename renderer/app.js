@@ -51,7 +51,8 @@
 
   const fmtMin = t => { const d = new Date(t); return fmtDate(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 
-  const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', scope: 'latest', lines: false, frOpen: false };
+  // q は検索欄の文字、qText はそのうちタグ(tag:名前)を除いた検索語(色付けと、検索のバーに使う)
+  const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', qText: '', scope: 'latest', lines: false, frOpen: false };
   // プレビューでの編集の状態(「プレビューでの編集」を参照。表示の切り替えやメモの移動で閉じるので、ここで用意する)
   const pe = { box: null, holder: null, el: null, kind: '', s: 0, e: 0, n: 0, pre: '', post: '', hasPost: false, start: '', row: 0, col: 0, html: '', init: '' };
   let peComposing = false, peNext = null, peLastCell = null;
@@ -74,6 +75,7 @@
     n.n = baseOf(n) + n.ops.length;
     n.t = Math.max(n.ops.length ? n.ops[n.ops.length - 1].t : n.c, n.imported || 0);   // インポートしたメモは一覧の上に出す
     n.title = titleOf(n.text);
+    n.tags = tagsOf(n.text);
   }
   function unload(n) { delete n.ops; delete n.text; delete n._cp; n.loaded = false; }
   function evictOld() {
@@ -224,7 +226,7 @@
     for (const p of parts) { const sp = document.createElement('span'); sp.className = p.cls; sp.textContent = p.text; sp.title = p.title; box.appendChild(sp); }
     $('stRight').textContent = saveError ? T('saveError') : isPending() ? T('saving') : T('saved');
   }
-  /* 状態表示の左側に出す、カーソル位置(編集画面だけ)と選択の文字数。{ cls, text, title } の配列 */
+  /* ステータスバーの左側に出す、カーソル位置(編集画面だけ)と選択の文字数。{ cls, text, title } の配列 */
   function caretParts() {
     const parts = [], ed = $('editor');
     let sel = '';
@@ -453,7 +455,7 @@
     const now = Date.now();
     if (now - roToastAt > 1500) { roToastAt = now; toast(T('roBlocked')); }
   }
-  /* 今のメモに合わせて、編集欄・ボタン・状態表示の「読み取り専用」を切り替える */
+  /* 今のメモに合わせて、編集欄・ボタン・ステータスバーの「読み取り専用」を切り替える */
   function applyRO() {
     const ro = isRO(cur());
     $('editor').readOnly = ro;
@@ -916,8 +918,8 @@
     const baseOp = base > 0 && k === 1;
     const op = k > 0 && !baseOp ? n.ops[k - 1] : null;
     const opT = k > 0 ? n.ops[k - 1].t : null;
-    S.histText = text;   // 状態表示の「全体」に使う
-    S.histPos = op ? changeEnd(op) : null;   // 状態表示の「変更位置」に使う
+    S.histText = text;   // ステータスバーの「全体」に使う
+    S.histPos = op ? changeEnd(op) : null;   // ステータスバーの「変更位置」に使う
     updateStatus();
     $('histView').dataset.past = past ? '1' : '0';
     $('tl').dataset.past = past ? '1' : '0';
@@ -931,11 +933,11 @@
     if (!text && !(op && op.d)) {
       body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
-      body.innerHTML = '<div class="md">' + md(text, { lines: true }) + '</div>';
+      body.innerHTML = '<div class="md">' + md(text, { lines: true, fm: true }) + '</div>';
       lastHydrate = hydrate(body, cur().id);
-      highlight(body, S.q);
+      highlight(body, S.qText);
     } else {
-      const ranges = S.q ? matchRanges(text, S.q) : [];
+      const ranges = S.qText ? matchRanges(text, S.qText) : [];
       const lines = diffLines(text, op, ranges);
       // 50行ほどのかたまり(.hck)に分け、画面の外のかたまりは描画を省く(core.js の chunkLines)
       const chunks = render => chunkLines(lines, 50).map(([a, b]) => '<div class="hck" style="--n:' + (b - a) + '">' + render(a, b) + '</div>').join('');
@@ -1122,10 +1124,15 @@
       S.rev = opt.rev;
       renderHist();
       // 同じ検索語で検索のバーを開き、タイムスライダーに、その語がある版の範囲を示す
-      if (S.q) { $('frFind').value = S.q; S.frOpen = true; frShow(); frRefresh(); }
+      if (S.qText) { $('frFind').value = S.qText; S.frOpen = true; frShow(); frRefresh(); }
     } else {
       setMode('edit');
       const ed = $('editor');
+      // タグで見つけたメモは、フロントマターの、そのタグを選んで見せる
+      if (opt.tag) {
+        const fm = frontMatter(loaded.text), t = fm && fm.tags.find(x => tagHit(x.name, opt.tag));
+        opt = t ? { s: t.s, e: t.e } : { s: 0, e: 0 };
+      }
       ed.focus({ preventScroll: true });
       ed.setSelectionRange(opt.s, opt.e);
       scrollTextareaTo(ed, opt.s);
@@ -1153,9 +1160,9 @@
     const byId = new Map(got.map(r => [r.id, { id: r.id, ops: r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] })) }]));
     return part.map(n => (n.loaded ? n : (byId.get(n.id) || { id: n.id, ops: [] })));
   }
-  function paintResults(q, hist, res, total, progress) {
+  function paintResults(q, hist, res, total, progress, byNote) {
     const shown = res.slice(0, 60);
-    const matches = T('matches', { n: total, hist: hist });
+    const matches = byNote ? T('tagMatches', { n: total }) : T('matches', { n: total, hist: hist });
     $('rhead').textContent = progress ? T('searching', { q: q, progress: progress }) + (total ? T('sep') + matches : '')
       : total === 0 ? T('notFound', { q: q })
       : T('found', { q: q, matches: matches }) + (total > shown.length ? T('sep') + T('showingFirst', { n: shown.length }) : '');
@@ -1177,23 +1184,56 @@
         meta = '<span class="hm"><span>' + range + '</span><span>' + when + '</span>' + bd + '</span>';
       }
       b.innerHTML = '<span class="ht">' + esc(shownTitle(n.title)) + '</span><span class="hs">' + r.snippet + '</span>' + meta;
-      b.addEventListener('click', () => { openAt(r.id, hist ? { rev: r.a } : { s: r.s, e: r.e }); closeSide(); });
+      b.addEventListener('click', () => { openAt(r.id, hist ? { rev: r.a } : r.tag ? { tag: r.tag } : { s: r.s, e: r.e }); closeSide(); });
       li.appendChild(b);
       ul.appendChild(li);
     }
   }
 
+  /* プレビューと履歴の「Markdown表示」で、フロントマターのタグの札を押したとき: 検索欄を tag:名前 にして探す。
+     Ctrl+クリック(Mac は ⌘+クリック)では、今の検索語に足す(同じタグがもうあれば、そのまま)。
+     札はボタンなので、プレビューで押しても編集欄は開かない(PE_SKIP) */
+  function searchTag(name, add) {
+    const tok = 'tag:' + (/[\s"]/.test(name) ? '"' + name.replace(/"/g, '') + '"' : name);
+    const q = $('q').value.trim();
+    $('q').value = !add || !q ? tok : parseQuery(q).tags.includes(tagKey(name)) ? q : q + ' ' + tok;
+    showSide();
+    clearTimeout(qTimer);
+    runSearch();
+  }
+  function onTagClick(e) {
+    const b = e.target.closest && e.target.closest('.fm .tag-link');
+    if (!b) return;
+    e.preventDefault();
+    e.stopPropagation();
+    searchTag(b.dataset.tag, IS_MAC ? e.metaKey : e.ctrlKey);
+  }
+  $('preview').addEventListener('click', onTagClick, true);
+  $('hvBody').addEventListener('click', onTagClick, true);
+
+  /* タグだけの検索(tag:名前): 一覧の索引のタグから探す(メモのファイルは読まない)。1つのメモに1件 */
+  function paintTagResults(q, tags, notes) {
+    const res = notes.map(n => ({
+      id: n.id, tag: tags[0],
+      snippet: (n.tags || []).map(t => '<span class="tag">' + (tags.some(w => tagHit(t, w)) ? '<mark>' + esc(t) + '</mark>' : esc(t)) + '</span>').join(' ')
+    }));
+    paintResults(q, false, res, res.length, '', true);
+  }
   async function runSearch() {
     const q = $('q').value.trim();
     const had = S.q;
+    const pq = parseQuery(q);
     S.q = q;
+    S.qText = pq.text;
     const tok = ++sTok;
     $('qClear').hidden = !$('q').value;
     $('results').hidden = !q;
     $('noteList').hidden = !!q;
     if (!q) { if (had) refreshView(); return; }
 
-    const notes = sorted();
+    // tag:名前 があれば、そのタグをすべて持つメモだけを探す
+    const notes = pq.tags.length ? sorted().filter(n => hasTags(n.tags, pq.tags)) : sorted();
+    if (pq.tags.length && !pq.text) { paintTagResults(q, pq.tags, notes); refreshView(); return; }
     const hist = S.scope === 'history';
     const CH = hist ? 20 : 100;
     const res = [];
@@ -1203,7 +1243,7 @@
       let objs;
       try { objs = hist ? await chunkHistory(part) : await chunkLatest(part); } catch (e) { objs = []; }
       if (tok !== sTok) return;                 // 検索語などが変わった
-      const r = hist ? searchHistory(objs, q, 10) : searchLatest(objs, q, 10);
+      const r = hist ? searchHistory(objs, pq.text, 10) : searchLatest(objs, pq.text, 10);
       res.push(...r.res); total += r.total;
       if (i + CH < notes.length) {
         paintResults(q, hist, res, total, T('searchProgress', { i: Math.min(i + CH, notes.length), n: notes.length }));
@@ -1644,6 +1684,7 @@
       a.removeAttribute('title');
       a.dataset.status = n ? T('linkStatusNote', { title: shownTitle(n.title) }) : T('linkStatusMissing');
     });
+    root.querySelectorAll('.fm .tag-link').forEach(b => { b.title = T('tagLinkTitle'); });
     // Mermaid の図(diagram.js)。印刷と書き出しは、描き終わるのを待つ
     return Diagrams.render(root, diagramOpts || noteDiag()).catch(() => {});
   }
@@ -1961,11 +2002,18 @@
   // 何も書いていないメモのプレビューなら、「空のメモ」の表示(そうでなければ null)
   const peBlank = () => $('preview').querySelector(':scope > p.empty');
   /* プレビューを作り直す。anchor(元の文の行)のかたまりが、作り直す前の top(画面の上からの高さ)と同じ高さに来るようにする */
+  let pvAnchorTok = 0;
   function renderPreview() {
     const pv = $('preview');
-    pv.innerHTML = md(cur().text, { lines: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
+    // 中身をそっくり入れ替えると、次の描画で Chromium のスクロールアンカー(overflow-anchor)が位置をずらす
+    // (検索で作り直すたびに、同じ向きに同じだけずれていった)。入れ替えた直後の描画の間だけ止める。
+    // あとから図や画像の高さが変わったときは、今までどおりアンカーが見ている場所を保つ
+    pv.style.overflowAnchor = 'none';
+    const tok = ++pvAnchorTok;
+    requestAnimationFrame(() => requestAnimationFrame(() => { if (tok === pvAnchorTok) pv.style.overflowAnchor = ''; }));
+    pv.innerHTML = md(cur().text, { lines: true, fm: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
     lastHydrate = hydrate(pv, cur().id);
-    highlight(pv, S.q);
+    highlight(pv, S.qText);
     peApplyRO();
   }
   /* プレビューの、編集できるかどうかで変わる所を、今のメモの「読み取り専用」に合わせる(作り直さずに。読み取り専用を付け外ししたときにも使う) */
@@ -2084,7 +2132,7 @@
     Object.assign(pe, { box: ta, holder: holder, el: el, kind: 'block', add: null, s: s, e: e, n: e - s, start: n.text, pre: lines.slice(0, s).join('\n'), post: lines.slice(e).join('\n'), hasPost: e < lines.length });
     peFit(true);
     ta.focus({ preventScroll: true });
-    const pos = d && d.at === 'start' ? 0 : d && d.at === 'end' ? src.length : caretFromRendered(src, d ? d.before : '', d ? d.total : 0);
+    const pos = d && d.pos != null ? Math.min(src.length, d.pos) : d && d.at === 'start' ? 0 : d && d.at === 'end' ? src.length : caretFromRendered(src, d ? d.before : '', d ? d.total : 0);
     ta.setSelectionRange(pos, pos);
     // 描き終えたあとにもう一度合わせる(フォントや折り返しが決まってから)
     requestAnimationFrame(() => { if (pe.box === ta) peFit(true); });
@@ -2453,7 +2501,8 @@
       if (kind === 'block' && line != null && line >= end) line += delta;
     }
     let action = null;
-    try { action = await api.tableMenu({ inTable: false }); } catch (err) { action = null; }
+    try { action = await api.tableMenu({ inTable: false, fm: !!frontMatter(cur().text) }); } catch (err) { action = null; }
+    if (action === 'frontmatter') { frontMatterCommand(); return; }   // どこを右クリックしても、メモの先頭
     if (action !== 'insert' && action !== 'math' && action !== 'diagram' && action !== 'para') return;
     const el = line != null ? peBlockAt(line) : null;
     if (action === 'para') peOpenAdd(el);
@@ -2463,21 +2512,24 @@
   });
   // 「テキスト」表示と、プレビューで編集しているかたまり・セルの右クリック: メニューに「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」を足す
   // (カーソルが表の中なら表の操作、外なら「表を挿入」だけ。main.js に先に知らせる)
+  // 「フロントマター(タグ)を挿入」も足す(フロントマターがもうあれば「…を編集」。fm)
   document.addEventListener('contextmenu', e => {
-    let info = null, math = false, cell = false, diagram = false;
+    let info = null, math = false, cell = false, diagram = false, fm = false;
     if (e.target === $('editor') && S.mode === 'edit' && !isRO(cur())) {
       const ed = $('editor'), at = tableCaret(ed.value, ed.selectionStart);
       const t = at && tableAt(ed.value, at.row);
       info = t ? { inTable: true, head: at.row === t.head || at.row === t.delim, cols: t.cols, align: t.align[at.col] || '' } : { inTable: false };
       math = !!mathAt(ed.value, ed.selectionStart);
       diagram = !!diagramBlock(ed.value, ed.value.slice(0, ed.selectionStart).split('\n').length - 1);
+      fm = !!frontMatter(ed.value);
     } else if (pe.box && e.target === pe.box && S.mode === 'preview' && !isRO(cur())) {
       cell = pe.kind === 'cell';
       const t = cell && tableAt(cur().text, pe.row);
       info = t ? { inTable: true, head: pe.row === t.head, cols: t.cols, align: t.align[pe.col] || '' } : { inTable: false };
       math = !!mathAt(pe.box.value, pe.box.selectionStart);
+      fm = !!frontMatter(cur().text);
     }
-    api.editContext({ table: info, math: math, cell: cell, diagram: diagram, editable: !!info });
+    api.editContext({ table: info, math: math, cell: cell, diagram: diagram, fm: fm, editable: !!info });
   }, true);
 
   /* ---------- 数式エディタ ----------
@@ -3047,8 +3099,37 @@
     openDiagramEditor({ src: m.dataset.src, view: true });
   }
 
+  /* 「編集」→「フロントマター(タグ)を挿入」: どこで選んでも、メモの先頭に入れる(core.js の frontMatterInsert)。
+     もうあるときは、tags の値の終わりにカーソルを移すだけ。「テキスト」表示では1回の編集として Ctrl+Z で戻せる。
+     プレビューでは、入れたあとフロントマターのかたまりの編集欄を開く */
+  function frontMatterCommand() {
+    const n = cur();
+    if (!n || isRO(n)) return;
+    if (S.mode === 'edit') {
+      const ed = $('editor'), r = frontMatterInsert(ed.value);
+      if (r.text !== ed.value) { const op = makeOp(ed.value, r.text, 0); frInsert(op.p, op.p + op.d.length, op.i); }
+      ed.focus();
+      ed.setSelectionRange(r.caret, r.caret);
+      scrollTextareaTo(ed, r.caret);
+      queueStatus();
+      return;
+    }
+    if (!peAllowed()) return;
+    if (pe.box) peClose();
+    const before = cur().text, r = frontMatterInsert(before);
+    if (r.text !== before) {
+      if (!peSetText(r.text)) return;
+      peRecord(before, r.text);
+      peRerender(0, null);
+    }
+    $('preview').scrollTop = 0;
+    const el = peBlockAt(0);
+    if (el && el.matches('.fm')) peOpenBlock(el, { pos: r.caret });
+  }
+
   api.onMenu(name => {
     if (name === 'new') createNote();
+    else if (name === 'frontmatter') frontMatterCommand();
     else if (name === 'selectall') selectAllScoped();
     else if (name === 'lines') setLines(!S.lines, true);
     else if (name === 'replace') frOpen();
@@ -3780,7 +3861,7 @@
     S.dir = data.dir;
     loadRecent();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
-    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, ro: !!r.ro, loaded: false }));
+    S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());
     let last = null;
     try { last = localStorage.getItem('everpad:active'); } catch (e) { /* 無くても動く */ }

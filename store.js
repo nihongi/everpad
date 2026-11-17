@@ -22,12 +22,14 @@ function storeError(code, message) { const e = new Error(message); e.code = code
 const path = require('path');
 
 const INDEX_NAME = '.everpad-index.json';
-const INDEX_VERSION = 4;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした 4: ro(読み取り専用)を加えた
+const INDEX_VERSION = 5;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした 4: ro(読み取り専用)を加えた 5: tags(フロントマターのタグ)を加え、題名をフロントマターの後ろから取るようにした
 const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_ATTACH = 50 * 1024 * 1024;
 const FILEID_RE = /^[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
 const validFileId = f => typeof f === 'string' && FILEID_RE.test(f);
 const validId = id => typeof id === 'string' && ID_RE.test(id);
+/* 索引にタグ(フロントマターの tags)を持つ。無いメモには項目を作らない(索引を小さく保つ) */
+function setTags(e, text) { const t = core.tagsOf(text); if (t.length) e.tags = t; else delete e.tags; }
 const validOp = o =>
   Array.isArray(o) && o.length === 4 &&
   Number.isInteger(o[0]) && o[0] >= 0 &&
@@ -128,7 +130,7 @@ class Store {
       fs.writeFileSync(f, text);
     }
     const e = this._entry(id);
-    if (e) { e.title = core.titleOf(text); this._dirty(); }
+    if (e) { e.title = core.titleOf(text); setTags(e, text); this._dirty(); }
     return true;
   }
 
@@ -353,10 +355,11 @@ class Store {
         st = this._stat(id) || st;               // 壊れた行を直した場合は、直した後のファイルで記録する
         // 並びの時刻は、最後に編集した時刻と取り込んだ時刻の新しいほう(取り込んだメモを一覧の上に出す)
         e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, base: note.base, n: note.base + note.ops.length, title: core.titleOf(text), ro: note.ro, size: st.size, mtime: st.mtime };
+        setTags(e, text);
         this._dirty();
       }
       seen.add(id);
-      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, base: e.base || 0, n: e.n, title: e.title, ro: !!e.ro });
+      out.push({ id: id, c: e.c, t: e.t, imported: e.imported || 0, base: e.base || 0, n: e.n, title: e.title, tags: e.tags || [], ro: !!e.ro });
     }
     for (const id of Object.keys(idx)) if (!seen.has(id)) { delete idx[id]; this._dirty(); }
     out.sort((a, b) => a.c - b.c);

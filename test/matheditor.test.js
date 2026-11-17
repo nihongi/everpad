@@ -141,7 +141,7 @@ test('数式エディタ: 画面・メニュー・キー・右クリックへの
 test('数式エディタ: プレビューで編集しているかたまり・セルの右クリックにも出し、カーソルが数式の中なら編集する', () => {
   const app = read('renderer/app.js'), main = read('main.js');
   assert.match(app, /\} else if \(pe\.box && e\.target === pe\.box && S\.mode === 'preview' && !isRO\(cur\(\)\)\) \{[\s\S]*?math = !!mathAt\(pe\.box\.value, pe\.box\.selectionStart\);/);
-  assert.match(app, /api\.editContext\(\{ table: info, math: math, cell: cell, diagram: diagram, editable: !!info \}\);/);
+  assert.match(app, /api\.editContext\(\{ table: info, math: math, cell: cell, diagram: diagram, fm: fm, editable: !!info \}\);/);
   assert.match(app, /if \(pe\.kind === 'block'\) \{\n\s+const ta = pe\.box, s = ta\.selectionStart, e = ta\.selectionEnd;\n\s+const at = mathAt\(ta\.value, s\);/);
   assert.match(app, /const op = makeOp\(inp\.value, mathReplace\(inp\.value, at, tex, false\)\.text, 0\);/);
   assert.match(main, /cell: !!st\.cell/);
@@ -157,5 +157,5 @@ test('プレビュー: 空のメモはどこを押しても空の編集欄。表
   assert.match(app, /'<p class="empty">' \+ esc\(T\('emptyNote'\)\) \+ '<\/p>'/);
   assert.match(app, /if \(action === 'math'\) peInsertMath\(el\);\n\s+else if \(action === 'diagram'\) peInsertDiagram\(el\);\n\s+else peInsertTable\(el \? peAfter\(el\) : null, el\);/);
   assert.match(app, /function peInsertMath\(el0\) \{\n\s+if \(!peAllowed\(\)\) return;/);
-  assert.match(main, /if \(state\.inTable === false\) \{\n\s+items\.unshift\(\{ label: T\('mInsertPara'\), click: \(\) => \{ chosen = true; resolve\('para'\); \} \}, \{ type: 'separator' \},\n\s+\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \},\n\s+\{ label: T\('mInsertDiagram'\), accelerator: curKeys\(\)\.diagram \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('diagram'\); \} \}\);/);
+  assert.match(main, /if \(state\.inTable === false\) \{\n\s+items\.unshift\(\{ label: T\('mInsertPara'\), click: \(\) => \{ chosen = true; resolve\('para'\); \} \}, \{ type: 'separator' \},\n\s+\{ label: T\('mInsertMath'\), accelerator: curKeys\(\)\.math \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('math'\); \} \},\n\s+\{ label: T\('mInsertDiagram'\), accelerator: curKeys\(\)\.diagram \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('diagram'\); \} \},\n\s+\{ label: T\(st && st\.fm \? 'mEditFm' : 'mInsertFm'\), accelerator: curKeys\(\)\.frontmatter \|\| undefined, registerAccelerator: false, click: \(\) => \{ chosen = true; resolve\('frontmatter'\); \} \}\);/);
 });

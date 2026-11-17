@@ -20,6 +20,7 @@ This program was created with the help of Claude Code.
 - **Diagrams**: flowcharts, sequence diagrams and other diagrams written in [Mermaid](https://mermaid.js.org/) are drawn in the preview, the history and printouts.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
 - **Find and replace**: with case sensitivity, whole-word and regular-expression options.
+- **Tags**: write tags in front matter at the top of a note (Edit → Insert Front Matter (Tags)), and find the notes with a tag by searching for `tag:name`.
 - **Images and attachments**: paste screenshots or drop files into a note.
 - **Print and export**: print a note, or save it as a PDF or as one web page file (HTML or MHTML) with the images included, with the same formatting as the preview. A note can also be saved as AsciiDoc, as a Word document (`.docx`) or as LaTeX (`.tex`), keeping its headings, lists, tables, images and formulas.
 - **Keyboard shortcuts you can change**: assign the keys you like from File → Keyboard Shortcuts….
@@ -51,10 +52,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.39.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.40.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.39.0.exe
+EverPad 0.40.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -146,6 +147,15 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). Replace all is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
 - In the Preview view, Find and Replace… (`Ctrl+H`) opens a find-only bar (replacing is done in the Text view). It searches the formatted text as you see it (so `**ap**ple` is found as "apple"; text inside formulas and diagrams is not searched). Every match is highlighted, and Enter / F3 moves to the next one. The bar stays open when you switch between Text and Preview, and the replace row appears only in the Text view. For a read-only note, the bar is find-only in the Text view too.
 - In the history, Find and Replace… also opens a find-only bar. The time slider then shows colored bands under it for the versions that contain the text, so you can see when it was written and when it was deleted. Previous change / Next change move to the versions where the number of matches changed (where the text was written or deleted). The matches in the version shown are highlighted, and Enter / F3 moves between them. The bands are computed from the note's text as written (Markdown), and regular expressions cannot be used in the history. Opening a result of the All history search opens this bar with the same text.
+
+**Tags and front matter**
+
+- Edit → Insert Front Matter (Tags) (also in the right-click menu of the Text view and of the preview, where it reads Edit Front Matter (Tags) when the note already has front matter; a key can be assigned in File → Keyboard Shortcuts…) puts three lines, `---`, `tags: ` and `---`, at the top of the note, wherever the cursor is, and places the cursor after `tags: `. Type the tags separated by commas, for example `tags: YAML, design`. If the note already has front matter, the command only moves the cursor to the end of its tags (adding a `tags:` line if there is none). In the preview, the front matter then opens for editing. Inserting is one edit and can be undone; the command is grayed out in the history and for read-only notes.
+- Tags can also be written as `tags: [YAML, design]`, or as a list with one `  - YAML` line per tag under `tags:`. Put a tag in quotes (`"a, b"`) if it contains a comma; a `#` at the start of a tag is ignored. This is the front matter used by Obsidian, Jekyll, Hugo and Pandoc, so Markdown files from them keep their tags when imported.
+- The lines at the top count as front matter only when the first line is exactly `---` and every line up to the closing `---` (or `...`) is `key: value`, an indented line, a `- ` line, a blank line or a `#` comment. Otherwise `---` is a horizontal rule, as before. Keys other than `tags` are kept as written.
+- The preview and the history's Markdown view show the front matter as a box of keys and values, with the tags as labels. Click a label to search for that tag (`Ctrl`+click adds it to the current search; the labels can also be reached with Tab and pressed with Enter); click elsewhere in the box to edit it, like other parts. Printouts, PDFs, HTML, MHTML, AsciiDoc, Word and LaTeX files leave it out; text files and EverPad archives keep it as written. The note's title is the first line with text after the front matter.
+- Search for `tag:YAML` to list the notes that have the tag YAML, one result per note. Case and full-width or half-width letters do not matter, and `tag:work` also finds `work/meeting`. With several `tag:`, a note must have all of them. Other words search inside those notes: `tag:work agenda` finds "agenda" in the notes tagged work (in the latest version or all history, as chosen). Use quotes for a tag with spaces: `tag:"two words"`. The tags are taken from the latest version of each note, also when searching all history. Clicking a result opens the note with the tag selected.
+- A note can have up to 50 tags of up to 100 characters each.
 
 **Recently viewed notes and links between notes**
 
@@ -282,7 +292,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Right-click a note in the note list on the left (or in the search results) for actions on that note, regardless of the note that is open: Open, Copy Link to This Note, Export (text file, PDF, HTML, MHTML, AsciiDoc, Word document, LaTeX or EverPad archive; the latest version), Read-Only, Properties… and Delete… (grayed out for a read-only note). The menu starts with the note's title, and the row is outlined while the menu is open. Deleting a note that is not open leaves the open note as it is.
 - Hover over a link in the preview to see where it goes at the bottom left, as in a web browser: the address, the title of the linked note, the heading, the attachment name, or the text of a footnote. Links EverPad cannot open, such as relative paths to files, are marked "(cannot be opened in EverPad)".
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
-- Right-click in the Text view (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the Text view, the menu also has text formatting (bold and so on), line formatting (quote and so on), Insert Formula… (Edit Formula… when the cursor is in a formula) and Table. In the preview, right-click a table cell for the table commands, a formula or diagram to edit or copy it or to insert a paragraph after it, or another place to insert a paragraph, a formula, a diagram or a table. While you edit a part or a table cell in the preview, its right-click menu also has Insert Formula… (Edit Formula… when the cursor is in a formula) and Table. In the preview and the history, select text and right-click to copy.
+- Right-click in the Text view (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the Text view, the menu also has text formatting (bold and so on), line formatting (quote and so on), Insert Formula… (Edit Formula… when the cursor is in a formula), Insert Diagram… (Edit Diagram… when the cursor is in a diagram), Insert Front Matter (Tags) (Edit Front Matter (Tags) when the note already has front matter) and Table. In the preview, right-click a table cell for the table commands, a formula or diagram to edit or copy it or to insert a paragraph after it, or another place to insert a paragraph, a formula, a diagram, front matter or a table. While you edit a part or a table cell in the preview, its right-click menu also has Insert Formula… (Edit Formula… when the cursor is in a formula) and Table, and a part also has Insert Diagram… and Insert Front Matter (Tags). In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
 - **Settings**: File → Settings… (`Ctrl+,`) collects the settings in one window: Editing (auto indent, continuing lists, Tab indent width), Display (highlighting the current line, scrolling beyond the last line, line numbers, note colors, language) and Other (checking for updates at startup and adding EverPad to the "Send to" menu, which the Microsoft Store version does not have, and a button that opens Keyboard Shortcuts…). Keyboard Shortcuts… is also just below Settings… in the File menu. Changes take effect at once and are remembered.
 - To change the interface language, choose English or 日本語 in Language (言語) in File → Settings…. The setting is remembered, and the current view (Text, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
@@ -314,6 +324,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 | Alerts | `> [!NOTE]` (or `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) on the first line of a block quote |
 | Code blocks | lines surrounded by ```` ``` ```` (or `~~~`); to put ```` ``` ```` lines inside, surround with ````` ```` ````` |
 | Horizontal rules | `---` |
+| Front matter (tags) | `---`, `tags: [YAML, design]` and `---` as the first lines of the note |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
 | Footnotes | `text[^1]` and `[^1]: the note` at the start of a line |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
@@ -335,7 +346,7 @@ Each note consists of the following files and folder.
 | `<date-time>-<id>.md` | The latest text, for reading with other apps. Search across all notes reads the latest text of unopened notes from here (if it is older than the history, the text is rebuilt from the history). |
 | `<date-time>-<id>.files\` | Pasted images and attached files (see "Images and attachments"). Created only when the note has attachments. |
 
-The data folder also contains `.everpad-index.json`, an index for the note list (title, number of versions and last update time) that makes startup faster. It is rebuilt automatically if it is deleted or damaged.
+The data folder also contains `.everpad-index.json`, an index for the note list (title, tags, number of versions and last update time) that makes startup faster. It is rebuilt automatically if it is deleted or damaged.
 
 - To back up, just copy the data folder.
 - If a `.jsonl` file is damaged partway through, the readable part is used and the original file is kept under the name `.corrupt-…`.
@@ -347,7 +358,7 @@ The data folder also contains `.everpad-index.json`, an index for the note list 
 - At startup, only the index for the note list is read. A note's history file is read again only when its size or modification time no longer matches the index.
 - The full content, including history, is loaded only for notes you open. The six most recently used notes are kept in memory; others are released (notes being edited or waiting to be saved are never released).
 - The note list is not rebuilt on every keystroke, but updated once typing has settled.
-- Search across all notes runs in batches of 100 notes (20 when searching the history), and changing the search text cancels the previous search. Unopened notes are discarded after being read. Searching the latest version reads only the latest text, not the history.
+- Search across all notes runs in batches of 100 notes (20 when searching the history), and changing the search text cancels the previous search. Unopened notes are discarded after being read. Searching the latest version reads only the latest text, not the history. A search for tags only (`tag:name`) uses the tags in the index and reads no notes.
 
 ### Importing from Etherpad
 
@@ -399,15 +410,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.39.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.40.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.39.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.40.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.39.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.40.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -416,7 +427,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.39.0.AppImage` (x64)
+- Linux: `EverPad-0.40.0.AppImage` (x64)
 
 **macOS**
 
@@ -432,7 +443,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.39.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.40.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -520,6 +531,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **図**: [Mermaid](https://mermaid.js.org/) で書いたフローチャートやシーケンス図などを、プレビュー・履歴・印刷で図として表示します。
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
 - **検索と置換**: 大文字/小文字の区別、単語単位、正規表現を選べます。
+- **タグ**: メモの先頭のフロントマターにタグを書き(「編集」→「フロントマター(タグ)を挿入」)、`tag:名前` で検索すると、そのタグのメモを探せます。
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
 - **印刷・エクスポート**: メモを、プレビューと同じ整形した見た目で印刷したり、PDF や、画像も入った1つの Web ページのファイル(HTML・MHTML)として保存したりできます。見出し・リスト・表・画像・数式を保ったまま、AsciiDoc、Word 文書(`.docx`)、LaTeX(`.tex`)としても保存できます。
 - **キーボードショートカットを変えられる**: 「ファイル」→「キーボードショートカット…」で、好きなキーを割り当てられます。
@@ -551,10 +563,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.39.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.40.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.39.0.exe
+EverPad 0.40.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -646,6 +658,15 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 検索と置換では、大文字/小文字の区別・単語単位・正規表現を選べます。正規表現のときは、置換後の文字列に `$1`(かっこで囲んだ部分)、`$&`(一致した全体)、`\n`(改行)、`\t`(タブ)が使えます。「すべて置換」は1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。`Ctrl+F` は、これまでどおり全メモを対象にした検索です。
 - プレビューで「検索と置換…」(`Ctrl+H`)を選ぶと、検索だけのバーが出ます(置換は「テキスト」表示で行います)。整形したあとの、見えている文字を探します(`**ap**ple` は「apple」として見つかります。数式と図の中は探しません)。一致した箇所すべてに色が付き、Enter / F3 で次の箇所に進みます。バーを開いたまま「テキスト」とプレビューを切り替えられ、置換の行は「テキスト」表示でだけ出ます。読み取り専用のメモでは、「テキスト」表示でも検索だけのバーになります。
 - 履歴の表示でも、「検索と置換…」で検索だけのバーが出ます。タイムスライダーの下に、検索語がある版の範囲が色の帯で出るので、その文をいつ書いて、いつ消したかがわかります。「前の変化」「次の変化」で、検索語の数が変わった版(書いた版・消した版)に移ります。表示中の版の中の一致には色が付き、Enter / F3 で順に移れます。帯はメモの元の文字(Markdown)で数えます。履歴の表示では正規表現は使えません。「履歴すべて」の検索結果から開いたときは、同じ検索語でこのバーが開きます。
+
+**タグとフロントマター**
+
+- 「編集」→「フロントマター(タグ)を挿入」(「テキスト」表示とプレビューの右クリックにもあります。フロントマターがもうあるメモでは、右クリックでは「フロントマター(タグ)を編集」と出ます。「ファイル」→「キーボードショートカット…」でキーを割り当てられます)で、カーソルがどこにあっても、メモの先頭に `---`・`tags: `・`---` の3行を入れ、`tags: ` の後ろにカーソルを置きます。タグはコンマで区切って書きます(例: `tags: YAML, 設計`)。もうフロントマターがあるメモでは、2つ目は入れず、タグの終わりにカーソルを移します(`tags:` の行が無ければ足します)。プレビューでは、入れたあとフロントマターの編集欄が開きます。挿入は1回の編集として、元に戻せます。履歴の表示と読み取り専用のメモではグレーアウトします。
+- タグは `tags: [YAML, 設計]` や、`tags:` の次の行から1つずつ `  - YAML` と並べて書くこともできます。コンマを含むタグは引用符で囲みます(`"a, b"`)。タグの先頭の `#` は外して読みます。Obsidian・Jekyll・Hugo・Pandoc と同じ書き方なので、それらの Markdown ファイルを取り込んでも、タグはそのまま使えます。
+- 先頭の行をフロントマターとみなすのは、1行目がちょうど `---` で、閉じの `---`(か `...`)までの行が、すべて `キー: 値`・字下げした行・`- ` の行・空行・`#` のコメントのときだけです。そうでなければ、今までどおり `---` は区切り線です。`tags` 以外のキーも、書いたまま残します。
+- プレビューと履歴の「Markdown表示」では、フロントマターをキーと値の枠にして出し、タグは札の形で出します。札を押すと、そのタグで検索します(`Ctrl`+クリックでは今の検索に足します。札は Tab で選んで Enter でも押せます)。枠のほかの所をクリックすると、ほかの部分と同じく編集できます。印刷・PDF・HTML・MHTML・AsciiDoc・Word・LaTeX には出しません。テキストファイルと EverPad アーカイブには、書いたまま入ります。メモの題名は、フロントマターより後ろの、最初の文字のある行です。
+- `tag:YAML` で検索すると、タグ YAML の付いたメモを、1つのメモに1件で出します。大文字/小文字と全角/半角は区別しません。`tag:仕事` は `仕事/会議` にも当たります。`tag:` を2つ以上書くと、すべてのタグを持つメモだけです。ほかの語も書くと、そのメモの中から探します(`tag:仕事 議事録` なら、タグ「仕事」のメモから「議事録」を、「最新の版」か「履歴すべて」で)。空白を含むタグは `tag:"二つの 語"` のように囲みます。タグは各メモの最新の版のものを使います(「履歴すべて」でも同じ)。結果を押すと、そのタグを選んでメモを開きます。
+- タグは1つのメモに50個まで、1つ100文字までです。
 
 **最近見たメモとメモ同士のリンク**
 
@@ -782,9 +803,9 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 左のメモ一覧(と検索結果)でメモを右クリックすると、今開いているメモとは関係なく、そのメモに対する操作のメニューが出ます。「開く」「このメモへのリンクをコピー」「エクスポート」(テキストファイル・PDF・HTML・MHTML・AsciiDoc・Word 文書・LaTeX・EverPad アーカイブ。最新の版を書き出します)「読み取り専用」「プロパティ…」「削除…」(読み取り専用のメモでは押せません)です。メニューの先頭には対象のメモの題名が出て、メニューを開いている間はその行に枠が付きます。開いていないメモを削除しても、開いているメモはそのままです。
 - プレビューでリンクにマウスを重ねると、ブラウザと同じように左下にリンク先(アドレス、参照先のメモの題名、見出し、添付の名前、脚注の文)が出ます。ファイルへの相対パスなど EverPad で開けないリンクには「(EverPad では開けません)」と付きます。
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
-- 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。「テキスト」表示では、文字の装飾(太字など)、行の書式(引用など)、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)、「表」も出ます。プレビューでは、表のセルを右クリックすると表の操作、数式・図を右クリックすると編集とコピーと「段落を挿入」、そのほかの場所では「段落を挿入」「数式を挿入…」「図を挿入…」「表を挿入」が出ます。プレビューで編集している部分や表のセルの右クリックにも、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」が出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
+- 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。「テキスト」表示では、文字の装飾(太字など)、行の書式(引用など)、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)、「図を挿入…」(カーソルが図の中なら「図を編集…」)、「フロントマター(タグ)を挿入」(フロントマターがもうあれば「フロントマター(タグ)を編集」)、「表」も出ます。プレビューでは、表のセルを右クリックすると表の操作、数式・図を右クリックすると編集とコピーと「段落を挿入」、そのほかの場所では「段落を挿入」「数式を挿入…」「図を挿入…」「フロントマター(タグ)を挿入」「表を挿入」が出ます。プレビューで編集している部分や表のセルの右クリックにも、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」が出ます。編集している部分には、「図を挿入…」と「フロントマター(タグ)を挿入」も出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
-- **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「そのほか」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
+- **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「その他」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
 - 画面の言語は、「ファイル」→「設定…」の「言語 (Language)」で「日本語」か「English」を選んで切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
 - 画面下のステータスバーには、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
@@ -814,6 +835,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 | アラート | 引用の1行目に `> [!NOTE]`(`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` も) |
 | コードブロック | ```` ``` ```` だけの行で前後を囲む(`~~~` も可)。中に ```` ``` ```` の行を書くときは ````` ```` ````` で囲む |
 | 区切り線 | `---` |
+| フロントマター(タグ) | メモの先頭の `---`、`tags: [YAML, 設計]`、`---` の行 |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
 | 脚注 | `本文[^1]` と、行の先頭に `[^1]: 注の文` |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
@@ -835,7 +857,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 | `<日時>-<英数字>.md` | 最新の本文。他のアプリで読むための控えです。全メモの検索では、開いていないメモの最新の本文をここから読みます(履歴より古い場合は、履歴から組み立てます)。 |
 | `<日時>-<英数字>.files\` | 貼り付けた画像と添付ファイル(「画像・ファイルの添付」を参照)。添付があるメモだけにできます。 |
 
-このほか保存先には、メモ一覧用の索引 `.everpad-index.json`(題名・版数・更新時刻)があります。起動を速くするための控えで、消えても壊れても自動で作り直されます。
+このほか保存先には、メモ一覧用の索引 `.everpad-index.json`(題名・タグ・版数・更新時刻)があります。起動を速くするための控えで、消えても壊れても自動で作り直されます。
 
 - バックアップは、保存先フォルダをコピーするだけです。
 - `.jsonl` が途中で壊れていた場合は、読める範囲までを使い、元のファイルを `.corrupt-…` という名前で残します。
@@ -847,7 +869,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 起動時に読むのは、メモ一覧用の索引だけです。各メモの履歴ファイルは、大きさや更新時刻が索引と合わなくなったものだけ読み直します。
 - 履歴を含む中身は、開いたメモだけ読み込みます。読み込んだメモは最近使った6件だけ覚えておき、ほかは手放します(編集中や保存待ちのメモは手放しません)。
 - メモ一覧は入力のたびには作り直さず、入力が落ち着いてから更新します。
-- 全メモの検索は、100件(履歴まで探すときは20件)ずつに分けて進め、検索語を変えると前の検索を打ち切ります。開いていないメモは、読んだあと覚えずに捨てます。「最新の版」の検索は最新の本文だけを読み、履歴は読みません。
+- 全メモの検索は、100件(履歴まで探すときは20件)ずつに分けて進め、検索語を変えると前の検索を打ち切ります。開いていないメモは、読んだあと覚えずに捨てます。「最新の版」の検索は最新の本文だけを読み、履歴は読みません。タグだけの検索(`tag:名前`)は、索引のタグを使い、メモを読みません。
 
 ### Etherpad からの取り込み
 
@@ -899,15 +921,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.39.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.40.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.39.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.40.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.39.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.40.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -916,7 +938,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.39.0.AppImage`(x64)
+- Linux: `EverPad-0.40.0.AppImage`(x64)
 
 **macOS**
 
@@ -932,7 +954,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.39.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.40.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
