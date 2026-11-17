@@ -294,8 +294,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
   - Portable version: Download saves the new portable exe (`EverPad x.y.z.exe`) in the same folder as the current one. Close EverPad and start the new exe; it uses the same `EverPad Data`. You can delete the old exe afterwards.
   - The download shows its progress at the bottom right of the window (and on the taskbar button), with a Cancel button. EverPad downloads only the file for that version from the release on GitHub, and uses it only if its size and SHA-256 match what GitHub records for the release; otherwise the file is deleted and nothing is run.
   - Open Download Page opens the latest release page on GitHub instead (on macOS and Linux, which have no published builds yet, the repository page).
-
-  At startup, nothing is shown unless a newer version is found, and you can tick "Don't remind me about version x.y.z" to skip that version. To turn off the check at startup, clear "Check for updates at startup" in File → Settings….
+  - At startup, nothing is shown unless a newer version is found, and you can tick "Don't remind me about version x.y.z" to skip that version. To turn off the check at startup, clear "Check for updates at startup" in File → Settings….
 - The check reads `https://api.github.com/repos/nihongi/everpad/releases/latest` and compares only the version number. Nothing about you or your notes is sent; like any web request, GitHub sees your IP address and the app's name and version (`EverPad/x.y.z`). It uses the system's proxy settings (on Windows, the Internet Options / Settings → Network & Internet → Proxy, including automatic configuration scripts). Apart from this check, EverPad connects to the internet only to download an update you chose (from GitHub, in the same way).
 - Behind a proxy (for example on a company network), EverPad connects to `api.github.com` (the check), `github.com` and `release-assets.githubusercontent.com` (the download; GitHub forwards downloads there), all over HTTPS. If the proxy refuses one of them, EverPad says so; ask your administrator to allow them, or use Open Download Page. EverPad does not support proxies that ask for a user name and password (proxies that use your Windows sign-in usually work). Some proxies check an `.exe` before passing it on, so a download may wait at 0 MB for a while; EverPad waits up to two minutes without data, and you can cancel at any time.
 
@@ -625,7 +624,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「テキスト」と「プレビュー」を切り替えると、見ていた場所が切り替えたあとも同じ高さに出て、その場所が一瞬光ります。「テキスト」からは、カーソルが見えていればカーソルの行を、見えていなければ画面の上端の行を合わせます。プレビューからは、クリックした場所が見えていれば、「テキスト」のその行の先頭(リストの記号や `#` のあと)にカーソルを移して同じ高さに出します。クリックしていなければ上端の部分を合わせ、カーソルは動かしません。メモのいちばん上・いちばん下にいるときは、切り替えたあともいちばん上・いちばん下になります。履歴の表示の中で切り替えたときも同じです(カーソルは動かしません)。図や画像があとから出ても、見ていた場所はずれません。
 - 履歴の表示を出すとき・閉じるときも、同じように見ていた場所(カーソルの行か上端の行)を同じ高さに出します。こちらは光らせず、カーソルも動かしません。古い版を表示しているときは、同じ番号の行に合わせます。
 - 履歴の表示中に左の一覧から別のメモを開くと、そのメモの最新の版を表示します。
-- 下の状態表示に、表示している版の編集で変更した位置(「変更位置: 12行目・5文字目」)が出ます。追加なら追加し終えた位置、削除なら削除した位置です。上の「追加 1文字」などを押すと、変更箇所まで表示を動かして一瞬強調します。プレビューの履歴では、「テキスト」の履歴に切り替えて示します。行番号を出しているときは、変更した行の番号も色で示します。
+- 下のステータスバーに、表示している版の編集で変更した位置(「変更位置: 12行目・5文字目」)が出ます。追加なら追加し終えた位置、削除なら削除した位置です。上の「追加 1文字」などを押すと、変更箇所まで表示を動かして一瞬強調します。プレビューの履歴では、「テキスト」の履歴に切り替えて示します。行番号を出しているときは、変更した行の番号も色で示します。
 - 再生の速さは、とてもゆっくり・ゆっくり・ふつう・速い・とても速いの5段階から選べます。
 - 「この版に戻す」を押すと、その版の内容が新しい編集として追加されます。これまでの履歴は消えません。
 - **古い履歴の削除**: 履歴が長くなったときは、残したい最も古い版を表示して「これより前を削除…」(または「表示」→「この版より古い履歴を削除…」)を押すと、それより前の版をファイルから削除できます。**元に戻せない**ので、先に警告が出ます(初めは「キャンセル」が選ばれています)。警告には「削除する前に、すべての履歴をアーカイブ(.everpad)に書き出す」のチェックボックス(初めはオン)があり、書き出しをやめたときや書き出せなかったときは、何も削除しません。本文は変わらず、版数も変わりません。版の番号はそのままで、履歴は残した版から始まります(タイムスライダーの左端に「第1〜1,000版は削除済み」のように出ます)。見られる履歴の範囲は、プロパティに出ます。残る版のどこにも出てこない添付は、同時にごみ箱に入れます(数と大きさは警告に出ます)。Etherpad の `compactPad --keep` に当たる操作を、履歴の表示から行えるようにしたものです。
@@ -787,7 +786,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
 - **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「そのほか」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
 - 画面の言語は、「ファイル」→「設定…」の「言語 (Language)」で「日本語」か「English」を選んで切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
-- 画面下の状態表示には、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
+- 画面下のステータスバーには、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
 - 使っているバージョンは、メニューの「ヘルプ」→「EverPad について」で確認できます。Electron のバージョン、メモの保存先、EverPad の公開場所([https://github.com/nihongi/everpad/](https://github.com/nihongi/everpad/))も表示され、「GitHub で開く」でブラウザで開けます。
 - **更新の確認**: 起動して数秒後に、GitHub に新しいバージョンがあるかを確かめます。メニューの「ヘルプ」→「更新を確認…」で、いつでも確かめられます。新しいバージョンがあるときは、次のようにできます。
@@ -795,8 +794,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
   - portable 版: 「ダウンロード」で、新しい portable 版(`EverPad x.y.z.exe`)を、いまの exe と同じフォルダに保存します。EverPad を閉じて新しい exe を起動すると、同じ `EverPad Data` をそのまま使います。古い exe は、あとで消してかまいません。
   - ダウンロードしている間は、ウィンドウの右下(とタスクバーのボタン)に進み具合が出て、「やめる」で止められます。ダウンロードするのは、GitHub のリリースにある、その版のファイルだけです。大きさと SHA-256 が、GitHub がリリースのファイルごとに記録しているものと同じときだけ使い、違えばファイルを消して、何も動かしません。
   - 「ダウンロードページを開く」では、GitHub の最新のリリースのページを開きます(まだ配布していない macOS と Linux では、リポジトリのページを開きます)。
-
-  起動時は、新しいバージョンがあるときだけ知らせ、「バージョン x.y.z は今後知らせない」にチェックすると、その版は知らせません。起動時の確認をやめるときは、「ファイル」→「設定…」の「起動時に更新を確認する」のチェックを外します。
+  - 起動時は、新しいバージョンがあるときだけ知らせ、「バージョン x.y.z は今後知らせない」にチェックすると、その版は知らせません。起動時の確認をやめるときは、「ファイル」→「設定…」の「起動時に更新を確認する」のチェックを外します。
 - 確認では `https://api.github.com/repos/nihongi/everpad/releases/latest` を読み、版の番号だけを比べます。あなたやメモについての情報は送りません(通常の Web の通信と同じく、GitHub には IP アドレスと、アプリの名前とバージョン `EverPad/x.y.z` が伝わります)。プロキシは、システムの設定(Windows ではインターネット オプション/「設定」→「ネットワークとインターネット」→「プロキシ」。自動構成スクリプトを含む)を使います。EverPad がインターネットに接続するのは、この確認のときと、選んだ更新をダウンロードするとき(GitHub から。同じやり方です)だけです。
 - 会社などでプロキシを通すときは、EverPad は `api.github.com`(確認)、`github.com` と `release-assets.githubusercontent.com`(ダウンロード。GitHub がダウンロードをそこへ転送します)に、どれも HTTPS で接続します。プロキシがどれかを断ると、EverPad がそのことを知らせます。管理者に許可を頼むか、「ダウンロードページを開く」を使ってください。ユーザー名とパスワードを求めるプロキシには対応していません(Windows のサインインで通るプロキシなら、ふつうは使えます)。`.exe` を検査してから渡すプロキシでは、しばらく 0 MB のまま待つことがあります。EverPad は、何も届かなくても2分は待ちます。待っている間も「やめる」で止められます。
 
