@@ -128,9 +128,9 @@ test('書式と右クリック: 変えたキーを使う(キーなしは表示�
 
 test('つなぎ込み: メニューのキーは keymap.js から付け、表示メニューは見ていないほうだけ押せる', () => {
   const main = read('main.js'), app = read('renderer/app.js'), preload = read('preload.js'), html = read('renderer/index.html');
-  // メニューに決め打ちのキーは「すべて選択」だけ(画面側がメモの範囲を選ぶ。変えられないキー)
+  // メニューに決め打ちのキーは「すべて選択」と「テキストとして貼り付け」だけ(どちらも変えられないキー。後者は Windows・Linux では表示だけ)
   const menu = main.slice(main.indexOf('function buildMenu()'), main.indexOf('/* ---------- 言語 ----------'));
-  assert.deepStrictEqual(menu.match(/accelerator: '[^']*'/g), ["accelerator: 'CmdOrCtrl+A'"]);
+  assert.deepStrictEqual(menu.match(/accelerator: '[^']*'/g), ["accelerator: 'CmdOrCtrl+Shift+V'", "accelerator: 'CmdOrCtrl+A'"]);
   for (const c of K.COMMANDS.filter(x => !x.role)) {
     assert.ok(menu.includes("accelerator: A('" + c.id + "')") || c.id.startsWith('fmt:') || c.id.startsWith('tbl:'), 'メニューに無い: ' + c.id);
   }

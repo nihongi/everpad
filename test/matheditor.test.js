@@ -113,7 +113,7 @@ test('パレットとひな型: すべて KaTeX で描け(空の {} も)、名�
 
 test('数式エディタ: 画面・メニュー・キー・右クリックへのつなぎ込みと言葉', () => {
   const app = read('renderer/app.js'), main = read('main.js'), cm = read('contextmenu.js'), html = read('renderer/index.html'), css = read('renderer/styles.css');
-  assert.match(html, /<script src="diagram\.js"><\/script>\n<script src="diagramtemplates\.js"><\/script>\n<script src="mathpalette\.js"><\/script>\n<script src="app\.js"><\/script>/);
+  assert.match(html, /<script src="diagram\.js"><\/script>\n<script src="diagramtemplates\.js"><\/script>\n<script src="mathpalette\.js"><\/script>\n<script src="htmlmd\.js"><\/script>\n<script src="app\.js"><\/script>/);
   // プレビューは、メモと同じ設定(MATH_OPTS)で描く。誤りがあれば挿入できない
   assert.match(app, /katex\.renderToString\(v, Object\.assign\(\{\}, MATH_OPTS, \{ displayMode: display\(\) \}\)\)/);
   assert.match(app, /ok\.disabled = !v\.trim\(\) \|\| !!e;/);

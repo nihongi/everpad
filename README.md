@@ -52,10 +52,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.40.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.41.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.40.0.exe
+EverPad 0.41.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -223,6 +223,14 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Remove leaves the selected command without a key, Reset gives it back its default key, and Reset All… returns every key to the default after asking. Commands whose key you changed are marked "Changed", with the default key shown when you point at the mark.
 - The menus, the right-click menu, the tooltips of the buttons and the Markdown Guide show the keys you set. The keys are saved in `config.json` with the other settings (only the ones you changed), so they apply to this PC only and are not part of the data folder. The list ends with keys that cannot be changed (Undo, Copy, Tab for indentation, F3 and so on) for reference.
 
+**Pasting formatted text**
+
+- When you paste text copied from a web page, Word, Excel, Google Docs or the EverPad preview, its formatting is turned into Markdown: headings, bold, italic, strikethrough, code, lists (with check boxes), block quotes, code blocks, tables, links and horizontal rules. Bold or italic set with styles (as Google Docs does) counts too. Pasting is one edit, which `Ctrl+Z` undoes. This works in the Text view and in the part or table cell you are editing in the preview (a table cell gets one line, without headings or lists).
+- From the EverPad preview, formulas, diagrams, links to notes, attachments of the same note, emoji, alerts, footnotes and front matter come back as they were written. Formulas copied from web pages that use KaTeX or MathML come back as LaTeX when the page keeps it.
+- Images that are part of the copied content are added as attachments. Images on the web (`https://…`) are not downloaded, because EverPad does not connect to the internet; they become links. Colors, font sizes, fonts and underlines are dropped, because Markdown has no way to write them. HTML tags and scripts never end up in the note.
+- Plain text, and text with only colors and fonts (such as code copied from a code editor), is pasted as before. Inside a code block, text is always pasted as it is. To paste only the text, press `Ctrl+Shift+V` or choose Edit → Paste as Plain Text (also in the right-click menu). To always paste text as it is, clear "Keep formatting when pasting" in File → Settings….
+- Not yet supported: numbered and nested lists copied from Word are pasted as simple bulleted items, and images that Word or Excel keep in temporary files are not added. Attachments copied from another note keep the attachment syntax, but the file is not copied (see below).
+
 **Images and attachments**
 
 - In the Text view, paste a copied image (such as a screenshot), drag and drop a file onto the window, or choose a file with the Attach button. `![name](attach:…)` (image) or `[name](attach:…)` (file) is inserted at the cursor, and is shown as an image or a file link in the preview and in the history's Markdown view. Pasting inside a table row puts the attachment in that cell (several attachments line up side by side). In the preview, paste or drop into the part or table cell you are editing to insert at the cursor; with nothing being edited, a dropped file is added after the part you drop it on (or at the end of the note), and the Attach button adds it at the end of the note. Clicking an image or link opens it; executables and similar files are not opened, but shown in their folder instead.
@@ -294,7 +302,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Choose File → Properties… (`Alt+Enter`) to see the current note's title, note ID, creation and last edit times, number of versions (and, after deleting old history, the versions you can still view), characters (without line endings), words, lines, and the files that store it: the history file (`.jsonl`), the text file (`.md`) and the attachment folder (`.files`), with their sizes. Each file has buttons to show it in Explorer and to copy its path. Characters, words and lines are counted as in Notepad++'s Summary: a word is a run of characters other than spaces, line breaks and the ASCII symbols ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` (so Japanese punctuation does not separate words), and an empty note has one line.
 - Right-click in the Text view (or in the find and replace fields) for undo, redo, cut, copy, paste, delete and select all. In the Text view, the menu also has text formatting (bold and so on), line formatting (quote and so on), Insert Formula… (Edit Formula… when the cursor is in a formula), Insert Diagram… (Edit Diagram… when the cursor is in a diagram), Insert Front Matter (Tags) (Edit Front Matter (Tags) when the note already has front matter) and Table. In the preview, right-click a table cell for the table commands, a formula or diagram to edit or copy it or to insert a paragraph after it, or another place to insert a paragraph, a formula, a diagram, front matter or a table. While you edit a part or a table cell in the preview, its right-click menu also has Insert Formula… (Edit Formula… when the cursor is in a formula) and Table, and a part also has Insert Diagram… and Insert Front Matter (Tags). In the preview and the history, select text and right-click to copy.
 - The window position and size (including whether it was maximized) are restored at the next start. If the previous position would be off screen, for example because a display was disconnected, the position is left to Windows.
-- **Settings**: File → Settings… (`Ctrl+,`) collects the settings in one window: Editing (auto indent, continuing lists, Tab indent width), Display (highlighting the current line, scrolling beyond the last line, line numbers, note colors, language) and Other (checking for updates at startup and adding EverPad to the "Send to" menu, which the Microsoft Store version does not have, and a button that opens Keyboard Shortcuts…). Keyboard Shortcuts… is also just below Settings… in the File menu. Changes take effect at once and are remembered.
+- **Settings**: File → Settings… (`Ctrl+,`) collects the settings in one window: Editing (auto indent, continuing lists, keeping formatting when pasting, Tab indent width), Display (highlighting the current line, scrolling beyond the last line, line numbers, note colors, language) and Other (checking for updates at startup and adding EverPad to the "Send to" menu, which the Microsoft Store version does not have, and a button that opens Keyboard Shortcuts…). Keyboard Shortcuts… is also just below Settings… in the File menu. Changes take effect at once and are remembered.
 - To change the interface language, choose English or 日本語 in Language (言語) in File → Settings…. The setting is remembered, and the current view (Text, Preview or history, the search, the find and replace bar, the cursor and scroll position) is kept when switching.
 - The status bar shows up to three groups, separated by lines: **Cursor** (the line and column of the input position, in the Text view), **Selected** (the number of selected characters, and lines when several lines are selected; shown only while text is selected) and **Total** (characters, lines and versions of the whole note; while the history is shown, the characters and lines of the version being viewed). Line breaks are not counted as characters, and lines are counted by line breaks, as with line numbers (an empty note has one line). Hover over a group for a short explanation.
 - Choose Help → Markdown Guide for the Markdown you can use, with each example shown next to its result. See also "Markdown syntax" below.
@@ -410,15 +418,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.40.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.41.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.40.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.41.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.40.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.41.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -427,7 +435,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.40.0.AppImage` (x64)
+- Linux: `EverPad-0.41.0.AppImage` (x64)
 
 **macOS**
 
@@ -443,7 +451,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.40.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.41.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -472,6 +480,7 @@ archive.js       EverPad archives: building, checking and reading (testable with
 ziplite.js       Minimal ZIP reading and writing for archives, using Node.js zlib (testable without Electron)
 sendto.js        The "Send to" shortcut and reading files passed at startup (testable without Electron)
 renderer/        The UI (index.html / styles.css / app.js), the history, Markdown and search logic (core.js), the English and Japanese texts (i18n.js), Mermaid diagrams (diagram.js),
+                 turning pasted formatted text (HTML) into Markdown (htmlmd.js),
                  the emoji list for emoji shortcodes (emoji.js, made from gemoji by tools/make-emoji.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
 tools/           The Etherpad import tool (import-etherpad.js), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
@@ -563,10 +572,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.40.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.41.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.40.0.exe
+EverPad 0.41.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -734,6 +743,14 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「キーなしにする」は選んだ操作のキーを外し、「既定に戻す」は既定のキーに戻し、「すべて既定に戻す…」は確かめてから、すべてのキーを既定に戻します。キーを変えた操作には「変更済み」と出て、マウスを重ねると既定のキーがわかります。
 - メニュー、右クリックのメニュー、ボタンの説明、「Markdown の書き方」には、変えたキーが出ます。キーはほかの設定と一緒に `config.json` に保存し(変えたものだけ)、このパソコンだけで使います(メモの保存先には入りません)。一覧の最後には、参考として変えられないキー(元に戻す、コピー、字下げの Tab、F3 など)を出します。
 
+**整形された文書の貼り付け**
+
+- Web ページ・Word・Excel・Google ドキュメント・EverPad のプレビューなどからコピーした文書を貼ると、整形を Markdown にして入れます。見出し・太字・斜体・取り消し線・コード・箇条書き(チェックボックスも)・引用・コードブロック・表・リンク・区切り線です。文字飾りの指定で付けた太字や斜体(Google ドキュメントなど)も読みます。1回の貼り付けは1回の編集で、`Ctrl+Z` で戻せます。「テキスト」表示と、プレビューで編集している部分・表のセルで使えます(表のセルには、見出しやリストは作らず1行で入れます)。
+- EverPad のプレビューからのコピーでは、数式・図・メモへのリンク・同じメモの添付・絵文字・アラート・脚注・フロントマターを、元の書き方に戻します。KaTeX や MathML を使った Web ページの数式も、ページが LaTeX を持っていれば LaTeX に戻します。
+- コピーした中の画像そのものは、添付にします。Web 上の画像(`https://…`)は、EverPad がインターネットに接続しないので取りに行かず、リンクにします。色・文字の大きさ・フォント・下線は、Markdown に無いので外します。HTML のタグやスクリプトが、メモに入ることはありません。
+- ただの文字と、色やフォントだけの文書(コードエディタからコピーしたコードなど)は、今までどおり文字のまま貼ります。コードブロックの中では、いつも文字のまま貼ります。文字だけを貼りたいときは `Ctrl+Shift+V` か、「編集」→「テキストとして貼り付け」(右クリックにもあります)を使います。いつも文字のまま貼るときは、「ファイル」→「設定…」の「貼り付けで書式を保つ」のチェックを外します。
+- まだ対応していないもの: Word からコピーした番号付きや入れ子の箇条書きは、ふつうの箇条書きになります。Word や Excel が一時ファイルに置いた画像は、添付にしません。別のメモの添付は、書き方は残りますが、ファイルはコピーしません(下を見てください)。
+
 **画像・ファイルの添付**
 
 - 「テキスト」表示で、コピーした画像(スクリーンショットなど)を貼り付けるか、ファイルをウィンドウへドラッグ&ドロップするか、「添付」ボタンでファイルを選びます。カーソルの位置に `![名前](attach:…)`(画像)や `[名前](attach:…)`(ファイル)が入り、プレビューと履歴の「Markdown表示」で画像やファイルへのリンクとして表示されます。表の行の中に貼ると、そのセルに入ります(複数のときは横に並びます)。プレビューでも、編集している部分や表のセルに貼り付けるかドラッグ&ドロップすると、カーソルの位置に入ります。編集していないときは、ドロップした部分の次(文の無い所ならメモの最後)に入り、「添付」ボタンではメモの最後に入ります。画像やリンクをクリックすると開きます。実行ファイルなどは開かず、保存先のフォルダで場所を示します。
@@ -805,7 +822,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。「テキスト」表示では、文字の装飾(太字など)、行の書式(引用など)、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)、「図を挿入…」(カーソルが図の中なら「図を編集…」)、「フロントマター(タグ)を挿入」(フロントマターがもうあれば「フロントマター(タグ)を編集」)、「表」も出ます。プレビューでは、表のセルを右クリックすると表の操作、数式・図を右クリックすると編集とコピーと「段落を挿入」、そのほかの場所では「段落を挿入」「数式を挿入…」「図を挿入…」「フロントマター(タグ)を挿入」「表を挿入」が出ます。プレビューで編集している部分や表のセルの右クリックにも、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」が出ます。編集している部分には、「図を挿入…」と「フロントマター(タグ)を挿入」も出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
-- **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「その他」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
+- **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・貼り付けで書式を保つ・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「その他」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
 - 画面の言語は、「ファイル」→「設定…」の「言語 (Language)」で「日本語」か「English」を選んで切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
 - 画面下のステータスバーには、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
 - メニューの「ヘルプ」→「Markdown の書き方」で、使える書き方を、例と表示結果を並べて確認できます。下の「Markdown の書き方」の表も参照してください。
@@ -921,15 +938,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.40.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.41.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.40.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.41.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.40.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.41.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -938,7 +955,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.40.0.AppImage`(x64)
+- Linux: `EverPad-0.41.0.AppImage`(x64)
 
 **macOS**
 
@@ -954,7 +971,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.40.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.41.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -983,6 +1000,7 @@ archive.js       EverPad アーカイブの作成・検査・読み込み(Electr
 ziplite.js       アーカイブに使う最小限の ZIP の読み書き。Node.js の zlib を使う(Electron なしでテストできる)
 sendto.js        「送る」メニューのショートカットと、起動時に渡されたファイルの取り出し(Electron なしでテストできる)
 renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・検索のロジック(core.js)、日本語と英語の文言(i18n.js)、Mermaid の図(diagram.js)、
+                 貼り付けた整形された文書(HTML)を Markdown にする処理(htmlmd.js)、
                  絵文字ショートコードの一覧(emoji.js。tools/make-emoji.js が gemoji から作る)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
 tools/           Etherpad からの取り込みツール(import-etherpad.js)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、

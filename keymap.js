@@ -77,6 +77,7 @@ function fixedKeys(platform) {
     { label: 'mCut', keys: ['CmdOrCtrl+X'] },
     { label: 'mCopy', keys: ['CmdOrCtrl+C'] },
     { label: 'mPaste', keys: ['CmdOrCtrl+V'] },
+    { label: 'mPastePlain', keys: ['CmdOrCtrl+Shift+V'] },
     { label: 'mSelectAll', keys: ['CmdOrCtrl+A'] },
     { label: 'mFmtIndent', keys: ['Tab'] },
     { label: 'mFmtOutdent', keys: ['Shift+Tab'] },
@@ -130,7 +131,7 @@ function normalize(accel, platform) {
 /* 文字の入力や文字の操作と重なるので、割り当てられないキー */
 function reservedKeys(platform) {
   const mac = platform === 'darwin';
-  const r = ['CmdOrCtrl+Z', 'CmdOrCtrl+Y', 'CmdOrCtrl+Shift+Z', 'CmdOrCtrl+X', 'CmdOrCtrl+C', 'CmdOrCtrl+V', 'CmdOrCtrl+A', 'F3', 'Shift+F3', 'CmdOrCtrl+Insert'];
+  const r = ['CmdOrCtrl+Z', 'CmdOrCtrl+Y', 'CmdOrCtrl+Shift+Z', 'CmdOrCtrl+X', 'CmdOrCtrl+C', 'CmdOrCtrl+V', 'CmdOrCtrl+Shift+V', 'CmdOrCtrl+A', 'F3', 'Shift+F3', 'CmdOrCtrl+Insert'];
   const moves = ['Left', 'Right', 'Up', 'Down', 'Home', 'End', 'Backspace', 'Delete'];
   const withShift = (mod, keys) => keys.forEach(k => r.push(mod + '+' + k, mod + '+Shift+' + k));
   if (mac) {

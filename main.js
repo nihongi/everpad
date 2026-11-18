@@ -492,6 +492,9 @@ ipcMain.handle('note:reveal', (e, id, kind) => {
   shell.showItemInFolder(p);
   return true;
 });
+/* 「テキストとして貼り付け」(Chromium の書式なしの貼り付け。Windows の Ctrl+Shift+V と同じ)。
+   画面側は、頼む前に「次の貼り付けは文字のまま」と覚えておく(貼り付けで書式を保つ設定でも、Markdown にしない) */
+ipcMain.handle('edit:pastePlain', e => { if (fromOurWindow(e)) e.sender.pasteAndMatchStyle(); return null; });
 ipcMain.handle('app:copyText', async (e, text) => {
   if (!fromOurWindow(e)) return false;
   await clipboard.writeText(String(text || '').slice(0, 4096));
@@ -874,11 +877,12 @@ async function changeFolder() {
 
 /* ---------- 編集の設定(「設定」の窓) ----------
    自動インデント・箇条書きを自動で続ける(どちらも既定はオン)、Tab での字下げの幅(2 か 4、既定は 4)、
-   カーソル行の強調・最後の行より下までのスクロール(どちらも既定はオン)、メモの色(renderer/notecolor.js。既定は標準)。config.json に覚える */
+   カーソル行の強調・最後の行より下までのスクロール(どちらも既定はオン)、メモの色(renderer/notecolor.js。既定は標準)、
+   貼り付けで書式を保つ(整形された文書を Markdown にして貼る。既定はオン)。config.json に覚える */
 function editPrefs() {
   const c = readConfig().editor || {};
   return { autoIndent: c.autoIndent !== false, autoList: c.autoList !== false, indentWidth: c.indentWidth === 2 ? 2 : 4,
-    lineHl: c.lineHl !== false, scrollPast: c.scrollPast !== false, noteColor: NoteColor.sanitize(c.noteColor) };
+    lineHl: c.lineHl !== false, scrollPast: c.scrollPast !== false, noteColor: NoteColor.sanitize(c.noteColor), pasteRich: c.pasteRich !== false };
 }
 function setEditPref(key, value) {
   const p = Object.assign(editPrefs(), { [key]: value });
@@ -898,7 +902,7 @@ function prefsAll() {
     sendTo: canSendTo() ? fs.existsSync(sendToLink()) : null
   };
 }
-const EDIT_BOOL = ['autoIndent', 'autoList', 'lineHl', 'scrollPast'];
+const EDIT_BOOL = ['autoIndent', 'autoList', 'lineHl', 'scrollPast', 'pasteRich'];
 ipcMain.handle('prefs:get', e => (fromOurWindow(e) ? prefsAll() : null));
 ipcMain.handle('prefs:set', async (e, key, value) => {
   if (!fromOurWindow(e)) return null;
@@ -1060,6 +1064,8 @@ function buildMenu() {
         { role: 'cut', label: T('mCut') },
         { role: 'copy', label: T('mCopy') },
         { role: 'paste', label: T('mPaste') },
+        // Windows・Linux は Chromium が Ctrl+Shift+V で書式なしで貼るので、キーは表示だけ(登録すると2回貼る)。Mac はメニューのキーにする
+        { label: T('mPastePlain'), accelerator: 'CmdOrCtrl+Shift+V', registerAccelerator: process.platform === 'darwin', click: () => send('pastePlain') },
         { label: T('mSelectAll'), accelerator: 'CmdOrCtrl+A', click: () => send('selectall') }   // 画面側で、メモの範囲だけを選ぶ
       ]
     },
@@ -1115,7 +1121,7 @@ async function setLang(l) {
 // os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
 const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform, kd: JSON.stringify(keyShown()) }, editQuery()) }); };
 // 画面に渡す編集の設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅、hl: カーソル行の強調、sp: 最後の行より下までスクロール、nc: メモの色)
-const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth), hl: p.lineHl ? '1' : '0', sp: p.scrollPast ? '1' : '0', nc: JSON.stringify(p.noteColor) }; };
+const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth), hl: p.lineHl ? '1' : '0', sp: p.scrollPast ? '1' : '0', nc: JSON.stringify(p.noteColor), pr: p.pasteRich ? '1' : '0' }; };
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
@@ -1400,7 +1406,7 @@ function createWindow() {
   win.webContents.on('context-menu', (_e, params) => {
     const ctx = editCtx && Date.now() - editCtx.t < 3000 ? editCtx : null;
     editCtx = null;
-    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), onTable: id => send('tbl:' + id), table: ctx && ctx.table, onMath: ctx ? () => send('math') : null, inMath: !!(ctx && ctx.math), onDiagram: ctx ? () => send('diagram') : null, inDiagram: !!(ctx && ctx.diagram), onFrontMatter: ctx ? () => send('frontmatter') : null, hasFm: !!(ctx && ctx.fm), cell: !!(ctx && ctx.cell), lang: lang, keys: curKeys() });
+    const tpl = buildTemplate(params, { onSelectAll: () => send('selectall'), onFormat: kind => send('fmt:' + kind), onTable: id => send('tbl:' + id), table: ctx && ctx.table, onMath: ctx ? () => send('math') : null, inMath: !!(ctx && ctx.math), onDiagram: ctx ? () => send('diagram') : null, inDiagram: !!(ctx && ctx.diagram), onFrontMatter: ctx ? () => send('frontmatter') : null, onPastePlain: ctx ? () => send('pastePlain') : null, hasFm: !!(ctx && ctx.fm), cell: !!(ctx && ctx.cell), lang: lang, keys: curKeys() });
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: win });
   });
 

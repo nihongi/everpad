@@ -41,6 +41,8 @@ function buildTemplate(params, opts) {
       { label: T('mCut'), role: 'cut', enabled: !!f.canCut, accelerator: 'CmdOrCtrl+X', registerAccelerator: false },
       { label: T('mCopy'), role: 'copy', enabled: !!f.canCopy, accelerator: 'CmdOrCtrl+C', registerAccelerator: false },
       { label: T('mPaste'), role: 'paste', enabled: !!f.canPaste, accelerator: 'CmdOrCtrl+V', registerAccelerator: false },
+      // 「テキストとして貼り付け」(整形された文書も文字のまま)。本文とプレビューの編集欄・セルだけ(画面側が右クリックの前に知らせたとき)
+      ...(opts && opts.onPastePlain ? [{ label: T('mPastePlain'), enabled: !!f.canPaste, accelerator: 'CmdOrCtrl+Shift+V', registerAccelerator: false, click: opts.onPastePlain }] : []),
       { label: T('mDelete'), role: 'delete', enabled: !!f.canDelete },
       { type: 'separator' },
       { label: T('mSelectAll'), role: 'selectAll', enabled: !!f.canSelectAll, accelerator: 'CmdOrCtrl+A', registerAccelerator: false }

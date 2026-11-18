@@ -11,9 +11,9 @@
   const LANG = I18N.LANGS.includes(qLang) ? qLang : 'ja';
   // Mac では、文中のショートカットキーを Mac の書き方(⌘)にする
   const IS_MAC = query.get('os') === 'darwin';
-  // 設定の窓の設定(main.js が config.json から渡す): 自動インデント・箇条書きを続ける・字下げの幅・カーソル行の強調・最後の行より下までのスクロール・メモの色
+  // 設定の窓の設定(main.js が config.json から渡す): 自動インデント・箇条書きを続ける・字下げの幅・カーソル行の強調・最後の行より下までのスクロール・貼り付けで書式を保つ・メモの色
   const EDIT = { autoIndent: query.get('ai') !== '0', autoList: query.get('al') !== '0', indentWidth: query.get('iw') === '2' ? 2 : 4,
-    lineHl: query.get('hl') !== '0', scrollPast: query.get('sp') !== '0', noteColor: (() => { try { return NoteColor.sanitize(JSON.parse(query.get('nc') || 'null')); } catch (e) { return NoteColor.DEFAULTS(); } })() };
+    lineHl: query.get('hl') !== '0', scrollPast: query.get('sp') !== '0', pasteRich: query.get('pr') !== '0', noteColor: (() => { try { return NoteColor.sanitize(JSON.parse(query.get('nc') || 'null')); } catch (e) { return NoteColor.DEFAULTS(); } })() };
   const T = (key, params) => (IS_MAC ? macKeys(I18N.t(LANG, key, params)) : I18N.t(LANG, key, params));
   document.documentElement.lang = LANG;
   setMdLang(LANG);   // アラートの見出しなど、Markdown の表示に出す言葉
@@ -1848,7 +1848,7 @@
   let stripTimer = 0;
   $('editor').addEventListener('input', () => { clearTimeout(stripTimer); stripTimer = setTimeout(updateStrip, 250); });
 
-  const extOfType = t => ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/bmp': 'bmp' }[t] || 'png');
+  const extOfType = t => ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/bmp': 'bmp', 'image/avif': 'avif' }[t] || 'png');
   const stamp = () => { const d = new Date(); return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()); };
   /* 取り込んだ添付を書く。「テキスト」表示ではカーソルの位置(表の行の中なら横に並べて、表を壊さない)。
      プレビューでは where で決める(peInsertAttachments) */
@@ -1932,17 +1932,92 @@
     reportErrors(r.errors);
   }
   $('attBtn').addEventListener('click', pickAttachments);
-  // 貼り付け: 画像やコピーしたファイル。文字も一緒にあるとき(表計算などからのコピー)は、文字をそのまま貼る
+  /* ---------- 整形された文書(HTML)の貼り付け ----------
+     見出し・太字・リスト・表・リンク・数式などの整形があれば、Markdown にして入れる(renderer/htmlmd.js)。
+     今までどおり文字のまま貼るのは: 設定の「貼り付けで書式を保つ」がオフのとき、Ctrl+Shift+V(Mac は ⌘⇧V。「テキストとして貼り付け」)の直後、
+     コードブロックの中、整形の無い HTML(色やフォントだけのコードエディタからのコピーなど)。画像だけのコピーは、今までどおり添付にする。
+     画像そのもの(data:)は添付にする。1回の貼り付けは1回の編集(Ctrl+Z で戻せる) */
+  const PASTE_HTML_MAX = 4 * 1024 * 1024;
+  let plainPasteAt = 0;
+  document.addEventListener('keydown', e => { if ((IS_MAC ? e.metaKey : e.ctrlKey) && e.shiftKey && !e.altKey && e.code === 'KeyV') plainPasteAt = Date.now(); }, true);
+  function pastedMarkdown(cd, inline) {
+    if (!EDIT.pasteRich || Date.now() - plainPasteAt < 1500 || !cd) return null;
+    const html = cd.getData('text/html');
+    if (!html || html.length > PASTE_HTML_MAX) return null;
+    let tree = null;
+    try { tree = HtmlMd.fromDom(new DOMParser().parseFromString(html, 'text/html').body); } catch (err) { tree = null; }
+    if (!tree || !HtmlMd.isRich(tree)) return null;
+    if (cd.files && cd.files.length && !HtmlMd.hasText(tree)) return null;   // 画像だけ(Web ページの画像のコピーなど)は添付に
+    const r = HtmlMd.toMarkdown(tree, { inline: inline, imageLabel: T('imageName') });
+    return r.md || r.images.length ? r : null;
+  }
+  // 貼り付けた中の画像そのもの(data:)を添付にして、目印を添付の書き方に置き換える。途中で別のメモに移ったら null
+  async function fillPastedImages(r) {
+    if (!r.images.length) return r.md;
+    const noteId = S.active, marks = [], errors = [];
+    for (const src of r.images.slice(0, 50)) {
+      const m = src.match(/^data:(image\/[a-z0-9.+-]+);base64,([\s\S]*)$/i);
+      let item = null;
+      try {
+        const bin = atob(m[2].replace(/\s+/g, ''));
+        if (bin.length > MAX_ATTACH_MB * 1024 * 1024) { errors.push(T('tooLarge', { name: T('imageName'), mb: MAX_ATTACH_MB })); marks.push(''); continue; }
+        const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+        const name = T('imageName') + '-' + stamp() + '.' + extOfType(m[1].toLowerCase());
+        const res = await api.attachSave(noteId, name, bytes.buffer);
+        item = res.items[0] || null;
+        errors.push(...res.errors);
+      } catch (err) { errors.push(T('saveFailed', { name: T('imageName') })); }
+      marks.push(item ? attachMarkup(item.name, item.fileId, item.image) : '');
+    }
+    reportErrors(errors);
+    if (S.active !== noteId) { toast(T('pasteAborted')); return null; }
+    return r.md.replace(/\u0000(\d+)\u0000/g, (x, i) => marks[+i] || '');
+  }
+  // 複数行を行の途中に貼るときは、前後の文と混ざらないよう空行で分ける
+  function separateBlocks(v, s, e, md) {
+    if (md.indexOf('\n') < 0) return md;
+    const ls = v.lastIndexOf('\n', s - 1) + 1, le = v.indexOf('\n', e);
+    return (v.slice(ls, s).trim() ? '\n\n' : '') + md + (v.slice(e, le < 0 ? v.length : le).trim() ? '\n\n' : '');
+  }
+  async function pasteIntoEditor(r) {
+    const ed = $('editor'), v0 = ed.value, noteId = S.active;
+    let s = ed.selectionStart, e = ed.selectionEnd;
+    const md = await fillPastedImages(r);
+    if (md == null || S.active !== noteId || S.mode !== 'edit') return;
+    if (ed.value !== v0) { s = ed.selectionStart; e = ed.selectionEnd; }   // 画像を保存している間に書き換えた
+    frInsert(s, e, separateBlocks(ed.value, s, e, md));
+    ed.focus();
+  }
+  async function pasteIntoBox(box, r) {
+    const v0 = box.value;
+    let s = box.selectionStart, e = box.selectionEnd;
+    const md = await fillPastedImages(r);
+    if (md == null || pe.box !== box) return;
+    if (box.value !== v0) { s = box.selectionStart; e = box.selectionEnd; }
+    if (pe.kind === 'block') { peReplace(s, e, separateBlocks(box.value, s, e, md)); peFit(true); return; }
+    box.focus();
+    box.setSelectionRange(s, e);
+    try { if (!document.execCommand('insertText', false, md)) throw new Error('x'); } catch (x) { box.setRangeText(md, s, e, 'end'); }
+    peSync();
+  }
+  // 貼り付け: 整形された文書は Markdown に。画像やコピーしたファイルは添付に。文字も一緒にあるとき(表計算などからのコピー)は、文字をそのまま貼る
   $('editor').addEventListener('paste', e => {
-    const cd = e.clipboardData;
-    if (!cd || !cd.files || !cd.files.length || cd.getData('text/plain')) return;
+    const cd = e.clipboardData, ed = $('editor');
+    if (!cd) return;
+    const r = !inFenceAt(ed.value, ed.selectionStart) && pastedMarkdown(cd, false);
+    if (r) { e.preventDefault(); pasteIntoEditor(r); return; }
+    if (!cd.files || !cd.files.length || cd.getData('text/plain')) return;
     e.preventDefault();
     ingestFiles([...cd.files]);
   });
-  // プレビューの編集欄(かたまり・表のセル)への貼り付けも同じ
+  // プレビューの編集欄(かたまり・表のセル)への貼り付けも同じ(セルは1行なので、見出しやリストは作らない)
   $('preview').addEventListener('paste', e => {
     const cd = e.clipboardData;
-    if (e.target !== pe.box || !cd || !cd.files || !cd.files.length || cd.getData('text/plain')) return;
+    if (e.target !== pe.box || !cd) return;
+    const box = pe.box;
+    const r = !inFenceAt(box.value, box.selectionStart) && pastedMarkdown(cd, pe.kind === 'cell');
+    if (r) { e.preventDefault(); pasteIntoBox(box, r); return; }
+    if (!cd.files || !cd.files.length || cd.getData('text/plain')) return;
     e.preventDefault();
     ingestFiles([...cd.files], { box: pe.box });
   });
@@ -3130,6 +3205,7 @@
   api.onMenu(name => {
     if (name === 'new') createNote();
     else if (name === 'frontmatter') frontMatterCommand();
+    else if (name === 'pastePlain') { plainPasteAt = Date.now(); api.pastePlain(); }   // 次の貼り付けは文字のまま(Chromium の書式なしの貼り付け)
     else if (name === 'selectall') selectAllScoped();
     else if (name === 'lines') setLines(!S.lines, true);
     else if (name === 'replace') frOpen();
@@ -3597,6 +3673,7 @@
     const ed = section(T('setEdit'));
     const first = check(ed, T('setAutoIndent'), T('setAutoIndentHint'), P.editor.autoIndent, v => setPref('autoIndent', v));
     check(ed, T('setAutoList'), T('setAutoListHint'), P.editor.autoList, v => setPref('autoList', v));
+    check(ed, T('setPasteRich'), T('setPasteRichHint'), P.editor.pasteRich, v => setPref('pasteRich', v));
     const iw = el('div', 'set-row set-choice');
     const iwText = text(T('setIndentWidth'));
     iwText.l.id = 'setIwLabel';

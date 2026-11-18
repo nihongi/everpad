@@ -52,7 +52,7 @@ test('設定: main.js が読み書きする設定(既定・受け付ける値)',
   assert.match(main, /lineHl: c\.lineHl !== false, scrollPast: c\.scrollPast !== false/);
   assert.match(main, /hl: p\.lineHl \? '1' : '0', sp: p\.scrollPast \? '1' : '0'/);
   // 受け付けるのは決まった名前と値だけ。ほかのウィンドウからは受け付けない
-  assert.match(main, /const EDIT_BOOL = \['autoIndent', 'autoList', 'lineHl', 'scrollPast'\];/);
+  assert.match(main, /const EDIT_BOOL = \['autoIndent', 'autoList', 'lineHl', 'scrollPast', 'pasteRich'\];/);
   assert.match(main, /ipcMain\.handle\('prefs:set', async \(e, key, value\) => \{\n  if \(!fromOurWindow\(e\)\) return null;/);
   assert.match(main, /key === 'indentWidth' && \(value === 2 \|\| value === 4\)/);
   assert.match(main, /key === 'checkOnStart' && typeof value === 'boolean' && !isStore/);

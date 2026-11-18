@@ -226,5 +226,5 @@ test('右クリック: 本文とプレビューの編集欄に「フロントマ
   assert.match(app, /api\.tableMenu\(\{ inTable: false, fm: !!frontMatter\(cur\(\)\.text\) \}\)/);
   assert.match(app, /if \(action === 'frontmatter'\) \{ frontMatterCommand\(\); return; \}/);
   assert.match(main, /fm: !!st\.fm, t: Date\.now\(\)/);
-  assert.match(main, /onFrontMatter: ctx \? \(\) => send\('frontmatter'\) : null, hasFm: !!\(ctx && ctx\.fm\)/);
+  assert.match(main, /onFrontMatter: ctx \? \(\) => send\('frontmatter'\) : null, onPastePlain: ctx \? \(\) => send\('pastePlain'\) : null, hasFm: !!\(ctx && ctx\.fm\)/);
 });

@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   noteInfo: id => ipcRenderer.invoke('note:info', id),
   revealNote: (id, kind) => ipcRenderer.invoke('note:reveal', id, kind),
   copyText: text => ipcRenderer.invoke('app:copyText', text),
+  pastePlain: () => ipcRenderer.invoke('edit:pastePlain'),
   // テキストの取り込み・書き出し
   onImport: cb => { ipcRenderer.on('import:texts', (_e, items) => cb(items)); },
   exportText: (title, text) => ipcRenderer.invoke('export:text', title, text),
