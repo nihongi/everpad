@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('memoApi', {
   // 画像・添付ファイル
   attachSave: (noteId, name, bytes) => ipcRenderer.invoke('attach:save', noteId, name, bytes),
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
+  attachClip: (noteId, url, name) => ipcRenderer.invoke('attach:clip', noteId, url, name),
+  attachCopy: (fromId, toId, fileIds) => ipcRenderer.invoke('attach:copy', fromId, toId, fileIds),
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
   attachMenu: (noteId, fileId, name, image, x, y, canTrash) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y, canTrash),
   attachTrash: (noteId, fileId, name, refs) => ipcRenderer.invoke('attach:trash', noteId, fileId, name, refs),

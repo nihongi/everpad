@@ -21,6 +21,7 @@ const updget = require('./updatedownload');
 const { spawn } = require('child_process');
 const pageexport = require('./pageexport');
 const docexport = require('./docexport');
+const { officeClipPath } = require('./pasteclip');
 const isMac = process.platform === 'darwin';
 
 /* 配布版では、外からデバッグ用に接続する起動オプションを受け付けない。
@@ -238,6 +239,27 @@ ipcMain.handle('attach:save', (e, noteId, name, bytes) => {
   if (store.isReadOnly(noteId)) return { items: [], errors: [T('roNote')] };
   try { return { items: [saveAttachment(noteId, name, bytes)], errors: [] }; }
   catch (err) { return { items: [], errors: [errText(err)] }; }
+});
+/* 貼り付けた Word・Excel の画像(一時フォルダの msohtmlclip… にある一時ファイル)を添付にする。name は拡張子を除いた名前 */
+ipcMain.handle('attach:clip', (e, noteId, url, name) => {
+  if (!fromOurWindow(e)) return { items: [], errors: [T('unavailable')] };
+  if (store.isReadOnly(noteId)) return { items: [], errors: [T('roNote')] };
+  const p = officeClipPath(url, app.getPath('temp'));
+  if (!p) return { items: [], errors: [T('clipImageGone')] };
+  try {
+    if (fs.statSync(p).size > MAX_ATTACH) return { items: [], errors: [T('errTooLarge', { mb: MAX_ATTACH / 1024 / 1024 })] };
+    return { items: [saveAttachment(noteId, String(name || T('file')) + path.extname(p).toLowerCase(), fs.readFileSync(p))], errors: [] };
+  } catch (err) { return { items: [], errors: [errText(err)] }; }
+});
+/* 別のメモの添付を貼ったとき、ファイルもこのメモにコピーする(保存先のフォルダの中のメモどうしだけ) */
+ipcMain.handle('attach:copy', (e, fromId, toId, fileIds) => {
+  const out = { copied: 0, missing: 0 };
+  if (!fromOurWindow(e) || !validId(fromId) || !validId(toId) || fromId === toId || !Array.isArray(fileIds) || store.isReadOnly(toId)) return out;
+  for (const f of [...new Set(fileIds)].slice(0, 200)) {
+    try { const r = store.copyAttachment(fromId, toId, f); if (r === 'copied') out.copied++; else if (r === 'missing') out.missing++; }
+    catch (err) { out.missing++; }
+  }
+  return out;
 });
 ipcMain.handle('attach:pick', async (e, noteId) => {
   if (!fromOurWindow(e)) return { items: [], errors: [] };

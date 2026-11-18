@@ -25,8 +25,8 @@ test('編集していないプレビュー: 添付はかたまりの次に、空
 
 test('プレビューへの貼り付け・ドロップ・「添付」ボタンのつなぎ込み', () => {
   const app = read('renderer/app.js');
-  // 編集欄への貼り付け(整形された文書は Markdown に。文字のある貼り付けはそのまま。ファイルだけなら添付)
-  assert.match(app, /\$\('preview'\)\.addEventListener\('paste', e => \{\n\s+const cd = e\.clipboardData;\n\s+if \(e\.target !== pe\.box \|\| !cd\) return;[\s\S]*?if \(r\) \{ e\.preventDefault\(\); pasteIntoBox\(box, r\); return; \}\n\s+if \(!cd\.files \|\| !cd\.files\.length \|\| cd\.getData\('text\/plain'\)\) return;/);
+  // 編集欄への貼り付け(整形された文書は Markdown に。文字のある貼り付けはそのまま(別のメモの添付はファイルもコピー)。ファイルだけなら添付)
+  assert.match(app, /\$\('preview'\)\.addEventListener\('paste', e => \{\n\s+const cd = e\.clipboardData;\n\s+if \(e\.target !== pe\.box \|\| !cd\) return;[\s\S]*?if \(r\) \{ e\.preventDefault\(\); pasteIntoBox\(box, r\); return; \}\n\s+const atts = copiedAtts\(cd\);\n\s+if \(atts\.length\) copyPastedAttachments\(atts, S\.active\);\n\s+if \(!cd\.files \|\| !cd\.files\.length \|\| cd\.getData\('text\/plain'\)\) return;/);
   // ドロップは、プレビューなら落とした場所に
   assert.match(app, /ingestFiles\(\[\.\.\.e\.dataTransfer\.files\], S\.mode === 'preview' \? peDropTarget\(e\) : null\)/);
   // プレビューでは「テキスト」表示に切り替えない

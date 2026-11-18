@@ -5,7 +5,9 @@
    プレビューが持たせた data-* などから、元の書き方に戻す。
    HTML のタグはメモに入れない(できるのは Markdown の文字だけ)。色・文字の大きさ・フォント・下線などは、Markdown に無いので外す。
    読むのは { tag, attrs, children } と { text } の木(画面では DOMParser の結果を fromDom で、テストでは docexport.js の parseMarkup で作る)。
-   画像のうち data: のもの(画像そのもの)は、images に入れて本文には目印(\u0000番号\u0000)を置く。添付にするのは画面側(app.js) */
+   画像のうち data: のもの(画像そのもの)と、Word・Excel が一時ファイルに置いたもの(file:…/msohtmlclip…)は、
+   images に入れて本文には目印(\u0000番号\u0000)を置く。添付にするのは画面側(app.js)。
+   EverPad のプレビューの添付は、元のメモを atts に入れる(別のメモに貼ったとき、画面側がファイルをコピーする) */
 (function (root) {
   const BLOCK = new Set(['#root', 'html', 'body', 'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'pre', 'table',
     'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'hr', 'section', 'article', 'header', 'footer', 'main', 'nav', 'aside', 'figure',
@@ -50,6 +52,14 @@
   const codeSpan = s => { s = clean(s).replace(/\n/g, ' '); let n = 1; for (const m of s.match(/`+/g) || []) n = Math.max(n, m.length + 1); const t = '`'.repeat(n); const pad = /^`|`$/.test(s) ? ' ' : ''; return t + pad + s + pad + t; };
   const urlPart = u => u.replace(/[\s()<>]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0'));
   const attachName = s => String(s || '').replace(/[[\]()|*_`<>\\\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  // 添付の元のメモ: プレビューが持たせた data-att-note か、画像の everpad-file://f/<メモID>/<ファイルID>
+  function attachFrom(n, ctx) {
+    let note = attr(n, 'data-att-note');
+    if (!note) { const m = attr(n, 'src').match(/^everpad-file:\/\/f\/([^/?#]+)\//); if (m) { try { note = decodeURIComponent(m[1]); } catch (e) { note = ''; } } }
+    if (note) ctx.atts.push({ note: note, file: attr(n, 'data-att') });
+  }
+  // Word・Excel がコピーした画像の一時ファイル(Windows の一時フォルダの msohtmlclip…\01\clip_image001.png)
+  const OFFICE_CLIP_RE = /^file:\/\/\/.+\/msohtmlclip\d*\/\d+\/clip_image\d+\.(png|jpe?g|gif|bmp)$/i;
 
   /* ---------- 文中(インライン): 文字を、太字・斜体・取り消し線の印を付けた「かたまり」の並びにしてから、Markdown にする ---------- */
   function boldOf(n, b) {
@@ -87,8 +97,8 @@
     if (hasCls(n, 'katex') || t === 'math') { const tex = texOf(n); if (tex != null) { out.push({ raw: inlineMath(tex, hasCls(n, 'katex-display') || attr(n, 'display') === 'block') }); return; } }
     if (hasCls(n, 'katex-display')) { const k = find(n, c => hasCls(c, 'katex')); const tex = k && texOf(k); if (tex != null) { out.push({ raw: inlineMath(tex, true) }); return; } }
     if (t === 'a' && hasCls(n, 'note-link') && attr(n, 'data-note')) { out.push({ raw: '[' + (emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim() || attr(n, 'data-note')) + '](note:' + attr(n, 'data-note') + ')' }); return; }
-    if (t === 'img' && attr(n, 'data-att')) { out.push({ raw: '![' + attachName(attr(n, 'alt')) + '](attach:' + attr(n, 'data-att') + ')' }); return; }
-    if (t === 'a' && hasCls(n, 'att-file') && attr(n, 'data-att')) { out.push({ raw: '[' + (attachName(attr(n, 'title') || textOf(n).replace(/^📎\s*/, '')) || 'file') + '](attach:' + attr(n, 'data-att') + ')' }); return; }
+    if (t === 'img' && attr(n, 'data-att')) { attachFrom(n, ctx); out.push({ raw: '![' + attachName(attr(n, 'alt')) + '](attach:' + attr(n, 'data-att') + ')' }); return; }
+    if (t === 'a' && hasCls(n, 'att-file') && attr(n, 'data-att')) { attachFrom(n, ctx); out.push({ raw: '[' + (attachName(attr(n, 'title') || textOf(n).replace(/^📎\s*/, '')) || 'file') + '](attach:' + attr(n, 'data-att') + ')' }); return; }
     if (hasCls(n, 'link-other') && attr(n, 'data-target')) { out.push({ raw: '[' + emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim() + '](' + urlPart(attr(n, 'data-target')) + ')' }); return; }
     if (hasCls(n, 'emoji') && /^:[a-z0-9_+-]+:$/.test(attr(n, 'title'))) { out.push({ raw: attr(n, 'title') }); return; }
     if (t === 'sup' && hasCls(n, 'fnref')) { const a = find(n, c => c.tag === 'a'); out.push({ raw: '[^' + ((a && attr(a, 'data-fn')) || textOf(n).trim()) + ']' }); return; }
@@ -96,7 +106,7 @@
     if (t === 'code' || t === 'kbd' || t === 'samp' || t === 'tt') { const s = textOf(n); if (s) out.push({ code: s }); return; }
     if (t === 'img') {
       const src = attr(n, 'src').trim(), alt = attr(n, 'alt').replace(/\s+/g, ' ').trim();
-      if (/^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(src)) { ctx.images.push(src); out.push({ raw: '\u0000' + (ctx.images.length - 1) + '\u0000' }); }
+      if (/^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(src) || OFFICE_CLIP_RE.test(src)) { ctx.images.push(src); out.push({ raw: '\u0000' + (ctx.images.length - 1) + '\u0000' }); }
       else if (/^https?:\/\//i.test(src)) out.push({ raw: '[' + (escapeText(alt, ctx) || ctx.imageLabel) + '](' + urlPart(src) + ')' });
       else if (alt) out.push({ t: alt, b: f.b, i: f.i, s: f.s });
       return;
@@ -144,6 +154,40 @@
   const para = s => s.split('\n').map(l => escLineStart(l.trim())).join('\n').replace(/\n{3,}/g, '\n\n').trim();
   // 箇条書きの項目のしるし(Word のリストの段落も)
   const wordListItem = n => n.tag === 'p' && (/^MsoListParagraph/i.test(attr(n, 'class')) || /mso-list:l\d/.test(styleOf(n)));
+  /* Word の箇条書きの段落の、段の深さ(mso-list:l0 level2 lfo1)と、番号付きかどうか。
+     番号は mso-list:Ignore の中の「しるしの文字」で見分ける(1. ・1.1・a)・(1)・① なら番号付き。
+     Wingdings・Symbol のしるしや、・ o § などは箇条書き)。番号の数字が読めれば、その番号から始める */
+  function wordLevel(n) {
+    const m = styleOf(n).match(/mso-list:l\d+level(\d+)/);
+    let mark = '', symbol = false;
+    const walk = (x, sym) => {
+      for (const c of kids(x)) {
+        if (!c.tag) continue;
+        const s = sym || /font-family:[^;]*(wingdings|symbol|webdings)/.test(styleOf(c));
+        if (/mso-list:ignore/.test(styleOf(c))) { mark = textOf(c); symbol = s; return true; }
+        if (walk(c, s)) return true;
+      }
+      return false;
+    };
+    walk(n, false);
+    const k = mark.normalize('NFKC').replace(/[\s ]+/g, '');
+    const ordered = !symbol && (/^[([]?\d+(\.\d+)*[.)\]]?$/.test(k) || /^[([]?[^\s.()[\]]{1,3}[.)\]]$/.test(k));
+    const d = ordered && k.match(/(\d{1,9})[.)\]]?$/);
+    return { level: Math.min(9, m ? +m[1] : 1), ordered: ordered, num: d ? +d[1] : null };
+  }
+  /* 段のある項目のしるしと字下げ。st は続いている項目の段ごとの { ordered, width, n }。
+     入れ子は、上の段のしるしの幅(- は2、1. は3)だけ字下げする。段が飛んだときは1段ずつにする */
+  function levelMark(st, lv) {
+    const d = Math.min(lv.level - 1, st.length);
+    const prev = st[d];
+    const n = lv.ordered ? (lv.num != null ? lv.num : prev && prev.ordered ? prev.n + 1 : 1) : 0;
+    const marker = lv.ordered ? n + '. ' : '- ';
+    let indent = 0;
+    for (let k = 0; k < d; k++) indent += st[k].width;
+    st.length = d;
+    st.push({ ordered: lv.ordered, width: marker.length, n: n });
+    return { indent: indent, marker: marker };
+  }
 
   function children(n, ctx) {
     const out = [];
@@ -163,12 +207,16 @@
   const hasBlock = n => kids(n).some(c => c.tag && !SKIP.has(c.tag) && (BLOCK.has(c.tag) || isSpecialBlock(c) || hasBlock(c)));
   // 'block'(かたまり)、'wrap'(かたまりを囲んだ文中の要素。中身をかたまりとして読む)、'inline'(文中)
   const kind = c => (c.text != null ? 'inline' : BLOCK.has(c.tag) || isSpecialBlock(c) ? 'block' : !SKIP.has(c.tag) && hasBlock(c) ? 'wrap' : 'inline');
-  // 並びをつなぐ。箇条書きの項目どうし({ item })は改行1つ、ほかは空行
+  // 並びをつなぐ。箇条書きの項目どうし({ item })は改行1つ、ほかは空行。
+  // Word の箇条書きの段落({ item, lv, body })は、続いている間の段と番号から、しるしと字下げを決める
   function join(list) {
-    let s = '', prevItem = false;
+    let s = '', prevItem = false, st = [];
     for (const b of list) {
-      const item = typeof b === 'object', v = item ? b.item : b;
+      const item = typeof b === 'object';
+      let v = item ? b.item : b;
       if (!v) continue;
+      if (!item || !prevItem) st = [];
+      if (item && b.lv) { const r = levelMark(st, b.lv); v = ' '.repeat(r.indent) + r.marker + b.body; }
       s += (s ? (item && prevItem ? '\n' : '\n\n') : '') + v;
       prevItem = item;
     }
@@ -194,7 +242,7 @@
     if (t === 'li') { const s = item(n, ctx, 0, '- '); return s ? [s] : []; }
     if (t === 'blockquote') { const s = join(children(n, ctx)); return s ? [quote(s.split('\n'))] : []; }
     if (t === 'table') { const s = table(n, ctx); return s ? [s] : []; }
-    if (wordListItem(n)) { const s = emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim(); return s ? [{ item: '- ' + s }] : []; }
+    if (wordListItem(n)) { const s = emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim(); return s ? [{ item: '- ' + s, lv: wordLevel(n), body: s }] : []; }
     return children(n, ctx);
   }
   const quote = lines => lines.map(l => (l ? '> ' + l : '>')).join('\n');
@@ -214,10 +262,20 @@
     const ordered = n.tag === 'ol';
     let k = parseInt(attr(n, 'start'), 10);
     if (!(k >= 0)) k = 1;
+    // 入れ子を、項目の aria-level だけで表した平らなリスト(Google ドキュメントなど)は、段の深さで字下げする
+    const lvs = kids(n).filter(c => c.tag === 'li').map(c => parseInt(attr(c, 'aria-level'), 10)).filter(x => x >= 1 && x <= 9);
+    const base = lvs.length ? Math.min(...lvs) : 0, flat = lvs.some(x => x !== base), st = [];
     const lines = [];
     for (const c of kids(n)) {
       if (!c.tag) { if (c.text.trim()) lines.push(' '.repeat(ind) + (ordered ? k++ + '. ' : '- ') + escapeText(c.text.trim(), ctx)); continue; }
       if (c.tag === 'ul' || c.tag === 'ol') { const s = list(c, ctx, ind + 2); if (s) lines.push(s); continue; }   // ul の中に直接ある ul(よくある崩れた形)
+      if (flat) {
+        const lv = Math.min(9, parseInt(attr(c, 'aria-level'), 10) || base);
+        const r = levelMark(st, { level: lv - base + 1, ordered: ordered, num: ordered && !st.length ? k : null });
+        const s = item(c, ctx, ind + r.indent, r.marker);
+        if (s) lines.push(s);
+        continue;
+      }
       const s = item(c, ctx, ind, ordered ? k + '. ' : '- ');
       if (ordered) k++;
       if (s) lines.push(s);
@@ -311,7 +369,7 @@
       if (/^h[1-6]$/.test(t) || ['ul', 'ol', 'table', 'blockquote', 'pre', 'code', 'hr', 'kbd', 's', 'del', 'strike', 'math'].includes(t)) return true;
       if ((t === 'b' || t === 'strong' || t === 'i' || t === 'em') && textOf(n).trim() && (boldOf(n, false) || italicOf(n, false))) return true;
       if (t === 'a' && /^(https?:|mailto:|note:)/i.test(attr(n, 'href').trim())) return true;
-      if (t === 'img' && /^(data:image\/|https?:)/i.test(attr(n, 'src').trim())) return true;
+      if (t === 'img' && (/^(data:image\/|https?:)/i.test(attr(n, 'src').trim()) || OFFICE_CLIP_RE.test(attr(n, 'src').trim()))) return true;
       if (t === 'input' && attr(n, 'type').toLowerCase() === 'checkbox') return true;
       if (['math', 'diagram', 'note-link', 'att-img', 'att-file', 'emoji', 'alert', 'fm', 'fnref', 'katex', 'link-other'].some(c => hasCls(n, c))) return true;
       if (t === 'span' && textOf(n).trim() && (boldOf(n, false) || italicOf(n, false) || strikeOf(n, false))) return true;
@@ -323,13 +381,14 @@
   // 文字があるか(画像だけのコピーは、今までどおり添付にするため)
   const hasText = tree => /\S/.test(textOf({ children: [tree] }).replace(/ /g, ' '));
 
-  /* tree → { md, images }。opts.inline: 表のセルなど1行の入力欄(見出しやリストは作らず、改行は空白) */
+  /* tree → { md, images, atts }。opts.inline: 表のセルなど1行の入力欄(見出しやリストは作らず、改行は空白)。
+     images: 画像そのもの(data:)と Word・Excel の一時ファイル(file:)。atts: 添付の元のメモ [{ note, file }] */
   function toMarkdown(tree, opts) {
-    const ctx = { images: [], inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image' };
+    const ctx = { images: [], atts: [], inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image' };
     let md;
     if (ctx.inline) md = emit(runs(tree, {}, ctx), ctx).replace(/\s*\n\s*/g, ' ').trim();
     else md = join(children(tree, ctx)).replace(/\n{3,}/g, '\n\n').trim();
-    return { md: md, images: ctx.images };
+    return { md: md, images: ctx.images, atts: ctx.atts };
   }
 
   /* 画面: DOM の節 → 木(大きすぎる・深すぎるものは null) */

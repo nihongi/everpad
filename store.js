@@ -156,6 +156,22 @@ class Store {
     return { fileId: fileId, size: buf.length };
   }
 
+  /* 別のメモの添付を、このメモにも置く(fileId は中身のハッシュなので、本文の書き方はそのまま使える)。
+     'copied'(コピーした)・'exists'(もうある)・'missing'(元が無い)を返す */
+  copyAttachment(from, to, fileId) {
+    if (!validId(from) || !validId(to) || !validFileId(fileId)) return 'missing';
+    if (!fs.existsSync(this.file(to, '.jsonl'))) throw storeError('noFile', 'メモのファイルが見つかりません');
+    const src = this.attachmentPath(from, fileId);
+    const dir = this.filesDir(to), dest = path.join(dir, fileId);
+    if (fs.existsSync(dest) && (!src || fs.statSync(dest).size === fs.statSync(src).size)) return 'exists';
+    if (!src) return 'missing';
+    fs.mkdirSync(dir, { recursive: true });
+    const tmp = dest + '.tmp';
+    fs.copyFileSync(src, tmp);
+    fs.renameSync(tmp, dest);
+    return 'copied';
+  }
+
   /* 添付ファイルの場所。IDが正しくない・無いときは null(フォルダの外は決して返さない) */
   attachmentPath(id, fileId) {
     if (!validId(id) || !validFileId(fileId)) return null;

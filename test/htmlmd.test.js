@@ -46,7 +46,7 @@ test('ほかのアプリ: Google ドキュメント・Word・Excel・GitHub', ()
   // Google ドキュメントは全体を <b style="font-weight:normal"> で囲み、太字・斜体は文字飾りの指定で付ける
   assert.strictEqual(md('<b style="font-weight:normal;" id="docs-internal-guid-1"><h1><span style="font-weight:400">見出し</span></h1><p><span style="font-weight:700">太い</span><span style="font-weight:400"> と </span><span style="font-style:italic;font-weight:400">斜め</span></p><ul><li><p><span>項目1</span></p></li><li><p><span>項目2</span></p></li></ul></b>'),
     '# 見出し\n\n**太い** と *斜め*\n\n- 項目1\n- 項目2');
-  // Word: 箇条書きの段落(番号や入れ子は段階2)。箇条書きの印(mso-list:Ignore)は外す
+  // Word: 箇条書きの段落。箇条書きの印(mso-list:Ignore)は外す(番号や入れ子は下の test)
   assert.strictEqual(md('<p class=MsoNormal><b><span>太字</span></b><span>の文<o:p></o:p></span></p><p class=MsoListParagraphCxSpFirst style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">・<span>&nbsp;&nbsp; </span></span><span>箇条1</span></p><p class=MsoListParagraphCxSpLast style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">・</span><span>箇条2</span></p>'),
     '**太字**の文\n\n- 箇条1\n- 箇条2');
   // Excel: 1行目を見出しの行に。配置は align から。| はエスケープ
@@ -57,6 +57,44 @@ test('ほかのアプリ: Google ドキュメント・Word・Excel・GitHub', ()
   assert.strictEqual(md('<div class="highlight highlight-source-js"><pre><span class="pl-k">const</span> x = 1;\n<span>y</span>();</pre></div><p>see <a href="https://github.com">GitHub</a> and <code>x</code></p>'),
     '```js\nconst x = 1;\ny();\n```\n\nsee [GitHub](https://github.com) and `x`');
   assert.strictEqual(md('<pre><code class="language-python">print("a")\n```\n</code></pre>'), '````python\nprint("a")\n```\n````', '中に ``` があれば囲みを長く');
+});
+
+// Word の箇条書きの段落(Word が「Web ページ」で保存した HTML と同じ書き方。<![if !supportLists]> は画面の DOMParser ではコメントになるので省く)
+const wordP = (lv, lfo, mark, text, font) => '<p class=MsoListParagraphCxSpMiddle style="margin-left:22.0pt;mso-add-space:\nauto;text-indent:-22.0pt;mso-list:l0 level' + lv + ' lfo' + lfo + '"><span lang=EN-US style="' + (font ? 'font-family:' + font + ';mso-fareast-font-family:' + font : 'mso-fareast-font-family:游明朝') + '"><span style="mso-list:Ignore">' + mark + '<span style="font:7.0pt &quot;Times New Roman&quot;">&nbsp;&nbsp;&nbsp; </span></span></span><span lang=EN-US>' + text + '</span></p>';
+test('Word の番号付き・入れ子の箇条書き: 段の深さ(mso-list の level)と、しるしの文字から', () => {
+  // アウトライン番号(1 / 1.1 / 1.1.1)。入れ子は上の段のしるしの幅だけ字下げ。番号は Word の表示から
+  assert.strictEqual(md('<p class=MsoNormal>前</p>' + wordP(1, 1, '1', 'First') + wordP(2, 1, '1.1', 'First a') + wordP(3, 1, '1.1.1', 'First a i') + wordP(1, 1, '2', 'Second') + '<p class=MsoNormal>後</p>'),
+    '前\n\n1. First\n   1. First a\n      1. First a i\n2. Second\n\n後');
+  // 箇条書き: Wingdings・Symbol のしるし(l・§・·)や、Courier New の o
+  assert.strictEqual(md(wordP(1, 2, 'l', 'Apple', 'Wingdings') + wordP(2, 2, 'o', 'Green', 'Courier New') + wordP(3, 2, '§', 'Light', 'Wingdings') + wordP(1, 2, '·', 'Orange', 'Symbol')),
+    '- Apple\n  - Green\n    - Light\n- Orange');
+  // 番号の下に箇条書き、箇条書きの下に番号。a. i. (1) ① ・全角の番号も番号付き(数字の無いものは 1 から数える)
+  assert.strictEqual(md(wordP(1, 3, '3.', '三') + wordP(2, 3, 'l', '点', 'Wingdings') + wordP(2, 3, 'l', '点2', 'Wingdings') + wordP(1, 3, '4.', '四')),
+    '3. 三\n   - 点\n   - 点2\n4. 四');
+  assert.strictEqual(md(wordP(1, 4, '-', '点') + wordP(2, 4, 'a.', 'あ') + wordP(2, 4, 'b.', 'い') + wordP(3, 4, '(1)', 'う') + wordP(3, 4, '①', 'え') + wordP(1, 4, '１．', 'お')),
+    '- 点\n  1. あ\n  2. い\n     1. う\n     1. え\n1. お');
+  // 段が飛んだときは1段ずつ。番号の途中から(コピーしたのが3番目から)
+  assert.strictEqual(md(wordP(1, 5, '3)', 'c') + wordP(3, 5, 'i.', 'ii')), '3. c\n   1. ii');
+  // ふつうの段落をはさむと、別のリスト(番号は Word の表示のまま)
+  assert.strictEqual(md(wordP(1, 6, '1.', 'a') + '<p class=MsoNormal>間</p>' + wordP(1, 6, '2.', 'b')), '1. a\n\n間\n\n2. b');
+});
+test('Google ドキュメントの、aria-level で入れ子を表した平らなリスト', () => {
+  const li = (lv, t) => '<li dir="ltr" aria-level="' + lv + '"><p dir="ltr"><span>' + t + '</span></p></li>';
+  assert.strictEqual(md('<ul>' + li(1, 'a') + li(2, 'b') + li(3, 'c') + li(1, 'd') + '</ul>'), '- a\n  - b\n    - c\n- d');
+  assert.strictEqual(md('<ol start="2">' + li(1, 'a') + li(2, 'b') + li(2, 'c') + li(1, 'd') + '</ol>'), '2. a\n   1. b\n   2. c\n3. d');
+  // ul の中の ul で入れ子にしたもの(段はどれも同じ)は、今までどおり
+  assert.strictEqual(md('<ul>' + li(1, 'a') + '<ul>' + li(2, 'b') + '</ul>' + li(1, 'c') + '</ul>'), '- a\n  - b\n- c');
+});
+test('Word・Excel の一時ファイルの画像と、別のメモの添付の元', () => {
+  const clip = 'file:///C:/Users/x/AppData/Local/Temp/msohtmlclip1/01/clip_image002.png';
+  const r = H.toMarkdown(tree('<p class=MsoNormal>図: <img width=512 height=512 src="' + clip + '" v:shapes="図_x0020_1"> と <img src="file:///C:/Users/x/secret.png" alt="ほか"></p>'), { imageLabel: '画像' });
+  assert.deepStrictEqual(r.images, [clip]);
+  assert.strictEqual(r.md, '図: \u00000\u0000 と ほか');
+  assert.strictEqual(H.isRich(tree('<p class=MsoNormal>文 <img src="' + clip + '"></p>')), true, '文字と画像だけでも画像を添付にする');
+  // EverPad のプレビュー: 画像は src、ファイルは data-att-note から元のメモが分かる
+  const p = H.toMarkdown(tree('<p><img class="att-img" data-att="0123456789abcdef.png" alt="図" src="everpad-file://f/20261118-100001-pastea/0123456789abcdef.png"> <a class="att-file" href="#" data-att="fedcba9876543210.pdf" data-att-note="20261118-100001-pastea" title="資料">資料</a> <img class="att-img" data-att="1111111111111111.png" alt="x"></p>'), {});
+  assert.strictEqual(p.md, '![図](attach:0123456789abcdef.png) [資料](attach:fedcba9876543210.pdf) ![x](attach:1111111111111111.png)');
+  assert.deepStrictEqual(p.atts, [{ note: '20261118-100001-pastea', file: '0123456789abcdef.png' }, { note: '20261118-100001-pastea', file: 'fedcba9876543210.pdf' }]);
 });
 
 test('整形があるときだけ Markdown にする(色やフォントだけの HTML は、今までどおり文字のまま)', () => {

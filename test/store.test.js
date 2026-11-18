@@ -166,6 +166,21 @@ test('添付: 保存・同じ内容は1つだけ・拡張子は小文字・本�
   assert(s.attachmentPath('note-aaa111', a.fileId));
   assert.strictEqual(s.loadAll().length, 1, '添付フォルダはメモとして数えない');
 });
+test('添付: 別のメモへのコピー(同じ ID のまま)・もうある・元に無い・不正な ID', () => {
+  const dir = tmp(); const s = new Store(dir); s.init();
+  s.create('note-from11', 1); s.create('note-to2222', 1);
+  const a = s.saveAttachment('note-from11', 'a.png', Buffer.from([9, 8, 7]));
+  assert.strictEqual(s.copyAttachment('note-from11', 'note-to2222', a.fileId), 'copied');
+  assert.deepStrictEqual([...fs.readFileSync(s.attachmentPath('note-to2222', a.fileId))], [9, 8, 7]);
+  assert.ok(!fs.readdirSync(path.join(dir, 'note-to2222.files')).some(f => f.endsWith('.tmp')));
+  assert.strictEqual(s.copyAttachment('note-from11', 'note-to2222', a.fileId), 'exists');
+  assert.strictEqual(s.copyAttachment('note-from11', 'note-to2222', '0123456789abcdef.png'), 'missing');
+  assert.strictEqual(s.copyAttachment('note-gone99', 'note-to2222', a.fileId), 'exists', '元が無くても、もうあれば良い');
+  assert.strictEqual(s.copyAttachment('note-from11', 'note-to2222', '../note-from11.jsonl'), 'missing');
+  assert.strictEqual(s.copyAttachment('../x', 'note-to2222', a.fileId), 'missing');
+  assert.strictEqual(s.copyAttachment('note-from11', '../x', a.fileId), 'missing');
+  assert.throws(() => s.copyAttachment('note-from11', 'note-none99', a.fileId), /見つかりません/);
+});
 test('添付: 不正なID・存在しないメモ・大きすぎるファイル・フォルダ外への参照を拒否する', () => {
   const dir = tmp(); const s = new Store(dir); s.init();
   s.create('note-bbb222', 1);

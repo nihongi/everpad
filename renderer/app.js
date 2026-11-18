@@ -1678,6 +1678,8 @@
       img.addEventListener('error', () => img.replaceWith(missingEl(img.alt)), { once: true });
       img.src = api.fileUrl(noteId, img.dataset.att);
     });
+    // 添付の元のメモ(コピーして別のメモに貼ったとき、ファイルもコピーするため。画像は src からも分かる)
+    root.querySelectorAll('a.att-file[data-att]').forEach(a => { a.dataset.attNote = noteId; });
     root.querySelectorAll('a.note-link').forEach(a => {
       const n = S.notes.find(x => x.id === a.dataset.note);
       a.classList.toggle('missing', !n);
@@ -1951,7 +1953,8 @@
     const r = HtmlMd.toMarkdown(tree, { inline: inline, imageLabel: T('imageName') });
     return r.md || r.images.length ? r : null;
   }
-  // 貼り付けた中の画像そのもの(data:)を添付にして、目印を添付の書き方に置き換える。途中で別のメモに移ったら null
+  // 貼り付けた中の画像そのもの(data:)と Word・Excel の一時ファイル(file:)を添付にして、目印を添付の書き方に置き換える。
+  // 途中で別のメモに移ったら null
   async function fillPastedImages(r) {
     if (!r.images.length) return r.md;
     const noteId = S.active, marks = [], errors = [];
@@ -1959,6 +1962,13 @@
       const m = src.match(/^data:(image\/[a-z0-9.+-]+);base64,([\s\S]*)$/i);
       let item = null;
       try {
+        if (!m) {   // 一時ファイルは main.js が確かめてから読む
+          const res = await api.attachClip(noteId, src, T('imageName') + '-' + stamp());
+          item = res.items[0] || null;
+          errors.push(...res.errors);
+          marks.push(item ? attachMarkup(item.name, item.fileId, item.image) : '');
+          continue;
+        }
         const bin = atob(m[2].replace(/\s+/g, ''));
         if (bin.length > MAX_ATTACH_MB * 1024 * 1024) { errors.push(T('tooLarge', { name: T('imageName'), mb: MAX_ATTACH_MB })); marks.push(''); continue; }
         const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
@@ -1973,6 +1983,34 @@
     if (S.active !== noteId) { toast(T('pasteAborted')); return null; }
     return r.md.replace(/\u0000(\d+)\u0000/g, (x, i) => marks[+i] || '');
   }
+  /* 別のメモの添付を貼ったときは、ファイルもこのメモにコピーする(添付の ID は中身のハッシュなので、書き方はそのまま)。
+     元のメモは、プレビューからのコピーなら添付の data-att-note か画像の src、「テキスト」表示や編集欄からのコピー・切り取りなら、
+     そのとき覚えておいたメモ(貼る文字が、コピーした文字と同じときだけ)。元に無いものは、書き方を残して知らせる */
+  let lastCopy = null;
+  function rememberCopy(e) {
+    const b = e.target;
+    if (!b || typeof b.selectionStart !== 'number') return;
+    const t = b.value.slice(b.selectionStart, b.selectionEnd);
+    lastCopy = /attach:[0-9a-f]{16}/.test(t) ? { note: S.active, text: t.replace(/\r\n/g, '\n') } : null;
+  }
+  function copiedAtts(cd) {
+    if (!lastCopy || lastCopy.note === S.active) return [];
+    if ((cd.getData('text/plain') || '').replace(/\r\n/g, '\n') !== lastCopy.text) return [];
+    return [...lastCopy.text.matchAll(/attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)/g)].map(m => ({ note: lastCopy.note, file: m[1] }));
+  }
+  async function copyPastedAttachments(atts, toNote) {
+    const by = new Map();
+    for (const a of atts || []) {
+      if (!a.note || a.note === toNote || !a.file) continue;
+      if (!by.has(a.note)) by.set(a.note, []);
+      by.get(a.note).push(a.file);
+    }
+    let missing = 0;
+    for (const [from, files] of by) {
+      try { missing += (await api.attachCopy(from, toNote, files)).missing; } catch (err) { missing += files.length; }
+    }
+    if (missing) toast(T('attCopyMissing', { n: missing }));
+  }
   // 複数行を行の途中に貼るときは、前後の文と混ざらないよう空行で分ける
   function separateBlocks(v, s, e, md) {
     if (md.indexOf('\n') < 0) return md;
@@ -1982,6 +2020,7 @@
   async function pasteIntoEditor(r) {
     const ed = $('editor'), v0 = ed.value, noteId = S.active;
     let s = ed.selectionStart, e = ed.selectionEnd;
+    await copyPastedAttachments(r.atts, noteId);
     const md = await fillPastedImages(r);
     if (md == null || S.active !== noteId || S.mode !== 'edit') return;
     if (ed.value !== v0) { s = ed.selectionStart; e = ed.selectionEnd; }   // 画像を保存している間に書き換えた
@@ -1991,6 +2030,7 @@
   async function pasteIntoBox(box, r) {
     const v0 = box.value;
     let s = box.selectionStart, e = box.selectionEnd;
+    await copyPastedAttachments(r.atts, S.active);
     const md = await fillPastedImages(r);
     if (md == null || pe.box !== box) return;
     if (box.value !== v0) { s = box.selectionStart; e = box.selectionEnd; }
@@ -2006,6 +2046,8 @@
     if (!cd) return;
     const r = !inFenceAt(ed.value, ed.selectionStart) && pastedMarkdown(cd, false);
     if (r) { e.preventDefault(); pasteIntoEditor(r); return; }
+    const atts = copiedAtts(cd);
+    if (atts.length) copyPastedAttachments(atts, S.active);   // 文字はそのまま貼る(コードブロックの中や Ctrl+Shift+V でも)
     if (!cd.files || !cd.files.length || cd.getData('text/plain')) return;
     e.preventDefault();
     ingestFiles([...cd.files]);
@@ -2017,10 +2059,17 @@
     const box = pe.box;
     const r = !inFenceAt(box.value, box.selectionStart) && pastedMarkdown(cd, pe.kind === 'cell');
     if (r) { e.preventDefault(); pasteIntoBox(box, r); return; }
+    const atts = copiedAtts(cd);
+    if (atts.length) copyPastedAttachments(atts, S.active);
     if (!cd.files || !cd.files.length || cd.getData('text/plain')) return;
     e.preventDefault();
     ingestFiles([...cd.files], { box: pe.box });
   });
+  // 「テキスト」表示とプレビューの編集欄からのコピー・切り取りは、どのメモの添付かを覚えておく
+  for (const ev of ['copy', 'cut']) {
+    $('editor').addEventListener(ev, rememberCopy);
+    $('preview').addEventListener(ev, e => { if (e.target === pe.box) rememberCopy(e); });
+  }
   // ドラッグ&ドロップ(ウィンドウのどこでも。ファイルを落としてもページが切り替わらないようにする)
   document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
   document.addEventListener('drop', e => {
