@@ -2152,6 +2152,15 @@
       ingestFiles(files, S.mode === 'preview' ? peDropTargetAt(elementAt(pt), pt) : null);
       return;
     }
+    if (files.length) {
+      // .url のファイル(デスクトップのショートカットなど)。既定の処理に任せると、Chromium がその URL を新しい窓で開こうとして、
+      // ブラウザが開いてしまう。タイトルはファイルの名前で足りるので、ここで止めて入れる(2つ以上なら、それぞれの中身を読む)
+      e.preventDefault(); hideLinkDrop();
+      if (files.length > 1) { ingestFiles(files, S.mode === 'preview' ? peDropTargetAt(elementAt(pt), pt) : null); return; }
+      const name = EDIT.pasteRich ? files[0].name.replace(/\.url$/i, '') : '';
+      insertAtPoint(pt, ctx => (ctx.code ? url : HtmlMd.linkMd(url, name, ctx)));
+      return;
+    }
     if (!url) {
       // http・https・mailto 以外は、文字だけ(アプリの中の URL などは入れない)
       e.preventDefault(); hideLinkDrop();
@@ -2167,8 +2176,8 @@
       insertAtPoint(pt, ctx => (ctx.code ? url : HtmlMd.linkMd(url, title, ctx)));
       return;
     }
-    // タイトルは、このあと Chromium が重ねた欄に入れるリンクから読む(来なければ、.url の名前か URL だけ)
-    linkPending = { url: url, pt: pt, name: files.length === 1 ? files[0].name.replace(/\.url$/i, '') : '' };
+    // タイトルは、このあと Chromium が重ねた欄に入れるリンクから読む(来なければ、URL だけ)
+    linkPending = { url: url, pt: pt, name: '' };
     clearTimeout(linkTimer);
     linkTimer = setTimeout(() => finishLinkDrop(false), 500);
   });

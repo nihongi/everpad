@@ -74,6 +74,8 @@ test('画面へのつなぎ込み: 重ねた contenteditable で受ける・.url
   assert.match(app, /includes\('text\/uri-list'\)/);
   assert.match(app, /document\.caretPositionFromPoint/);
   assert.match(app, /HtmlMd\.shortcutUrl\(await f\.text\(\)\)/);
+  // .url のファイルといっしょの URL は、既定の処理(新しい窓 = ブラウザで開く)を止めてから入れる
+  assert.match(app, /if \(files\.length\) \{[^}]*?e\.preventDefault\(\); hideLinkDrop\(\);/);
   // プレビュー: 落とした高さで前か次か(上の余白なら最初のかたまりの前)。フロントマターの前には入れない
   assert.match(app, /pt\.y < r\.top \+ r\.height \/ 2 && canBefore\(top\)/);
   assert.match(app, /if \(pt\.y < blocks\[0\]\.getBoundingClientRect\(\)\.top && canBefore\(blocks\[0\]\)\) return \{ before: blocks\[0\] \};/);
