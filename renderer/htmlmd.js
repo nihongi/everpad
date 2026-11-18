@@ -407,7 +407,47 @@
     try { return conv(node, 0); } catch (e) { return null; }
   }
 
-  const api = { toMarkdown, isRich, hasText, fromDom, escapeText, escLineStart };
+  /* ---------- ブラウザから落としたリンク(app.js のドロップ) ---------- */
+  // text/uri-list の最初の URL(# の行は注釈)。http・https・mailto だけ
+  function dropUrl(list) {
+    for (const l of String(list || '').split(/\r?\n/)) {
+      const u = l.trim();
+      if (!u || u[0] === '#') continue;
+      return u.length <= 4096 && /^(https?:\/\/[^\s]|mailto:[^\s])/i.test(u) && !/[\u0000-\u001f\u007f]/.test(u) ? u : '';
+    }
+    return '';
+  }
+  // 落とした HTML(ページの中のリンク)から、その URL の <a> の文字(無ければ最初のリンクの文字、画像だけなら代わりの文字)
+  function anchorTitle(tree, url) {
+    if (!tree) return '';
+    const links = [];
+    const walk = n => { for (const c of kids(n)) { if (!c.tag) continue; if (c.tag === 'a' && attr(c, 'href')) links.push(c); walk(c); } };
+    walk(tree);
+    const a = links.find(x => attr(x, 'href').trim() === url) || links.find(x => /^(https?:|mailto:)/i.test(attr(x, 'href').trim()));
+    if (!a) return '';
+    const t = textOf(a).replace(/\s+/g, ' ').trim();
+    if (t) return t;
+    const img = find(a, c => c.tag === 'img' && attr(c, 'alt').trim());
+    return img ? attr(img, 'alt').trim() : '';
+  }
+  // インターネットのショートカット(.url)の中の URL([InternetShortcut] の URL=)
+  function shortcutUrl(content) {
+    const m = String(content || '').match(/^\s*URL\s*=\s*(\S.*?)\s*$/im);
+    return m ? dropUrl(m[1]) : '';
+  }
+  // [タイトル](URL) の書き方。タイトルが無いか URL と同じなら、URL だけ(EverPad がリンクにする)。ctx.table: 表のセルの中
+  function linkMd(url, title, ctx) {
+    url = String(url || '').trim();
+    let t = clean(String(title || '')).replace(/\s+/g, ' ').trim();
+    if ([...t].length > 300) t = [...t].slice(0, 300).join('').trim() + '…';
+    if (/^mailto:/i.test(url) && (!t || t === url)) t = url.slice(7);
+    if (!t || t === url || t + '/' === url || t === url + '/') return urlPart(url);
+    // ] はエスケープする(リンクが途中で切れないように)。[ はそのまま(EverPad のリンクの文字の中では普通の文字。
+    // \[ と \] がそろうと数式になるので、escapeText が付けた \[ も戻す)
+    return '[' + escapeText(t, ctx).replace(/(?<!\\)\\\[/g, '[').replace(/(?<!\\)\]/g, '\\]') + '](' + urlPart(url) + ')';
+  }
+
+  const api = { toMarkdown, isRich, hasText, fromDom, escapeText, escLineStart, dropUrl, anchorTitle, shortcutUrl, linkMd };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HtmlMd = api;
 })(typeof window !== 'undefined' ? window : this);

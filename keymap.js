@@ -63,6 +63,7 @@ const COMMANDS = [
   { id: 'zoomIn', group: 'mView', label: 'mZoomIn', def: 'CmdOrCtrl+Plus', role: 'zoomIn' },
   { id: 'zoomOut', group: 'mView', label: 'mZoomOut', def: 'CmdOrCtrl+-', role: 'zoomOut' },
   { id: 'resetZoom', group: 'mView', label: 'mZoomReset', def: 'CmdOrCtrl+0', role: 'resetZoom' },
+  { id: 'onTop', group: 'mView', label: 'mOnTop', def: '' },   // 既定はキーなし(割り当てはできる)
   { id: 'fullscreen', group: 'mView', label: 'mFullscreen', def: 'F11', mac: 'CmdOrCtrl+Ctrl+F', role: 'togglefullscreen' },
   { id: 'mdHelp', group: 'mHelp', label: 'mMdHelp', def: '' }
 ];

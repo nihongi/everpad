@@ -1105,6 +1105,7 @@ function buildMenu() {
         roleItem(KM, 'zoomOut', T('mZoomOut')),
         roleItem(KM, 'resetZoom', T('mZoomReset')),
         { type: 'separator' },
+        { id: 'onTop', label: T('mOnTop'), type: 'checkbox', checked: onTop, accelerator: A('onTop'), click: () => setOnTop(!onTop) },
         roleItem(KM, 'fullscreen', T('mFullscreen')),
         ...(app.isPackaged ? [] : [{ type: 'separator' }, { role: 'toggleDevTools', label: T('mDevTools') }])
       ]
@@ -1147,6 +1148,22 @@ const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1'
 
 /* ---------- Markdown の書き方(別ウィンドウ) ---------- */
 let helpWin = null;
+/* 「表示」→「常に手前に表示」。次の起動でも使う(config.json の onTop)。
+   オンの間は「Markdown の書き方」の窓も手前に出す(そうしないと EverPad の後ろに隠れる)。
+   確認やファイルを選ぶ窓は EverPad の窓に付いているので、そのままで前に出る */
+let onTop = false;
+// Windows は level を 'normal' にする(Electron 45 では、既定の 'floating' や new BrowserWindow の alwaysOnTop では手前にならない)
+function applyOnTop(w) {
+  if (!w || w.isDestroyed()) return;
+  if (onTop && process.platform === 'win32') w.setAlwaysOnTop(true, 'normal');
+  else w.setAlwaysOnTop(onTop);
+}
+function setOnTop(on) {
+  onTop = !!on;
+  for (const w of [win, helpWin]) applyOnTop(w);
+  try { writeConfig(Object.assign(readConfig(), { onTop: onTop })); } catch (e) { /* 覚えられなくても、今回は使う */ }
+  buildMenu();
+}
 // kl: 「メモへのリンクを挿入…」のキー(説明文の Ctrl+K を、いまのキーにする)
 const loadHelp = () => helpWin.loadFile(path.join(__dirname, 'renderer', 'help.html'), { query: { lang: lang, os: process.platform, kl: keyShown().link } });
 function showMdHelp() {
@@ -1159,6 +1176,7 @@ function showMdHelp() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false }
   });
   helpWin.removeMenu();
+  applyOnTop(helpWin);
   loadHelp();
   helpWin.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -1411,7 +1429,7 @@ function createWindow() {
       spellcheck: false
     }
   });
-  win.once('ready-to-show', () => { if (bounds.maximized) win.maximize(); win.show(); });
+  win.once('ready-to-show', () => { if (bounds.maximized) win.maximize(); win.show(); applyOnTop(win); });
   loadPage();
 
   // 外部リンクは既定のブラウザで開き、アプリ内では他のページに移動させない
@@ -1469,6 +1487,7 @@ if (!app.requestSingleInstanceLock()) {
       } catch (err) { return new Response('bad request', { status: 400 }); }
     });
     initLang();
+    onTop = readConfig().onTop === true;
     if (!openStore()) { app.exit(0); return; }
     // portable 版を書き込めない場所に置いたときは、設定とメモの場所を一度だけ知らせる
     if (layout.mode === 'portableFallback' && !readConfig().portableFallbackNotified) {

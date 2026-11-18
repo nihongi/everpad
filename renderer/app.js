@@ -1871,10 +1871,11 @@
   }
   /* プレビューで添付を書く。where.box(開いていた編集欄)がまだ開いていれば、そのカーソルの位置(表のセルなら横に並べる)。
      そうでなければ、かたまり where.el の次(el が無ければメモの最後)に、1つのかたまりとして入れる */
-  function peInsertAttachments(items, where) {
-    const marks = items.map(i => attachMarkup(i.name, i.fileId, i.image));
+  function peInsertAttachments(items, where) { peInsertMarks(items.map(i => attachMarkup(i.name, i.fileId, i.image)), where); }
+  // marks(添付やリンクの書き方)を where に入れる。where.at: 編集欄の中の位置(無ければカーソル)
+  function peInsertMarks(marks, where) {
     if (where.box && pe.box === where.box) {
-      const b = pe.box, s = b.selectionStart, e = b.selectionEnd;
+      const b = pe.box, s = where.at != null ? where.at : b.selectionStart, e = where.at != null ? where.at : b.selectionEnd;
       if (pe.kind === 'block') { peReplace(s, e, marks.join('\n')); peFit(true); return; }
       const v = marks.join(' ');
       b.focus();
@@ -1884,10 +1885,13 @@
       return;
     }
     if (pe.box) peClose();
-    const el = where.el && where.el.isConnected && $('preview').contains(where.el) ? where.el : null;
+    const live = x => x && x.isConnected && $('preview').contains(x) ? x : null;
+    const el = live(where.el), first = el ? null : live(where.before);
     const before = cur().text;
-    const r = blockInsert(before, el ? peAfter(el) : before.split('\n').length, marks);
-    const top = el ? el.getBoundingClientRect().top : null;
+    // where.before: そのかたまりの前に(その最初の行の前の行の次に)入れる
+    const r = blockInsert(before, el ? peAfter(el) : first ? +first.dataset.line - 1 : before.split('\n').length, marks);
+    const ref = el || first;
+    const top = ref ? ref.getBoundingClientRect().top : null;
     if (!peSetText(r.text)) return;
     peRecord(before, r.text);
     peRerender(el ? +el.dataset.line : r.at, top);
@@ -1895,11 +1899,29 @@
     if (added) added.scrollIntoView({ block: 'nearest' });
   }
   /* プレビューで、ファイルを落とした場所: 編集欄を開いていればそのカーソル、そうでなければ落としたかたまり(その次に入れる) */
-  function peDropTarget(e) {
+  /* 落とした高さで決める: かたまりの上半分ならその前、下半分ならその次。かたまりの無い所(余白)なら、上のかたまりの次
+     (いちばん上より上なら最初のかたまりの前、いちばん下より下ならメモの最後)。フロントマターの前と脚注の中には入れない */
+  function peDropTarget(e) { return peDropTargetAt(e.target, { x: e.clientX, y: e.clientY }); }
+  function peDropTargetAt(t, pt) {
     if (pe.box) return { box: pe.box };
-    const t = e.target, pv = $('preview');
-    const el = t && t.closest && pv.contains(t) ? t.closest('[data-line]') : null;
-    return { el: el && pv.contains(el) && !el.closest('.footnotes') ? el : null };
+    const pv = $('preview');
+    const blocks = [...pv.children].filter(c => c.dataset && c.dataset.line != null && !c.classList.contains('footnotes'));
+    const canBefore = b => !b.classList.contains('fm');
+    let el = t && t.closest && pv.contains(t) ? t.closest('[data-line]') : null;
+    if (el && (!pv.contains(el) || el.closest('.footnotes'))) el = null;
+    if (!pt) return { el: el };
+    if (el) {
+      // 中のかたまり(引用や表の中など)も、いちばん外のかたまりで前か次かを決める
+      let top = el;
+      while (top.parentElement && top.parentElement !== pv) top = top.parentElement;
+      const r = top.getBoundingClientRect();
+      return pt.y < r.top + r.height / 2 && canBefore(top) && top.dataset.line != null ? { before: top } : { el: el };
+    }
+    if (!blocks.length) return { el: null };
+    if (pt.y < blocks[0].getBoundingClientRect().top && canBefore(blocks[0])) return { before: blocks[0] };
+    let above = null;
+    for (const b of blocks) { if (b.getBoundingClientRect().top <= pt.y) above = b; else break; }
+    return { el: above || blocks[0] };
   }
   function reportErrors(errors) { if (errors.length) toast(errors[0] + (errors.length > 1 ? T('moreErrors', { n: errors.length - 1 }) : '')); }
   // where: プレビューでの入れる場所(peDropTarget の形)。無ければ、開いている編集欄のカーソルか、メモの最後
@@ -1910,6 +1932,20 @@
       if (!where) where = pe.box ? { box: pe.box } : { el: null };
     } else if (S.mode !== 'edit') { toast(T('attachEditOnly')); return; }
     const noteId = S.active, items = [], errors = [];
+    // インターネットのショートカット(.url。エクスプローラーから落としたものなど)は、添付にせず [名前](URL) にする
+    const links = [];
+    for (const f of files.slice()) {
+      if (!/\.url$/i.test(f.name || '') || f.size > 64 * 1024) continue;
+      let u = '';
+      try { u = HtmlMd.shortcutUrl(await f.text()); } catch (err) { u = ''; }
+      if (!u) continue;
+      links.push(HtmlMd.linkMd(u, EDIT.pasteRich ? f.name.replace(/\.url$/i, '') : ''));
+      files.splice(files.indexOf(f), 1);
+    }
+    if (links.length) {
+      if (S.active !== noteId) { toast(T('pasteAborted')); return; }
+      insertLinks(links, where);
+    }
     for (const f of files) {
       if (f.size > MAX_ATTACH_MB * 1024 * 1024) { errors.push(T('tooLarge', { name: f.name || T('file'), mb: MAX_ATTACH_MB })); continue; }
       const name = f.name && !/^image\.\w+$/i.test(f.name) ? f.name : T('imageName') + '-' + stamp() + '.' + extOfType(f.type);
@@ -2077,6 +2113,109 @@
     e.preventDefault();
     ingestFiles([...e.dataTransfer.files], S.mode === 'preview' ? peDropTarget(e) : null);
   });
+
+  /* ---------- ブラウザから落としたリンク ----------
+     Chrome・Edge のアドレスバーの左のアイコンや、ページの中のリンクを落とすと、落とした場所に [ページのタイトル](URL) を入れる。
+     ページからはリンクのタイトルを読めない(dataTransfer に無い)が、contenteditable に落とすと Chromium が <a href=URL>タイトル</a> を入れる。
+     そこで、リンクのドラッグが入ってきたら、透明な contenteditable(linkDrop)を「テキスト」表示かプレビューの上に重ねて受け、
+     入ったリンクの文字を読んで、すぐに消す。HTML があるとき(ページの中のリンク)は、その <a> の文字を使う(重ねた欄には入れない)。
+     入れる場所: 「テキスト」表示は落とした位置。プレビューは、開いている編集欄の上なら落とした位置、そうでなければ落としたかたまりの次。
+     設定の「貼り付けで書式を保つ」がオフのときと、コードブロックの中では、URL だけを入れる。
+     ページの画像など、リンクのほかにファイルもあるときは、今までどおり添付にする。1回のドロップは1回の編集 */
+  const linkDrop = document.createElement('div');
+  linkDrop.contentEditable = 'true';
+  linkDrop.setAttribute('aria-hidden', 'true');
+  linkDrop.style.cssText = 'position:fixed;display:none;z-index:2147483646;opacity:0;outline:none;overflow:hidden;white-space:pre';
+  document.body.appendChild(linkDrop);
+  let linkPending = null, linkTimer = 0, ownDrag = false;
+  const linkDragOk = () => !!cur() && !isRO(cur()) && $('modal').hidden && (S.mode === 'edit' || peAllowed());
+  function hideLinkDrop() { linkDrop.style.display = 'none'; linkDrop.textContent = ''; }
+  // EverPad の中から始めたドラッグ(プレビューのリンクを少し動かしたときなど)では重ねない
+  document.addEventListener('dragstart', () => { ownDrag = true; }, true);
+  document.addEventListener('dragend', () => { ownDrag = false; }, true);
+  document.addEventListener('dragenter', e => {
+    if (ownDrag || linkDrop.style.display === 'block' || linkPending || !e.dataTransfer || ![...e.dataTransfer.types].includes('text/uri-list') || !linkDragOk()) return;
+    const r = $(S.mode === 'edit' ? 'editor' : 'preview').getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return;
+    Object.assign(linkDrop.style, { display: 'block', left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  }, true);
+  // 外に出たら(ウィンドウの外・メモ一覧の上など)、重ねた欄を消す。ドラッグをやめたときも、ここに来る
+  linkDrop.addEventListener('dragleave', e => { if (!linkPending && (!e.relatedTarget || !linkDrop.contains(e.relatedTarget))) hideLinkDrop(); });
+  // dragleave が来ないまま終わったときも、次のマウスやキーの操作で消す(ドラッグの間は、これらは来ない)
+  for (const t of ['mousemove', 'mousedown', 'keydown', 'wheel']) document.addEventListener(t, () => { if (!linkPending && linkDrop.style.display === 'block') hideLinkDrop(); }, true);
+  linkDrop.addEventListener('drop', e => {
+    e.stopPropagation();   // 文書全体のドロップ(ファイルの添付)には渡さない
+    const dt = e.dataTransfer, pt = { x: e.clientX, y: e.clientY }, files = [...dt.files];
+    const url = HtmlMd.dropUrl(dt.getData('text/uri-list'));
+    if (files.length && (!url || files.some(f => !/\.url$/i.test(f.name || '')))) {
+      e.preventDefault(); hideLinkDrop();
+      ingestFiles(files, S.mode === 'preview' ? peDropTargetAt(elementAt(pt), pt) : null);
+      return;
+    }
+    if (!url) {
+      // http・https・mailto 以外は、文字だけ(アプリの中の URL などは入れない)
+      e.preventDefault(); hideLinkDrop();
+      const t = dt.getData('text/plain').trim();
+      if (t && !/^(file|data|javascript|everpad[\w-]*):/i.test(t)) insertAtPoint(pt, () => t);
+      return;
+    }
+    const html = dt.getData('text/html');
+    if (html || !EDIT.pasteRich) {
+      e.preventDefault(); hideLinkDrop();
+      let title = '';
+      if (html && EDIT.pasteRich && html.length <= PASTE_HTML_MAX) { try { title = HtmlMd.anchorTitle(HtmlMd.fromDom(new DOMParser().parseFromString(html, 'text/html').body), url); } catch (err) { title = ''; } }
+      insertAtPoint(pt, ctx => (ctx.code ? url : HtmlMd.linkMd(url, title, ctx)));
+      return;
+    }
+    // タイトルは、このあと Chromium が重ねた欄に入れるリンクから読む(来なければ、.url の名前か URL だけ)
+    linkPending = { url: url, pt: pt, name: files.length === 1 ? files[0].name.replace(/\.url$/i, '') : '' };
+    clearTimeout(linkTimer);
+    linkTimer = setTimeout(() => finishLinkDrop(false), 500);
+  });
+  linkDrop.addEventListener('input', () => { if (linkPending) finishLinkDrop(true); else hideLinkDrop(); });
+  function finishLinkDrop(got) {
+    const p = linkPending;
+    linkPending = null;
+    clearTimeout(linkTimer);
+    let title = '';
+    if (got) {
+      const a = [...linkDrop.querySelectorAll('a[href]')].find(x => x.href === p.url || x.getAttribute('href') === p.url) || linkDrop.querySelector('a[href]');
+      if (a) title = a.textContent;
+    }
+    hideLinkDrop();
+    if (!p) return;
+    if (!title || title.trim() === p.url) title = p.name;
+    insertAtPoint(p.pt, ctx => (ctx.code ? p.url : HtmlMd.linkMd(p.url, title, ctx)));
+  }
+  // その点の下の要素(重ねた欄は消してから呼ぶ)
+  const elementAt = pt => document.elementsFromPoint(pt.x, pt.y).find(el => el !== linkDrop) || null;
+  /* 落とした点に、文字を入れる。make(ctx) が入れる文字を返す(ctx.code: コードブロックの中、ctx.table: 表のセルの中) */
+  function insertAtPoint(pt, make) {
+    if (!linkDragOk()) { if (cur() && isRO(cur())) roBlocked(); return; }
+    const cp = document.caretPositionFromPoint ? document.caretPositionFromPoint(pt.x, pt.y) : null;
+    if (S.mode === 'edit') {
+      const ed = $('editor');
+      const at = cp && cp.offsetNode === ed ? cp.offset : ed.selectionStart;
+      const ls = ed.value.lastIndexOf('\n', at - 1) + 1, le = ed.value.indexOf('\n', at);
+      const text = make({ code: inFenceAt(ed.value, at), table: /^\s*\|/.test(ed.value.slice(ls, le < 0 ? undefined : le)) });
+      if (!text) return;
+      frInsert(at, at, text);
+      ed.focus();
+      return;
+    }
+    // 編集欄を開いていれば、その上に落としたときはその位置、外ならカーソルの位置(ファイルと同じ)
+    const where = pe.box && cp && cp.offsetNode === pe.box ? { box: pe.box, at: cp.offset } : peDropTargetAt(elementAt(pt), pt);
+    const pos = where.box ? (where.at != null ? where.at : where.box.selectionStart) : 0;
+    const text = make(where.box ? { code: pe.kind === 'block' && inFenceAt(where.box.value, pos), table: pe.kind === 'cell' } : {});
+    if (text) peInsertMarks([text], where);
+  }
+  // .url から作ったリンク(ingestFiles)。プレビューでは where、「テキスト」表示ではカーソルの位置に入れる
+  function insertLinks(links, where) {
+    if (where && S.mode === 'preview') { peInsertMarks(links, where); return; }
+    const ed = $('editor');
+    frInsert(ed.selectionStart, ed.selectionEnd, links.join('\n'));
+    ed.focus();
+  }
 
   /* ---------- サイドバー(狭い画面) ---------- */
   const narrow = () => window.matchMedia('(max-width: 759px)').matches;
