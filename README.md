@@ -229,7 +229,8 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Numbered and nested lists copied from Word or Google Docs keep their numbers and levels. Letters and Roman numerals (a., i.) become numbers, because Markdown has no way to write them.
 - From the EverPad preview, formulas, diagrams, links to notes, attachments, emoji, alerts, footnotes and front matter come back as they were written. Formulas copied from web pages that use KaTeX or MathML come back as LaTeX when the page keeps it.
 - Attachments copied from another note, from its preview or as text from its Text view, are copied into this note together with their files. If the original note no longer has a file, the attachment syntax is kept and EverPad tells you.
-- Images that are part of the copied content are added as attachments. This includes images that Word or Excel copy together with text (on Windows); those apps keep the images only while they are open, so if EverPad cannot read one, copy the image by itself again. Images on the web (`https://…`) are not downloaded, because EverPad does not connect to the internet; they become links. Colors, font sizes, fonts and underlines are dropped, because Markdown has no way to write them. HTML tags and scripts never end up in the note.
+- Images that are part of the copied content are added as attachments. Images on the web (`https://…`) are not downloaded, because EverPad does not connect to the internet; they become links. Colors, font sizes, fonts and underlines are dropped, because Markdown has no way to write them. HTML tags and scripts never end up in the note.
+- Images that you copy together with text in Word or Excel are added as attachments too (on Windows). **Word or Excel must still be running when you paste:** they keep these images in temporary files only while they are running. If you close Word or Excel before pasting, the text is pasted but the images are not, and EverPad tells you; open the document again and copy it again (or copy and paste the image by itself).
 - Plain text, and text with only colors and fonts (such as code copied from a code editor), is pasted as before. Inside a code block, text is always pasted as it is. To paste only the text, press `Ctrl+Shift+V` or choose Edit → Paste as Plain Text (also in the right-click menu). To always paste text as it is, clear "Keep formatting when pasting" in File → Settings….
 
 **Images and attachments**
@@ -751,7 +752,8 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - Word や Google ドキュメントからコピーした番号付きや入れ子の箇条書きは、番号と段をそのまま入れます。英字やローマ数字の番号(a.・i.)は、Markdown に無いので数字の番号になります。
 - EverPad のプレビューからのコピーでは、数式・図・メモへのリンク・添付・絵文字・アラート・脚注・フロントマターを、元の書き方に戻します。KaTeX や MathML を使った Web ページの数式も、ページが LaTeX を持っていれば LaTeX に戻します。
 - 別のメモの添付をコピーして貼ると(プレビューからでも、「テキスト」表示の書き方のままでも)、ファイルもこのメモにコピーします。元のメモにファイルが無くなっていたときは、書き方を残して知らせます。
-- コピーした中の画像そのものは、添付にします。Word や Excel で文字といっしょにコピーした画像も添付にします(Windows)。この画像は Word や Excel を閉じると消えるので、読めなかったときは画像だけをコピーし直してください。Web 上の画像(`https://…`)は、EverPad がインターネットに接続しないので取りに行かず、リンクにします。色・文字の大きさ・フォント・下線は、Markdown に無いので外します。HTML のタグやスクリプトが、メモに入ることはありません。
+- コピーした中の画像そのものは、添付にします。Web 上の画像(`https://…`)は、EverPad がインターネットに接続しないので取りに行かず、リンクにします。色・文字の大きさ・フォント・下線は、Markdown に無いので外します。HTML のタグやスクリプトが、メモに入ることはありません。
+- Word や Excel で文字といっしょにコピーした画像も、添付にします(Windows)。**貼り付けるときに、コピー元の Word や Excel が実行中である必要があります。** Word や Excel は、この画像を実行中の間だけ一時ファイルに置くためです。貼り付ける前に Word や Excel を閉じると、文字は貼れますが画像は入らず、そのことを知らせます。文書を開き直して、もう一度コピーしてください(画像だけをコピーして貼ることもできます)。
 - ただの文字と、色やフォントだけの文書(コードエディタからコピーしたコードなど)は、今までどおり文字のまま貼ります。コードブロックの中では、いつも文字のまま貼ります。文字だけを貼りたいときは `Ctrl+Shift+V` か、「編集」→「テキストとして貼り付け」(右クリックにもあります)を使います。いつも文字のまま貼るときは、「ファイル」→「設定…」の「貼り付けで書式を保つ」のチェックを外します。
 
 **画像・ファイルの添付**
