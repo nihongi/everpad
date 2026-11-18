@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.40.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.42.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -32,6 +32,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・LaTeX の数式と化学式を、整った数式として表示します。数式エディタでは、典型的な数式のひな型や記号を選んで、プレビューを見ながら書けます。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。図エディタでは、ひな型から始めて、図を拡大・移動しながら書けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
+・Web ページや Word・Excel などからコピーした文書は、見出し・太字・箇条書き・表・リンクなどの整形を保ったまま、Markdown にして貼り付けます。  
 ・他のメモへのリンクを入れて、メモどうしをつなげられます。最近見たメモや、前に見たメモにもすぐ戻れます。  
 ・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、カーソル行の強調、自動インデントに対応しています。  
 ・キーボードショートカットを、好きなキーに変えられます。
@@ -60,10 +61,10 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・メモにタグを付けられるようになりました。メモの先頭のフロントマター(2つの「---」の行の間)に「tags: YAML, 設計」のように書きます。Obsidian などと同じ書き方です。「編集」→「フロントマター(タグ)を挿入」か右クリックで、メモの先頭に入れられます。  
-・検索欄に「tag:YAML」と書くと、そのタグのメモを探せます。「tag:仕事 議事録」のようにほかの語も書くと、そのメモの中から探します。プレビューのタグを押しても、そのタグで検索できます。  
-・プレビューを開いたまま検索すると、表示の位置が少しずつずれていたのを直しました。  
-・設定の窓の「そのほか」を「その他」にしました。
+・Web ページ・Word・Excel・Google ドキュメントなどからコピーした文書を貼ると、見出し・太字・斜体・箇条書き・表・リンクなどの整形を、Markdown にして入れるようになりました。Word の番号付きや入れ子の箇条書きも、番号と段をそのまま貼れます。  
+・EverPad のプレビューからのコピーでは、数式・図・メモへのリンク・脚注などを、元の書き方に戻して貼ります。添付のあるメモの一部を別のメモに貼ると、画像やファイルもそのメモにコピーします。  
+・Word や Excel で文字といっしょにコピーした画像も、添付にします。貼り付けるときに、コピー元の Word や Excel が実行中である必要があります。  
+・文字だけを貼りたいときは、「編集」→「テキストとして貼り付け」(Ctrl+Shift+V)を使います。いつも文字のまま貼るときは、設定の「貼り付けで書式を保つ」をオフにします。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -73,7 +74,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 4. LaTeX の数式と化学式の表示。ひな型と記号から選べる数式エディタ
 5. すべてのメモから検索(履歴全体の検索や、フロントマターのタグでの検索も可能)
 6. 検索と置換(正規表現にも対応)
-7. 画像の貼り付けとファイルの添付
+7. 画像の貼り付けとファイルの添付。Web ページ・Word・Excel からコピーした文書は、整形を保って Markdown で貼り付け
 8. 他のメモへのリンク
 9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word・LaTeX への書き出し
 10. 履歴と添付ファイルごと移せる EverPad アーカイブ
@@ -130,6 +131,7 @@ WRITE
 • LaTeX math and chemical formulas are shown as formatted formulas. The formula editor lets you pick templates and symbols and see the result as you type.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax. The diagram editor lets you start from a template and zoom and move the diagram as you write.  
 • Paste screenshots or drop files to attach images and files to a note.  
+• Paste text copied from web pages, Word, Excel and more with its headings, bold, lists, tables and links kept, as Markdown.  
 • Link notes to each other, and go straight back to recently viewed notes or the previous note.  
 • Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers, current-line highlighting and automatic indentation.  
 • Change the keyboard shortcuts to the keys you like.
@@ -158,9 +160,10 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Tag your notes: write tags in front matter at the top of a note, such as "tags: YAML, design" between two "---" lines (the same format as Obsidian and others). Edit → Insert Front Matter (Tags), also in the right-click menu, puts it at the top of the note.  
-• Type "tag:YAML" in the search box to find the notes with that tag, or add other words, such as "tag:work agenda", to search inside them. You can also click a tag in the preview to search for it.  
-• With the preview open, searching no longer shifts the preview a little each time.
+• Paste formatted text: text copied from web pages, Word, Excel, Google Docs and more keeps its headings, bold, italic, lists, tables and links, turned into Markdown. Numbered and nested lists from Word keep their numbers and levels.  
+• Copying from the EverPad preview brings back formulas, diagrams, links to notes, footnotes and more as they were written. Pasting part of a note into another note copies its images and files too.  
+• Images copied together with text in Word or Excel are added as attachments. Word or Excel must still be running when you paste.  
+• To paste only the text, use Edit → Paste as Plain Text (Ctrl+Shift+V). To always paste text as it is, turn off "Keep formatting when pasting" in Settings.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -170,7 +173,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 4. LaTeX math and chemical formulas, with a formula editor of templates and symbols
 5. Search all notes, including their entire history, or by tags in front matter
 6. Find and replace, with regular expressions
-7. Paste images and attach files
+7. Paste images and attach files, and paste formatted text from web pages, Word and Excel as Markdown
 8. Links between notes
 9. Print, and export to PDF, HTML, MHTML, AsciiDoc, Word and LaTeX
 10. EverPad archives that move a note with its history and attachments
