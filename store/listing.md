@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.43.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.43.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -63,9 +63,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・Chrome や Edge のアドレスの左のアイコンをメモにドラッグ&ドロップすると、ページのタイトル付きのリンクを、落とした場所に入れるようになりました。Web ページの中のリンクも、同じように落とせます。  
-・「表示」→「常に手前に表示」で、EverPad のウィンドウをほかのウィンドウより手前に出したままにできるようになりました。ブラウザなどを見ながら書くときに便利です。  
-・プレビューでファイルを落としたとき、部分の上半分ならその前に入るようにしました。最初の部分より上に落としたときは、メモの先頭に入ります。
+・インターネットのショートカット(.url。デスクトップのものなど)をメモにドロップすると、リンクは入るものの、ブラウザでもそのページが開いていたのを直しました。今はリンクを入れるだけです。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -163,9 +161,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Drag the icon to the left of the address in Chrome or Edge onto a note to insert a link with the page title where you drop it. Links on a web page can be dropped the same way.  
-• View → Always on Top keeps the EverPad window in front of other windows, handy for writing while you look at a browser or another app.  
-• In the preview, a file dropped on the upper half of a part is now added before it, and one dropped above the first part goes to the top of the note.
+• Fixed: dropping an internet shortcut (a .url file, for example one on the desktop) onto a note inserted the link but also opened the page in the web browser. Now only the link is inserted.
 
 ### Product features (up to 20, up to 200 characters each)
 
