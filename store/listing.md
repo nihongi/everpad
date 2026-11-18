@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.38.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.40.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -40,6 +40,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・タイムスライダーで、どの時点の版でも表示できます。履歴の再生もできます。  
 ・変更のあった場所を表示するので、何をいつ書き換えたかがわかります。  
 ・すべてのメモから検索できます。最新の版だけでなく、履歴全体(あとで消した文章も含む)を検索することもできます。  
+・メモの先頭のフロントマターにタグを書いて、tag:名前 でタグの付いたメモを探せます。プレビューのタグを押しても検索できます。  
 ・履歴の表示で検索すると、その言葉がある版の範囲をタイムスライダーに色の帯で示すので、いつ書いて、いつ消したかがわかります。  
 ・履歴が長くなったら、選んだ版より古い履歴を削除できます。
 
@@ -59,7 +60,10 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・メニューの右端に出るキーの名前を、いつも英語で出すようにしました。今までは英語の画面でも「Ctrl+カンマ」のように日本語で出ていましたが、今は日本語の画面でも英語の画面でも「Ctrl+Comma」「Alt+Left Arrow」のように出ます。メニューの項目の名前は、今までどおり画面の言語で出ます。
+・メモにタグを付けられるようになりました。メモの先頭のフロントマター(2つの「---」の行の間)に「tags: YAML, 設計」のように書きます。Obsidian などと同じ書き方です。「編集」→「フロントマター(タグ)を挿入」か右クリックで、メモの先頭に入れられます。  
+・検索欄に「tag:YAML」と書くと、そのタグのメモを探せます。「tag:仕事 議事録」のようにほかの語も書くと、そのメモの中から探します。プレビューのタグを押しても、そのタグで検索できます。  
+・プレビューを開いたまま検索すると、表示の位置が少しずつずれていたのを直しました。  
+・設定の窓の「そのほか」を「その他」にしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -67,7 +71,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 2. 過去の版をワンクリックで復元
 3. Markdown のプレビュー(見出し・リスト・チェックボックス・表・コード・引用)
 4. LaTeX の数式と化学式の表示。ひな型と記号から選べる数式エディタ
-5. すべてのメモから検索(履歴全体の検索も可能)
+5. すべてのメモから検索(履歴全体の検索や、フロントマターのタグでの検索も可能)
 6. 検索と置換(正規表現にも対応)
 7. 画像の貼り付けとファイルの添付
 8. 他のメモへのリンク
@@ -134,6 +138,7 @@ LOOK BACK
 • Show the note at any point in its history with the time slider, or play the history back.  
 • See where each change was made, so you know what was rewritten and when.  
 • Search all notes: the latest version of each note, or the entire history, including text that was later deleted.  
+• Tag notes in front matter at the top of a note, and find them by searching for tag:name. Click a tag in the preview to search for it.  
 • Search in the history, and colored bands on the time slider show the versions that contain the text, so you can see when it was written and when it was deleted.  
 • When a history grows long, you can delete the versions older than a chosen one.
 
@@ -153,7 +158,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Key names in the menus are now always shown in English. With the English interface, some of them were shown in Japanese (such as "Ctrl+カンマ"); they now appear as Ctrl+Comma, Alt+Left Arrow and so on, whatever the interface language. Menu commands are still shown in the interface language.
+• Tag your notes: write tags in front matter at the top of a note, such as "tags: YAML, design" between two "---" lines (the same format as Obsidian and others). Edit → Insert Front Matter (Tags), also in the right-click menu, puts it at the top of the note.  
+• Type "tag:YAML" in the search box to find the notes with that tag, or add other words, such as "tag:work agenda", to search inside them. You can also click a tag in the preview to search for it.  
+• With the preview open, searching no longer shifts the preview a little each time.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -161,7 +168,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 2. Restore any earlier version with one click
 3. Markdown preview: headings, lists, check boxes, tables, code and block quotes
 4. LaTeX math and chemical formulas, with a formula editor of templates and symbols
-5. Search all notes, including their entire history
+5. Search all notes, including their entire history, or by tags in front matter
 6. Find and replace, with regular expressions
 7. Paste images and attach files
 8. Links between notes
