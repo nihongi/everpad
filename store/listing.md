@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.44.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.44.2(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -63,7 +63,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・「最新の版」で検索すると、1つのメモに何か所あっても、結果には1件だけ出すようにしました。最初の箇所の前後の文と、そのメモで見つかった件数を出します。結果を押すと、同じ検索語で検索のバーが開き、Enter / F3 で次の箇所へ移れます。「履歴すべて」の検索は、今までどおり箇所ごとに出します。
+・プレビューで、長いメモの最後までスクロールした状態で、メモの終わりにブラウザからリンクをドロップすると、メモの最初のほうまで勝手にスクロールしていたのを直しました。今は表示している位置のままで、リンクはドロップした所に入ります。プレビューでのほかの編集でも、同じように位置を保ちます。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -161,7 +161,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• When you search the latest version, each note now appears once in the results, with the text around the first match and the number of matches in the note. Clicking a result opens the find bar with the same text, so Enter / F3 moves to the next match. Searching All history still lists each place separately.
+• Fixed: in Preview, dropping a link from the browser at the end of a long note that was scrolled to the end made the view jump far up toward the beginning. The view now stays where it was, and the link appears where you dropped it. Other edits in Preview keep their place in the same way.
 
 ### Product features (up to 20, up to 200 characters each)
 
