@@ -888,28 +888,51 @@ function removeAttachRefs(text, fileId) {
   return { text: count ? out.join('\n') : text, count: count };
 }
 
+/* 項目の続き: 項目より字下げした行のかたまりを、lines[j] から集める。字下げを外した行(行の数は元と同じ)と、終わりの次の行を返す。
+   空行をはさんでもよい。字下げの浅い行・リストの項目の行で終わる(コードブロックの中は、どの行も中身)。無ければ null */
+function listCont(lines, j, need, col, re) {
+  const lead = s => s.match(/^\s*/)[0].replace(/\t/g, '  ').length;
+  const buf = [];
+  let open = null, last = -1;
+  for (let k = j; k < lines.length; k++) {
+    const l = lines[k];
+    if (open) { if (fenceCloses(l, open)) open = null; }
+    else if (/\S/.test(l)) {
+      if (lead(l) < need || re.test(l)) break;
+      if (FENCE_OPEN.test(l)) open = l.match(FENCE_OPEN_RE)[1];
+    } else { buf.push(''); continue; }
+    const w = l.match(/^\s*/)[0].replace(/\t/g, '  ');
+    buf.push(w.slice(Math.min(w.length, col)) + l.slice(l.match(/^\s*/)[0].length));
+    last = k;
+  }
+  return last < j ? null : { lines: buf.slice(0, last - j + 1), next: last + 1 };
+}
 function mdList(lines, i, out, base) {
   const re = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
   const stack = [];
   let html = '';
-  // 項目の開始のタグ。行の範囲を付けるときは、まず最初の行だけ付け、終わり(次の項目の行かリストの終わり)は最後にまとめて足す
-  const starts = [];
-  const li = () => { if (!(base >= 0)) return '<li>'; starts.push(base + i); return '<li data-line="' + (base + i) + '">'; };
+  // 項目の開始のタグ。行の範囲を付けるときは、まず最初の行だけ付け、終わりは最後にまとめて足す。
+  // 終わりは、次の区切り(次の項目の行、項目の中のかたまりの最初の行)かリストの終わり(行の範囲が重ならないように)
+  const marks = [], starts = [];
+  const li = () => { if (!(base >= 0)) return '<li>'; starts.push(marks.length); marks.push(base + i); return '<li data-line="' + (base + i) + '">'; };
   while (i < lines.length) {
     let m = lines[i].match(re);
     if (!m) {
-      // 空行をはさんで続く、字下げしたコードブロックや次の項目は、同じリストの続きとして読む
+      // 空行をはさんで続く、字下げしたかたまりや次の項目は、同じリストの続きとして読む
       let j = i;
       while (j < lines.length && /^\s*$/.test(lines[j])) j++;
       if (!stack.length || j >= lines.length) break;
-      if (/^\s+/.test(lines[j]) && FENCE_OPEN.test(lines[j])) { const f = mdFence(lines, j); html += f.html; i = f.next; continue; }
-      // 項目より字下げした段落は、その項目の続き(GitHub と同じ)
-      const lead = s => s.match(/^\s*/)[0].replace(/\t/g, '  ').length;
-      if (lead(lines[j]) >= stack[stack.length - 1].ind + 2 && !re.test(lines[j])) {
-        const buf = [];
-        while (j < lines.length && /\S/.test(lines[j]) && !re.test(lines[j]) && lead(lines[j]) >= stack[stack.length - 1].ind + 2 && !FENCE_OPEN.test(lines[j])) { buf.push(lines[j].trim()); j++; }
-        if (buf.length) { html += '<p>' + buf.map(inline).join('<br>') + '</p>'; i = j; continue; }
+      // 項目より字下げしたかたまり(段落・表・引用・注意書き・コードなど)は、その項目の中(GitHub と同じ)。
+      // 字下げを外して、リストの外と同じに読む
+      const top = stack[stack.length - 1];
+      const c = re.test(lines[j]) ? null : listCont(lines, j, top.ind + 2, top.col, re);
+      if (c) {
+        if (base >= 0) marks.push(base + j);
+        html += mdBlocks(c.lines, base < 0 ? -1 : base + j, '');
+        i = c.next;
+        continue;
       }
+      if (/^\s+/.test(lines[j]) && FENCE_OPEN.test(lines[j])) { const f = mdFence(lines, j); html += f.html; i = f.next; continue; }
       if (j > i && re.test(lines[j])) {
         const n = lines[j].match(re);
         const top = n[1].replace(/\t/g, '  ').length <= stack[0].ind;
@@ -919,13 +942,16 @@ function mdList(lines, i, out, base) {
     }
     const ind = m[1].replace(/\t/g, '  ').length;
     const tag = /\d/.test(m[2]) ? 'ol' : 'ul';
+    // 項目の文の始まりの列(続きのかたまりは、ここまでの字下げを外して読む)
+    const gap = m[0].length - m[3].length - m[1].length - m[2].length;
+    const col = ind + m[2].length + (gap > 4 || !m[3] ? 1 : gap);
     while (stack.length && ind < stack[stack.length - 1].ind) html += '</li></' + stack.pop().tag + '>';
-    if (stack.length && ind === stack[stack.length - 1].ind) html += '</li>' + li();
+    if (stack.length && ind === stack[stack.length - 1].ind) { html += '</li>' + li(); stack[stack.length - 1].col = col; }
     else {
       // 番号付きは、最初の項目に書いた番号から数える(4. から始めれば 4, 5, … と表示する)
       const start = tag === 'ol' ? parseInt(m[2], 10) : 1;
       html += '<' + tag + (start !== 1 ? ' start="' + start + '"' : '') + '>' + li();
-      stack.push({ ind: ind, tag: tag });
+      stack.push({ ind: ind, tag: tag, col: col });
     }
     const t = m[3].match(/^\[( |x|X)\]\s+(.*)$/);
     html += t ? '<input type="checkbox" disabled' + (t[1] !== ' ' ? ' checked' : '') + '> ' + inline(t[2]) : inline(m[3]);
@@ -935,8 +961,8 @@ function mdList(lines, i, out, base) {
   if (starts.length) {
     // 本文の文字は esc してあるので、この形のタグは項目の開始のタグだけ
     let k = 0;
-    const ends = starts.slice(1).concat(base + Math.min(i, lines.length));
-    html = html.replace(/<li data-line="(\d+)">/g, (m0, n) => '<li data-line="' + n + '" data-end="' + ends[k++] + '">');
+    const last = base + Math.min(i, lines.length);
+    html = html.replace(/<li data-line="(\d+)">/g, (m0, n) => { const x = starts[k++] + 1; return '<li data-line="' + n + '" data-end="' + (x < marks.length ? marks[x] : last) + '">'; });
   }
   out.push(html);
   return i;
@@ -979,8 +1005,8 @@ function md(text, opts) {
   } finally { FN = prev; }
 }
 const lineAttr = (base, s, e) => (base < 0 ? '' : ' data-line="' + (base + s) + '" data-end="' + (base + e) + '"');
-/* base: lines[0] が元の文の何行目か。負なら行の範囲を付けない */
-function mdBlocks(lines, base) {
+/* base: lines[0] が元の文の何行目か。負なら行の範囲を付けない。sep: かたまりの間に入れる文字(既定は改行。リストの項目の中は空) */
+function mdBlocks(lines, base, sep) {
   const out = [];
   let para = [], paraAt = 0;
   let i = 0;
@@ -1059,7 +1085,7 @@ function mdBlocks(lines, base) {
     i++;
   }
   flush();
-  return out.join('\n');
+  return out.join(sep == null ? '\n' : sep);
 }
 
 /* ---------- 表示を切り替えたときの位置合わせ ----------

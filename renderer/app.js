@@ -2602,9 +2602,10 @@
   }
   // かたまり el の最後の行(リストの項目は下の項目も含む)
   const peBlockEnd = el => { let e = +el.dataset.end || 0; el.querySelectorAll('[data-end]').forEach(x => { e = Math.max(e, +x.dataset.end); }); return e - 1; };
-  // 表を入れる行: かたまりの次。引用・注意書き・表の中なら、それ全体の次(途中に入れると分かれてしまうので)
+  // 表を入れる行: かたまりの次。引用・注意書き・表の中と、リストの項目の中のかたまり(字下げした段落・表・引用など)なら、
+  // それを含むいちばん外側のかたまりの次(途中に字下げせずに入れると、分かれてしまうので)
   function peAfter(el) {
-    if (!el.closest('blockquote, .tblwrap')) return peBlockEnd(el);
+    if (!el.closest('blockquote, .tblwrap') && !(el.tagName !== 'LI' && el.parentElement && el.parentElement.closest('li'))) return peBlockEnd(el);
     let top = el;
     while (top.parentElement && top.parentElement !== $('preview')) top = top.parentElement;
     return peBlockEnd(top);

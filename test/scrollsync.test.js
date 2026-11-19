@@ -60,7 +60,9 @@ test('行の範囲: 範囲は重ならず、上から順に並ぶ。付けない
   const src = '前の段落\n\n1. 一\n   続き\n2. 二\n\n> - 引用のリスト\n> - 二つ目\n\n後ろの段落\n';
   const r = ranges(L.md(src, { lines: true }));
   for (let k = 1; k < r.length; k++) assert.ok(r[k - 1][2] <= r[k][1], JSON.stringify(r));
-  assert.deepStrictEqual(r.filter(x => x[0] === 'li').map(x => [x[1], x[2]]), [[2, 4], [4, 5], [6, 7], [7, 8]]);
+  // 項目の続きの段落は、その項目の中の段落として自分の行の範囲を持つ(項目の範囲はその前まで)
+  assert.deepStrictEqual(r.filter(x => x[0] === 'li').map(x => [x[1], x[2]]), [[2, 3], [4, 5], [6, 7], [7, 8]]);
+  assert.ok(r.some(x => x[0] === 'p' && x[1] === 3 && x[2] === 4), JSON.stringify(r));
   assert.ok(!/data-line/.test(L.md(src)));
   assert.strictEqual(L.md(src, {}), L.md(src));
   // 文の中に同じ形のタグを書いても、行の範囲にはならない(esc される)
