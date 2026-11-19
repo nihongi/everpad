@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.44.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.44.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -63,14 +63,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・フロントマター(メモの先頭の --- で囲んだ行)に title: と書くと、本文の1行目とは別に、メモの題名を付けられるようにしました。メモ一覧・ウィンドウの題名・検索の結果・メモへのリンクの挿入・書き出すときのファイル名に使います。
-・title・author・date を、印刷・PDF・HTML・MHTML の本文の先頭に出し、PDF・HTML・Word・LaTeX・AsciiDoc のファイルの情報(題名・著者・日付・キーワード)にも入れるようにしました。
-・toc: true で、目次を出せるようにしました。プレビュー・印刷・PDF・HTML では見出しへのリンクを並べ、Word・LaTeX・AsciiDoc にはそれぞれの目次を入れます。toc-depth で深さを決められます。
-・lang でメモの言語を、papersize(a4・a5・b5・letter・legal)と orientation: landscape で、印刷・PDF・Word・LaTeX の用紙の大きさと向きを、メモごとに決められるようにしました。
-・フロントマターの値を YAML の決まりで読むようにしました(引用符・コメント・並び)。「ヘルプ」→「Markdown の書き方」に、フロントマターの書き方とキーの一覧を足しました。
-・リストの項目の文の位置まで字下げして書いた表・引用・注意書き・コードブロックなどを、GitHub と同じように、その項目の中に表示するようにしました。プレビューでは、項目の中の表もそのまま編集できます。
-・検索している間にプレビューで編集すると、少しして編集欄が閉じていたのを直しました。
-・「最後の行より下までスクロールする」がオンのとき、長いメモの終わりが、下の添付の帯に重なることがあったのを直しました。
+・「最新の版」で検索すると、1つのメモに何か所あっても、結果には1件だけ出すようにしました。最初の箇所の前後の文と、そのメモで見つかった件数を出します。結果を押すと、同じ検索語で検索のバーが開き、Enter / F3 で次の箇所へ移れます。「履歴すべて」の検索は、今までどおり箇所ごとに出します。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -168,14 +161,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Front matter (the lines between --- at the top of a note) can now give a note a title with title:, separate from its first line. It is used in the note list, the window title, search results, links to the note and the file name when exporting.
-• title, author and date appear at the top of printouts, PDFs, HTML and MHTML, and are saved in the file information (title, author, date and keywords) of PDF, HTML, Word, LaTeX and AsciiDoc files.
-• toc: true adds a table of contents: links to the headings in the preview, printouts, PDFs and HTML, and each format's own table of contents in Word, LaTeX and AsciiDoc. toc-depth sets how deep it goes.
-• lang sets the language of a note, and papersize (a4, a5, b5, letter or legal) and orientation: landscape set the paper size and orientation for printing, PDF, Word and LaTeX, note by note.
-• Front matter values are read the YAML way (quotes, comments and lists). Help > Markdown Guide now explains front matter and lists its keys.
-• Tables, quotes, alerts, code blocks and more indented to the text of a list item are now shown inside that item, as on GitHub. In the preview, a table inside a list item can be edited like any other table.
-• Fixed: while searching, the editing box in the preview closed by itself shortly after you stopped typing.
-• Fixed: with "Scroll beyond the last line" on, the end of a long note could run under the strip of attachments at the bottom.
+• When you search the latest version, each note now appears once in the results, with the text around the first match and the number of matches in the note. Clicking a result opens the find bar with the same text, so Enter / F3 moves to the next match. Searching All history still lists each place separately.
 
 ### Product features (up to 20, up to 200 characters each)
 
