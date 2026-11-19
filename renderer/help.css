@@ -18,3 +18,8 @@ body { background: var(--surface); }
 .help .out { border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; background: var(--surface); }
 @media (max-width: 640px) { .help .pair { grid-template-columns: minmax(0, 1fr); } }
 .help-status { position: fixed; bottom: 8px; }
+.help .keys { width: 100%; border-collapse: collapse; font-size: 14px; }   /* フロントマターのキーの表 */
+.help .keys th, .help .keys td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.help .keys th { background: var(--surface-2); font-size: 12px; color: var(--fg-2); }
+.help .keys td:first-child { white-space: nowrap; }
+.help .keys code { font-family: var(--mono); }

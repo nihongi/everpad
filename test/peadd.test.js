@@ -100,3 +100,14 @@ test('Esc で編集欄を閉じたとき: フォーカスはプレビューに�
   assert.match(css, /\n:focus-visible \{ outline: 2px solid var\(--accent\);/);
   assert.match(css, /\n#preview:focus-visible \{ outline: none; \}/);
 });
+
+test('検索中にプレビューで編集しても、検索し直したときに編集欄を閉じない', () => {
+  const app = read('renderer/app.js');
+  // メモを書き換えると、2秒後に同じ検索語で検索し直す
+  assert.match(app, /if \(S\.q\) scheduleSearch\(2000\);/);
+  // 同じ検索語で、プレビューの編集欄が開いているときは、表示を作り直さない
+  assert.match(app, /const keepPe = q === had && !!pe\.box && S\.mode === 'preview';\n    const refreshView = \(\) => \{ if \(!keepPe\) refreshViewNow\(\); \};/);
+  const body = app.slice(app.indexOf('  async function runSearch() {'), app.indexOf('  let qTimer = null;'));
+  assert.ok(!/refreshViewNow\(\)/.test(body.replace('if (!keepPe) refreshViewNow();', '')), 'runSearch は keepPe を見て作り直す');
+  assert.match(app, /function refreshViewNow\(\) \{\n    if \(S\.mode === 'preview'\) setMode\('preview'\);/);
+});

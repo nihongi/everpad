@@ -237,6 +237,16 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-weight: 600; line-height: 1.25; margin: 24px 0 16px; text-wrap: balance; }
 .md h1 { font-size: 2em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
 .md h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
+.md .doc-head { text-align: center; margin: 8px 0 28px; }   /* 印刷・PDF・HTML の先頭の、フロントマターの題名・著者・日付 */
+.md .doc-head .doc-title { font-size: 2.2em; margin: 0 0 12px; padding: 0; border: 0; }
+.md .doc-head p { margin: 0 0 4px; color: var(--fg-2); }
+.md .toc { margin: 4px 0 24px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 8px; }   /* フロントマターの toc: true の目次 */
+.md .toc .toc-title { margin: 0 0 6px; font-weight: 700; }
+.md .toc ul { list-style: none; margin: 0; padding: 0; }
+.md .toc li { margin: 2px 0; }
+.md .toc .toc-2 { padding-left: 1.25em; } .md .toc .toc-3 { padding-left: 2.5em; } .md .toc .toc-4 { padding-left: 3.75em; } .md .toc .toc-5 { padding-left: 5em; } .md .toc .toc-6 { padding-left: 6.25em; }
+.md .toc a { color: var(--accent); text-decoration: none; }
+.md .toc a:hover { text-decoration: underline; }
 .md h3 { font-size: 1.25em; }
 .md h4 { font-size: 1em; }
 .md h5 { font-size: .875em; }

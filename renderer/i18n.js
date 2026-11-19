@@ -162,6 +162,8 @@
     attachFailed: 'ファイルを追加できませんでした',
     dirLoadFailed: '保存先フォルダを読み込めませんでした。',
     printEdited: '最終編集: {when}',
+    authorSep: '、',   // 印刷・HTML の先頭に出す著者の区切り
+    tocTitle: '目次',   // フロントマターの toc: true で出す目次の見出し(文書の言語が日本語か英語なら、その言葉)
     // プロパティ
     propTitle: 'プロパティ',
     close: '閉じる',
@@ -723,6 +725,8 @@
     attachFailed: 'Could not add the file',
     dirLoadFailed: 'Could not read the data folder.',
     printEdited: 'Last edited: {when}',
+    authorSep: ', ',
+    tocTitle: 'Contents',
     propTitle: 'Properties',
     close: 'Close',
     propName: 'Title',

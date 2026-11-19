@@ -95,7 +95,10 @@ test('カーソル行の強調: 本文の欄とプレビューの編集欄だけ
 test('最後の行より下までのスクロール: 余白は「欄の高さ − 上の余白 − 1行」。切ったときは今までの余白', () => {
   const app = read('renderer/app.js'), css = read('renderer/styles.css');
   assert.match(app, /document\.body\.classList\.toggle\('sp-on', !!EDIT\.scrollPast\);/);
-  assert.match(app, /Math\.max\(22, Math\.round\(ta\.clientHeight - \(parseFloat\(cs\.paddingTop\) \|\| 0\) - \(parseFloat\(cs\.lineHeight\) \|\| 21\)\)\)/);
+  // 欄の高さは入れ物(edwrap)で測る。欄自身で測ると、余白のせいで欄が縮まず、添付の帯の上にはみ出したままになる
+  assert.match(app, /Math\.max\(22, Math\.round\(wrap\.clientHeight - \(parseFloat\(cs\.paddingTop\) \|\| 0\) - \(parseFloat\(cs\.lineHeight\) \|\| 21\)\)\)/);
+  assert.ok(!/ta\.clientHeight - \(parseFloat/.test(app));
+  assert.match(app, /ro\.observe\(\$\('edwrap'\)\);/);
   assert.match(app, /function syncApply\(a, quiet\) \{\n    fitTail\(\);/);   // 切り替えたときの位置合わせの前に測る
   assert.match(css, /body\.sp-on #editor \{ padding-bottom: var\(--ed-tail, 22px\); \}/);
   assert.match(css, /body\.sp-on #preview > \.pe-tail \{ min-height: max\(4\.5em, var\(--pv-tail, 0px\)\); \}/);

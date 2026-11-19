@@ -21,9 +21,16 @@
   html += '<div class="diffs"><h2>' + esc(H.diffTitle) + '</h2><ul>' + H.diffs.map(d => '<li>' + esc(keys(d)) + '</li>').join('') + '</ul></div>';
   for (const sec of H.sections) {
     html += '<section><h2>' + esc(sec.h) + '</h2>' + (sec.note ? '<p class="explain">' + esc(keys(sec.note)) + '</p>' : '');
-    html += '<div class="pair' + (sec.noRender ? ' single' : '') + '"><div class="col"><div class="lbl">' + esc(H.src) + '</div><pre class="src">' + esc(sec.src) + '</pre></div>';
-    if (!sec.noRender) html += '<div class="col"><div class="lbl">' + esc(H.out) + '</div><div class="out md">' + md(sec.src) + '</div></div>';
-    html += '</div></section>';
+    // rows: キーと説明の表(フロントマターのキーなど)。例の無い節は、表だけ
+    if (sec.rows) html += '<table class="keys"><thead><tr><th>' + esc(H.keyHead[0]) + '</th><th>' + esc(H.keyHead[1]) + '</th></tr></thead><tbody>'
+      + sec.rows.map(r => '<tr><td><code>' + esc(r[0]) + '</code></td><td>' + esc(keys(r[1])) + '</td></tr>').join('') + '</tbody></table>';
+    if (sec.src != null) {
+      html += '<div class="pair' + (sec.noRender ? ' single' : '') + '"><div class="col"><div class="lbl">' + esc(H.src) + '</div><pre class="src">' + esc(sec.src) + '</pre></div>';
+      // fm: フロントマターの例は、プレビューと同じく枠にして出す
+      if (!sec.noRender) html += '<div class="col"><div class="lbl">' + esc(H.out) + '</div><div class="out md">' + md(sec.src, sec.fm ? { fm: true } : undefined) + '</div></div>';
+      html += '</div>';
+    }
+    html += '</section>';
   }
   root.innerHTML = html;
   // Mermaid の図の例を図にする(ダークモードが変わったら描き直す)
@@ -39,5 +46,7 @@
   });
   // 例のチェックボックスは押しても変わらないようにする(プレビューと同じ)
   root.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.disabled = true; });
+  // フロントマターの例のタグの札は、ここでは検索できないので、ただの札にする
+  root.querySelectorAll('.tag-link').forEach(b => { const s = document.createElement('span'); s.className = 'tag'; s.textContent = b.textContent; b.replaceWith(s); });
 
 })();

@@ -271,16 +271,16 @@ test('AsciiDoc・Word・LaTeX: メニュー・画面・main.js へのつなぎ�
   assert.match(app, /action === 'exportDocx'\) exportPage\('docx', n\)/);
   assert.match(app, /action === 'exportTex'\) exportPage\('tex', n\)/);
   const h = main.slice(main.indexOf("ipcMain.handle('export:page'"));
-  assert.match(h.slice(0, h.indexOf('\n});')), /kind === 'adoc' \|\| kind === 'docx' \|\| kind === 'tex'\) \{\n\s+try \{\n\s+await writeDocFile\(id, title, p\.bodyHtml, kind, r\.filePath\)/);
+  assert.match(h.slice(0, h.indexOf('\n});')), /kind === 'adoc' \|\| kind === 'docx' \|\| kind === 'tex'\) \{\n\s+try \{\n\s+await writeDocFile\(id, title, p\.bodyHtml, kind, r\.filePath, meta, opts\)/);
   // 画像は、そのメモの添付からだけ読む
   const w = main.slice(main.indexOf('async function writeDocFile'), main.indexOf('async function imagesToPng'));
   assert.match(w, /filter\(f => store\.attachmentPath\(id, f\)\)/);
-  assert.match(w, /docexport\.toDocx\(tree, \{ title: title, lang: lang, paper: paperSize\(\)/);
+  assert.match(w, /docexport\.toDocx\(tree, \{ title: title, meta: meta, opts: opts, lang: lang, paper: opts\.paper \|\| paperSize\(\)/);
   // LaTeX: 画像と図は「(ファイル名)_images」に置き、読めない形式の画像は PNG にする
   assert.match(w, /if \(kind === 'tex'\) \{\n\s+const dirName = docexport\.texImagesDir\(path\.basename\(filePath, path\.extname\(filePath\)\)\)/);
   assert.match(w, /if \(docexport\.texImageOk\(f\)\)[^\n]*\n\s+else convert\.push/);
   assert.match(w, /for \(const d of docexport\.texDiagrams\(tree\)\) out\.push/);
-  assert.match(w, /docexport\.toLatex\(tree, \{ title: title, imagesDir: out\.length \? dirName : '', images: names, paper: paperSize\(\), lang: lang/);
+  assert.match(w, /docexport\.toLatex\(tree, \{ title: title, meta: meta, opts: opts, imagesDir: out\.length \? dirName : '', images: names, paper: opts\.paper \|\| paperSize\(\), lang: lang/);
   const conv = main.slice(main.indexOf('async function imagesToPng'), main.indexOf('/* 画面にまだ書き出していない'));
   assert.match(conv, /show: false, webPreferences: \{ sandbox: true, contextIsolation: true, nodeIntegration: false \}/);
   assert.match(conv, /finally \{ w\.destroy\(\); \}/);

@@ -334,20 +334,52 @@ function adocNotes(blocks) {
   visit(blocks);
   return notes;
 }
-/* o: { title, imagesDir(画像を置くフォルダーの名前。画像が無ければ不要) } */
+/* フロントマターの文書の情報(main.js の cleanMeta でそろえたもの)。無ければ空 */
+const docMetaOf = o => {
+  const m = (o && o.meta) || {};
+  return { title: String(m.title || ''), author: Array.isArray(m.author) ? m.author.map(String).filter(x => x) : [], date: String(m.date || ''), keywords: Array.isArray(m.keywords) ? m.keywords.map(String).filter(x => x) : [] };
+};
+/* メモごとの設定(フロントマターの toc・toc-depth・lang・papersize・orientation。main.js の cleanOpts でそろえたもの)。
+   paper は用紙をフロントマターで決めたときだけ('A4'|'A5'|'B5'|'Letter'|'Legal')。tocTitle は目次の見出しの言葉 */
+const docOptsOf = o => {
+  const p = (o && o.opts) || {};
+  return {
+    toc: p.toc === true, tocDepth: Number.isInteger(p.tocDepth) && p.tocDepth >= 1 && p.tocDepth <= 6 ? p.tocDepth : 3, tocTitle: String(p.tocTitle || ''),
+    lang: /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8}){0,4}$/.test(p.lang || '') ? p.lang : '', paper: ['A4', 'A5', 'B5', 'Letter', 'Legal'].includes(p.paper) ? p.paper : '', landscape: p.landscape === true
+  };
+};
+// 見出しの文字(目次の項目に使う)。画像は入れない
+const headText = c => inlineText(c.filter(x => x.t !== 'img')).replace(/\s+/g, ' ').trim();
+/* o: { title, meta: { title, author: [], date }(フロントマター), imagesDir(画像を置くフォルダーの名前。画像が無ければ不要) } */
 function toAsciiDoc(blocks, o) {
   o = o || {};
+  const meta = docMetaOf(o);
   let body = blocks.slice(), title = String(o.title || ''), shift = 1;
   // 大見出し(#)が先頭に1つだけなら、それを文書の題名にして、## 以下を1段ずつ上げる
   const h1 = body.filter(b => b.t === 'h' && b.level === 1);
   const ctx = { shift: 1, notes: adocNotes(blocks) };
   let titleText;
-  if (h1.length === 1 && body[0] === h1[0]) {
+  // フロントマターに title があれば、それを題名にして、# は見出しのまま
+  if (meta.title) titleText = adocText(meta.title, {});
+  else if (h1.length === 1 && body[0] === h1[0]) {
     titleText = adocInline(body.shift().c, Object.assign({}, ctx, { oneLine: true }));
     shift = 0;
   } else titleText = adocText(title, {});
   ctx.shift = shift;
   const head = ['= ' + (titleText || '{empty}')];
+  // 著者の行(題名のすぐ次の行。複数なら ; で区切る)と、日付(revdate)
+  const authors = meta.author.map(a => a.replace(/[;<>{}]/g, ' ').replace(/^[:\s]+/, '').replace(/\s+/g, ' ').trim()).filter(a => a).join('; ');
+  if (authors) head.push(authors);
+  if (meta.date) head.push(':revdate: ' + meta.date.replace(/\s+/g, ' '));
+  // フロントマターの設定: 目次(深さは AsciiDoc の節の深さに直す。== が 1)、言語、用紙(Asciidoctor PDF の属性)
+  const opts = docOptsOf(o);
+  if (opts.toc) {
+    head.push(':toc:', ':toclevels: ' + Math.max(1, opts.tocDepth - 1 + shift));
+    if (opts.tocTitle) head.push(':toc-title: ' + opts.tocTitle.replace(/\s+/g, ' '));
+  }
+  if (opts.lang) head.push(':lang: ' + opts.lang);
+  if (opts.paper) head.push(':pdf-page-size: ' + (opts.paper === 'B5' ? '[182mm, 257mm]' : opts.paper.toUpperCase()));
+  if (opts.landscape) head.push(':pdf-page-layout: landscape');
   if (treeHasMath(blocks)) head.push(':stem: latexmath');
   if (o.imagesDir && treeImages(blocks).length) head.push(':imagesdir: ' + o.imagesDir);
   // アラートの見出しの言葉(日本語の画面なら「注記」など)。Asciidoctor の既定(英語)と違うときだけ書く
@@ -619,9 +651,10 @@ function texDiagrams(blocks) {
 const texImagesDir = base => String(base).replace(/[^\p{L}\p{N}._-]/gu, '_') + '_images';
 /* LuaLaTeX がそのまま読める画像(これ以外は PNG にしてから置く) */
 const texImageOk = f => /\.(png|jpe?g|pdf)$/i.test(f);
-/* o: { title, imagesDir, images: { 添付のファイル名: フォルダーの中の名前 }, paper: 'A4'|'Letter', lang, generator } */
+/* o: { title, meta: { title, author: [], date }(フロントマター), imagesDir, images: { 添付のファイル名: フォルダーの中の名前 }, paper: 'A4'|'Letter', lang, generator } */
 function toLatex(blocks, o) {
   o = o || {};
+  const meta = docMetaOf(o);
   const diagrams = texDiagrams(blocks);
   const images = Object.assign({}, o.images || {});
   for (const d of diagrams) images[d.file] = d.file;
@@ -629,7 +662,8 @@ function toLatex(blocks, o) {
   // 大見出し(#)が先頭に1つだけなら、それを文書の題名にして、## を \section にする
   let body = blocks.slice(), shift = 1, head = null;
   const h1 = body.filter(b => b.t === 'h' && b.level === 1);
-  if (h1.length === 1 && body[0] === h1[0]) { head = body.shift(); shift = 0; }
+  // フロントマターに title があれば、それを題名にして、# は \section のまま
+  if (!meta.title && h1.length === 1 && body[0] === h1[0]) { head = body.shift(); shift = 0; }
   // 脚注ごとに、本文からの参照(main)と、ほかの注からの参照(nested)を数える
   const list = blocks.find(b => b.t === 'footnotes');
   if (list) {
@@ -646,17 +680,25 @@ function toLatex(blocks, o) {
     count('main')(body);
     list.items.forEach(it => count('nested')(it.c));
   }
-  const title = head ? texInline(head.c, { oneLine: true, heading: true, title: true }, X) : texEsc(String(o.title || '').replace(/[\r\n]+/g, ' '));
+  const title = meta.title ? texEsc(meta.title) : head ? texInline(head.c, { oneLine: true, heading: true, title: true }, X) : texEsc(String(o.title || '').replace(/[\r\n]+/g, ' '));
+  const author = meta.author.map(texEsc).join(' \\and '), date = texEsc(meta.date);
   const text = texBlocks(body, { shift: shift, depth: 0 }, X);
 
-  const ja = CJK.test(JSON.stringify(blocks, (k, v) => (k === 'png' ? undefined : v)) + (o.title || ''));
+  const opts = docOptsOf(o);
+  // 日本語の文書クラス: 日本語の文字を含むか、フロントマターの lang が ja のとき
+  const ja = /^ja(?:-|$)/i.test(opts.lang) || CJK.test(JSON.stringify(blocks, (k, v) => (k === 'png' ? undefined : v)) + (o.title || '') + meta.title + meta.author.join('') + meta.date + (opts.toc ? opts.tocTitle : ''));
   const jaComment = o.lang === 'ja';
+  // 用紙: ltjsarticle の b5paper は JIS の B5。article の b5paper は ISO の B5 なので、JIS の大きさは geometry で決める
+  const paper = { A4: 'a4paper', A5: 'a5paper', B5: 'b5paper', Letter: 'letterpaper', Legal: 'legalpaper' }[o.paper] || 'a4paper';
+  const jisB5 = o.paper === 'B5' && !ja;
+  const cls = jisB5 ? [] : [paper].concat(opts.landscape ? ['landscape'] : []);
   const pre = [
     '% !TEX program = lualatex',
     jaComment ? '% ' + (o.generator || 'EverPad') + ' で書き出しました。LuaLaTeX でコンパイルしてください(例: lualatex ファイル名.tex)。'
       : '% Exported from ' + (o.generator || 'EverPad') + '. Compile with LuaLaTeX (for example: lualatex file.tex).',
-    '\\documentclass[' + (o.paper === 'Letter' ? 'letterpaper' : 'a4paper') + ']{' + (ja ? 'ltjsarticle' : 'article') + '}'
+    '\\documentclass' + (cls.length ? '[' + cls.join(',') + ']' : '') + '{' + (ja ? 'ltjsarticle' : 'article') + '}'
   ];
+  if (jisB5) pre.push('\\usepackage[paperwidth=182mm,paperheight=257mm' + (opts.landscape ? ',landscape' : '') + ']{geometry}');
   const math = X.math.join('\n');
   if (X.math.length) pre.push('\\usepackage{mathtools}');
   if (X.math.length || X.symbols) pre.push('\\usepackage{amssymb}');
@@ -677,11 +719,19 @@ function toLatex(blocks, o) {
   if (X.depth > 4) pre.push('\\setlistdepth{9}', '\\renewlist{itemize}{itemize}{9}', '\\setlist[itemize]{label=\\textbullet}', '\\renewlist{enumerate}{enumerate}{9}', '\\setlist[enumerate]{label=\\arabic*.}');
   const macros = Object.keys(TEX_MACROS).filter(k => new RegExp('\\\\' + k + '(?![A-Za-z])').test(math));
   for (const k of macros) pre.push('\\providecommand{\\' + k + '}' + (TEX_MACROS[k][0] ? '[' + TEX_MACROS[k][0] + ']' : '') + '{' + TEX_MACROS[k][1] + '}');
-  pre.push('\\usepackage[colorlinks,linkcolor=black,urlcolor=blue]{hyperref}');
+  // hyperref は、\paperwidth・\paperheight から PDF の用紙の大きさも決める(article の a5paper・landscape も効く)。pdflang は文書の言語
+  pre.push('\\usepackage[colorlinks,linkcolor=black,urlcolor=blue' + (opts.lang ? ',pdflang=' + opts.lang : '') + ']{hyperref}');
   pre.push('\\setcounter{secnumdepth}{0}');
-  if (title) pre.push('\\title{' + title + '}', '\\author{}', '\\date{}');
+  // 目次: 見出しの深さを LaTeX の深さに直す(# を文書の題名にしたときは ## が \section で 1)。番号は付けない
+  if (opts.toc) {
+    pre.push('\\setcounter{tocdepth}{' + Math.max(0, opts.tocDepth - 1 + shift) + '}');
+    if (opts.tocTitle) pre.push('\\renewcommand{\\contentsname}{' + texEsc(opts.tocTitle) + '}');
+  }
+  const titled = !!(title || author || date);
+  if (titled) pre.push('\\title{' + title + '}', '\\author{' + author + '}', '\\date{' + date + '}');
   const doc = ['\\begin{document}'];
-  if (title) doc.push('\\maketitle');
+  if (titled) doc.push('\\maketitle');
+  if (opts.toc) doc.push('\\tableofcontents');
   if (text) doc.push('', text, '');
   doc.push('\\end{document}');
   return pre.join('\n') + '\n\n' + doc.join('\n') + '\n';
@@ -921,7 +971,16 @@ const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 const STEP = 420;            // リストと引用の1段の字下げ(twip。10.5pt の文字2つ分)
 const EMU_PER_PX = 9525;     // 96dpi の 1px
 const EMU_PER_TWIP = 635;
-const PAGE = { A4: { w: 11906, h: 16838 }, Letter: { w: 12240, h: 15840 } };
+// 用紙の大きさ(twip)。B5 は JIS の B5(Word の「B5 (JIS)」)
+const PAGE = { A4: { w: 11906, h: 16838 }, A5: { w: 8391, h: 11906 }, B5: { w: 10318, h: 14570 }, Letter: { w: 12240, h: 15840 }, Legal: { w: 12240, h: 20160 } };
+/* Word の言語(w:lang)。地域の無い言語には、よく使う地域を付ける。日本語・中国語・韓国語は東アジアの言語(w:eastAsia)にする */
+const WORD_REGION = { en: 'en-US', ja: 'ja-JP', zh: 'zh-CN', ko: 'ko-KR', fr: 'fr-FR', de: 'de-DE', es: 'es-ES', it: 'it-IT', pt: 'pt-BR', ru: 'ru-RU', nl: 'nl-NL' };
+function wordLang(lang) {
+  const def = { val: 'en-US', eastAsia: 'ja-JP' };
+  if (!lang) return def;
+  const p = lang.split('-')[0].toLowerCase(), full = lang.includes('-') ? lang : WORD_REGION[p] || lang;
+  return ['ja', 'zh', 'ko'].includes(p) ? { val: def.val, eastAsia: full } : { val: full, eastAsia: def.eastAsia };
+}
 const MARGIN = 1440;
 const MIME = { png: 'image/png', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp' };
 const ALERT_COLORS = { note: '0969DA', tip: '1A7F37', important: '8250DF', warning: '9A6700', caution: 'D1242F' };   // アラートの線と見出しの色(GitHub と同じ)
@@ -1078,13 +1137,25 @@ function docxTable(b, ctx, X) {
   for (const r of b.rows) s += row(r, false);
   return s + '</w:tbl>';
 }
-function stylesXml(lang) {
+/* 目次(フロントマターの toc: true): Word の目次のフィールド(TOC \o "1-深さ")。Word は開くときにフィールドを更新するか尋ね、更新するとページ番号の付いた目次になる。
+   更新する前の中身として、いちばん外側の見出しの文字を並べておく */
+function docxToc(blocks, opts) {
+  const hs = blocks.filter(b => b.t === 'h' && b.level <= opts.tocDepth);
+  const min = hs.length ? Math.min(...hs.map(b => b.level)) : 1;
+  const begin = '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-' + opts.tocDepth + '" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>';
+  const end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>';
+  const items = hs.length ? hs.map(b => ({ style: 'TOC' + (b.level - min + 1), text: headText(b.c) })) : [{ style: 'TOC1', text: '' }];
+  return (opts.tocTitle ? para({ style: 'TOCHeading' }, '<w:r>' + wText(opts.tocTitle) + '</w:r>') : '')
+    + items.map((it, i) => para({ style: it.style }, (i === 0 ? begin : '') + (it.text ? '<w:r>' + wText(it.text) + '</w:r>' : '') + (i === items.length - 1 ? end : ''))).join('');
+}
+function stylesXml(lang, docLang) {
+  const wl = wordLang(docLang);
   const h = (lv, sz) => '<w:style w:type="paragraph" w:styleId="Heading' + lv + '"><w:name w:val="heading ' + lv + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/>'
     + '<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="' + (lv <= 2 ? 360 : 240) + '" w:after="120"/><w:outlineLvl w:val="' + (lv - 1) + '"/></w:pPr>'
     + '<w:rPr><w:rFonts w:ascii="游ゴシック" w:hAnsi="游ゴシック" w:eastAsia="游ゴシック"/><w:b/><w:bCs/><w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/></w:rPr></w:style>';
   return XML_HEAD + '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
     + '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="游明朝" w:eastAsia="游明朝" w:hAnsi="游明朝" w:cs="Times New Roman"/><w:kern w:val="2"/><w:sz w:val="21"/><w:szCs w:val="21"/>'
-    + '<w:lang w:val="en-US" w:eastAsia="ja-JP" w:bidi="ar-SA"/></w:rPr></w:rPrDefault>'
+    + '<w:lang w:val="' + xesc(wl.val) + '" w:eastAsia="' + xesc(wl.eastAsia) + '" w:bidi="ar-SA"/></w:rPr></w:rPrDefault>'
     + '<w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>'
     + '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>'
     + '<w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/><w:unhideWhenUsed/></w:style>'
@@ -1092,6 +1163,14 @@ function stylesXml(lang) {
     + '<w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>'
     + '<w:style w:type="numbering" w:default="1" w:styleId="NoList"><w:name w:val="No List"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/></w:style>'
     + h(1, 32) + h(2, 28) + h(3, 24) + h(4, 21) + h(5, 21) + h(6, 21)
+    + '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="10"/><w:qFormat/>'
+    + '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts w:ascii="游ゴシック" w:hAnsi="游ゴシック" w:eastAsia="游ゴシック"/><w:b/><w:bCs/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr></w:style>'
+    + '<w:style w:type="paragraph" w:customStyle="1" w:styleId="Author"><w:name w:val="Author"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:jc w:val="center"/></w:pPr></w:style>'
+    + '<w:style w:type="paragraph" w:customStyle="1" w:styleId="Date"><w:name w:val="Date"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:after="360"/><w:jc w:val="center"/></w:pPr></w:style>'
+    + '<w:style w:type="paragraph" w:styleId="TOCHeading"><w:name w:val="TOC Heading"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/><w:qFormat/>'
+    + '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:rFonts w:ascii="游ゴシック" w:hAnsi="游ゴシック" w:eastAsia="游ゴシック"/><w:b/><w:bCs/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>'
+    + [1, 2, 3, 4, 5, 6].map(lv => '<w:style w:type="paragraph" w:styleId="TOC' + lv + '"><w:name w:val="toc ' + lv + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/>'
+      + '<w:pPr><w:spacing w:after="60"/><w:ind w:left="' + ((lv - 1) * 420) + '"/></w:pPr></w:style>').join('')
     + '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:spacing w:after="40"/><w:contextualSpacing/></w:pPr></w:style>'
     + '<w:style w:type="paragraph" w:customStyle="1" w:styleId="BlockQuote"><w:name w:val="Block Quote"/><w:basedOn w:val="Normal"/><w:qFormat/>'
     + '<w:pPr><w:pBdr><w:left w:val="single" w:sz="18" w:space="8" w:color="D0D7DE"/></w:pBdr></w:pPr><w:rPr><w:color w:val="595959"/></w:rPr></w:style>'
@@ -1144,20 +1223,28 @@ function relsXml(rels) {
     + '</Relationships>';
 }
 const iso = d => new Date(d).toISOString().replace(/\.\d+Z$/, 'Z');
-/* o: { title, lang('ja'|'en'), paper('A4'|'Letter'), generator, date,
+/* o: { title, meta: { title, author: [], date, keywords: [] }(フロントマター), lang('ja'|'en'), paper('A4'|'Letter'), generator, date,
         images: { [ファイルID]: { data: Buffer, ext: 'png'|'jpeg'|'gif'|'bmp', w, h } } } → .docx の Buffer */
 function toDocx(blocks, o) {
   o = o || {};
-  const page = PAGE[o.paper] || PAGE.A4;
+  const meta = docMetaOf(o);
+  const opts = docOptsOf(o);
+  // 用紙: 横向きなら幅と高さを入れ替える
+  const size = PAGE[o.paper] || PAGE.A4, page = opts.landscape ? { w: size.h, h: size.w, orient: 'landscape' } : size;
   const X = { images: {}, rels: [], nums: [], nImg: 0, nLink: 0, nPic: 0, page: page, textW: page.w - 2 * MARGIN, part: 'doc', notes: new Map(), fnIds: new Map() };
   const fnList = blocks.find(b => b.t === 'footnotes');
   if (fnList) for (const it of fnList.items) X.notes.set(it.n, it.c);
   for (const [k, v] of Object.entries(o.images || {})) if (v && v.data && MIME[v.ext]) X.images[k] = Object.assign({}, v);
-  let body = docxBlocks(blocks, { ind: 0, lvl: 0, quote: 0 }, X);
+  // フロントマターの題名・著者・日付は、本文の先頭に Title・Author・Date のスタイルで出す(Pandoc の Word と同じスタイルの名前)
+  let body = (meta.title ? para({ style: 'Title' }, '<w:r>' + wText(meta.title) + '</w:r>') : '')
+    + (meta.author.length ? para({ style: 'Author' }, '<w:r>' + wText(meta.author.join(o.lang === 'ja' ? '、' : ', ')) + '</w:r>') : '')
+    + (meta.date ? para({ style: 'Date' }, '<w:r>' + wText(meta.date) + '</w:r>') : '')
+    + (opts.toc ? docxToc(blocks, opts) : '')
+    + docxBlocks(blocks, { ind: 0, lvl: 0, quote: 0 }, X);
   if (!body || /<\/w:tbl>$/.test(body)) body += '<w:p/>';
   const notesXml = footnotesXml(X);
   const doc = XML_HEAD + '<w:document ' + NS + '><w:body>' + body
-    + '<w:sectPr><w:pgSz w:w="' + page.w + '" w:h="' + page.h + '"/><w:pgMar w:top="' + MARGIN + '" w:right="' + MARGIN + '" w:bottom="' + MARGIN + '" w:left="' + MARGIN + '" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>'
+    + '<w:sectPr><w:pgSz w:w="' + page.w + '" w:h="' + page.h + '"' + (page.orient ? ' w:orient="' + page.orient + '"' : '') + '/><w:pgMar w:top="' + MARGIN + '" w:right="' + MARGIN + '" w:bottom="' + MARGIN + '" w:left="' + MARGIN + '" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>'
     + '</w:body></w:document>';
   const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
   const docRels = XML_HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
@@ -1185,11 +1272,15 @@ function toDocx(blocks, o) {
   const when = iso(o.date || Date.now());
   const core = XML_HEAD + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" '
     + 'xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-    + '<dc:title>' + xesc(o.title || '') + '</dc:title><dcterms:created xsi:type="dcterms:W3CDTF">' + when + '</dcterms:created>'
+    + '<dc:title>' + xesc(meta.title || o.title || '') + '</dc:title>'
+    + (meta.author.length ? '<dc:creator>' + xesc(meta.author.join('; ')) + '</dc:creator>' : '')
+    + (meta.keywords.length ? '<cp:keywords>' + xesc(meta.keywords.join(', ')) + '</cp:keywords>' : '')
+    + (opts.lang ? '<dc:language>' + xesc(opts.lang) + '</dc:language>' : '')
+    + '<dcterms:created xsi:type="dcterms:W3CDTF">' + when + '</dcterms:created>'
     + '<dcterms:modified xsi:type="dcterms:W3CDTF">' + when + '</dcterms:modified></cp:coreProperties>';
   const app = XML_HEAD + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>' + xesc(o.generator || 'EverPad') + '</Application></Properties>';
   const settings = XML_HEAD + '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">'
-    + '<w:defaultTabStop w:val="840"/>' + (notesXml ? '<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>' : '') + '<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>'
+    + '<w:defaultTabStop w:val="840"/>' + (opts.toc ? '<w:updateFields w:val="true"/>' : '') + (notesXml ? '<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>' : '') + '<w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>'
     + '<m:mathPr><m:mathFont m:val="Cambria Math"/><m:dispDef/><m:lMargin m:val="0"/><m:rMargin m:val="0"/><m:defJc m:val="centerGroup"/><m:wrapIndent m:val="1440"/><m:intLim m:val="subSup"/><m:naryLim m:val="undOvr"/></m:mathPr>'
     + '</w:settings>';
   const entries = [
@@ -1197,7 +1288,7 @@ function toDocx(blocks, o) {
     { name: '_rels/.rels', data: rootRels },
     { name: 'word/document.xml', data: doc },
     { name: 'word/_rels/document.xml.rels', data: docRels },
-    { name: 'word/styles.xml', data: stylesXml(o.lang) },
+    { name: 'word/styles.xml', data: stylesXml(o.lang, opts.lang) },
     { name: 'word/settings.xml', data: settings },
     { name: 'word/numbering.xml', data: numberingXml(X.nums) },
     { name: 'docProps/core.xml', data: core },

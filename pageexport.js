@@ -61,8 +61,13 @@ function pageHtml(o) {
     + '<meta http-equiv="Content-Security-Policy" content="' + csp + '">\n'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
     + '<meta name="generator" content="' + esc(o.generator || 'EverPad') + '">\n'
+    + (o.author && o.author.length ? '<meta name="author" content="' + esc(o.author.join(', ')) + '">\n' : '')
+    + (o.keywords && o.keywords.length ? '<meta name="keywords" content="' + esc(o.keywords.join(', ')) + '">\n' : '')
     + '<title>' + esc(o.title || '') + '</title>\n'
-    + '<style>\n' + (o.katexCss ? o.katexCss + '\n' : '') + o.css + '</style>\n</head>\n<body>\n'
+    + '<style>\n' + (o.katexCss ? o.katexCss + '\n' : '') + o.css
+    // フロントマターの用紙の大きさと向き(ブラウザで印刷するとき)。値は main.js が core の pageSizeCss で作ったもの
+    + (/^(?:landscape|[\d.]+mm [\d.]+mm)$/.test(o.pageSize || '') ? '@page { size: ' + o.pageSize + '; }\n' : '')
+    + '</style>\n</head>\n<body>\n'
     + '<header class="ep-head">' + cell(o.title) + cell(o.head) + '</header>\n'
     + '<main class="md">' + o.bodyHtml + '</main>\n'
     + '<footer class="ep-foot">' + cell(o.foot) + '</footer>\n'

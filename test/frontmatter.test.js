@@ -104,8 +104,8 @@ test('フロントマターの挿入: いつもメモの先頭。もうあれば
   assert.ok(core.frontMatter(core.frontMatterInsert('# x').text));
 });
 
-test('索引: タグを持ち、一覧に渡す(本文を読まずにタグで探せる)。索引の版は 5', () => {
-  assert.match(read('store.js'), /const INDEX_VERSION = 5;/);
+test('索引: タグを持ち、一覧に渡す(本文を読まずにタグで探せる)。索引の版は 6(6 で title を題名にした)', () => {
+  assert.match(read('store.js'), /const INDEX_VERSION = 6;/);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'everpad-')); const s = new Store(dir); s.init();
   const id = '20260101-000001-aaaa', id2 = '20260101-000002-bbbb';
   s.create(id, 1); s.create(id2, 2);
@@ -121,10 +121,10 @@ test('索引: タグを持ち、一覧に渡す(本文を読まずにタグで�
   s.saveText(id, 'なし');
   s.writeIndex();
   const idx = JSON.parse(fs.readFileSync(path.join(dir, '.everpad-index.json'), 'utf8'));
-  assert.strictEqual(idx.v, 5);
+  assert.strictEqual(idx.v, 6);
   assert.ok(!('tags' in idx.notes[id]), 'タグの無いメモには項目を作らない');
-  // 前の版(4)の索引は作り直す(題名の取り方も変わったため)
-  idx.v = 4; fs.writeFileSync(path.join(dir, '.everpad-index.json'), JSON.stringify(idx));
+  // 前の版(5)の索引は作り直す(title を題名にしたため)
+  idx.v = 5; fs.writeFileSync(path.join(dir, '.everpad-index.json'), JSON.stringify(idx));
   const s2 = new Store(dir); s2.init(); s2.listMeta();
   assert.strictEqual(s2.scans, 2);
 });
@@ -143,11 +143,11 @@ test('画面: メニュー・検索・プレビュー・文言がつながって
   assert.match(app, /n\.tags = tagsOf\(n\.text\);/);
   // 色付けと検索のバーには、タグを除いた検索語
   assert.ok(!/highlight\([a-z]+, S\.q\)|matchRanges\(text, S\.q\)|\$\('frFind'\)\.value = S\.q;/.test(app));
-  // プレビューと履歴の Markdown 表示ではフロントマターを出す。印刷・書き出しでは出さない
+  // プレビューと履歴の Markdown 表示ではフロントマターを出す。印刷・書き出しでは出さない(題名・著者・日付だけを先頭に出す)
   assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true \}\)/);
   assert.match(app, /md\(text, \{ lines: true, fm: true \}\)/);
-  assert.match(app, /box\.innerHTML = md\(text\);/);
-  assert.match(app, /area\.innerHTML = '<div class="md">' \+ md\(text\) \+ '<\/div>';/);
+  assert.match(app, /const web = kind === 'html' \|\| kind === 'mhtml';\n\s+box\.innerHTML = \(web \? titleBlockHtml\(meta, T\('authorSep'\)\) : ''\) \+ md\(text\);/);
+  assert.match(app, /area\.innerHTML = '<div class="md">' \+ titleBlockHtml\(meta, T\('authorSep'\)\) \+ md\(text\) \+ '<\/div>';/);
   assert.match(css, /\.md \.fm \{/);
   assert.match(css, /\.tag \{/);
   for (const l of ['ja', 'en']) for (const k of ['mInsertFm', 'tagMatches']) assert.ok(I18N.DICT[l][k], l + ' ' + k);

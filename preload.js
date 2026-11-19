@@ -52,8 +52,9 @@ contextBridge.exposeInMainWorld('memoApi', {
   exportArchive: (id, title) => ipcRenderer.invoke('export:archive', id, title),
   ready: () => ipcRenderer.send('app:ready'),
   // 印刷・PDF(画面に用意した印刷用の紙面を出す)
-  print: () => ipcRenderer.invoke('print:print'),
-  savePdf: title => ipcRenderer.invoke('print:pdf', title),
+  // page: { paper, landscape }(フロントマターの用紙の大きさと向き)
+  print: page => ipcRenderer.invoke('print:print', page),
+  savePdf: (title, page) => ipcRenderer.invoke('print:pdf', title, page),
   exportPage: (id, p, kind) => ipcRenderer.invoke('export:page', id, p, kind),
   fileUrl: (noteId, fileId) => 'everpad-file://f/' + encodeURIComponent(noteId) + '/' + encodeURIComponent(fileId),
   // 画面を閉じる直前に使う同期版(非同期だと間に合わないことがある)

@@ -680,7 +680,7 @@ const headingSlug = text => String(text).trim().toLowerCase().replace(/[^\p{L}\p
 /* メモの題名: 最初の空でない行(見出しなどの記号は除く)。無いときは ''(表示側で「無題のメモ」などを出す) */
 /* 題名: 最初の文字のある行。装飾の記号(**・*・~~・`)は、プレビューと同じ読み方で外す(「# **買い物**」は「買い物」)。
    エスケープ(\*)はその文字に、絵文字ショートコードは絵文字にし、脚注の参照([^1])は除く */
-function plainLine(s) {
+function plainLine(s, keepLead) {
   const kept = [];
   const put = v => { kept.push(v); return '\u0001' + (kept.length - 1) + '\u0001'; };
   s = s.replace(/(`+)(.+?)\1/g, (m, f, c) => put(c.trim() || c))
@@ -688,13 +688,16 @@ function plainLine(s) {
     .replace(/\[\^[^\]\s]+\]/g, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1$2')
-    .replace(/~~([^~]+)~~/g, '$1')
-    .replace(/^[#>\s\-*+]+/, '');
+    .replace(/~~([^~]+)~~/g, '$1');
+  if (!keepLead) s = s.replace(/^[#>\s\-*+]+/, '');
   return emojiText(s).replace(/\u0001(\d+)\u0001/g, (_, i) => kept[+i]).trim();
 }
-/* 題名を探すのは、フロントマターより後ろから */
+/* 題名: フロントマターに title があればそれ(装飾の記号は外す。先頭の # や - は題名の文字のまま)。
+   無ければ、フロントマターより後ろの、最初の文字のある行 */
 const titleOf = text => {
   const fm = frontMatter(text);
+  const ft = fm ? fmTitle(fm) : '';
+  if (ft) return ft.slice(0, 60);
   for (const ln of (fm ? text.slice(fm.next) : text).split('\n')) { const t = plainLine(ln); if (t) return t.slice(0, 60); }
   return '';
 };
@@ -822,6 +825,120 @@ function frontMatter(text) {
 const tagKey = s => String(s).normalize('NFKC').replace(/^#+/, '').trim().toLowerCase();
 /* メモのタグの名前(書いたとおり) */
 const tagsOf = text => { const fm = frontMatter(text); return fm ? fm.tags.map(t => t.name) : []; };
+/* ---------- フロントマターの値(YAML の書き方のうち、よく使うものだけ読む) ----------
+   1つの値: "…"(\" \\ \n \t などのエスケープ)と '…'('' で ')は引用符を外す。引用符の無い値は、空白の後の # から後ろ(コメント)を除く
+   (# で始まる値は、YAML では全体がコメントなので空)。引用符が閉じていなければ、引用符の無い値として読む */
+function fmScalar(s) {
+  s = String(s == null ? '' : s).trim();
+  if (s[0] === '"' || s[0] === "'") {
+    const q = s[0];
+    let out = '', i = 1;
+    for (; i < s.length; i++) {
+      const c = s[i];
+      if (q === '"' && c === '\\' && i + 1 < s.length) { const e = s[++i]; out += e === 'n' ? '\n' : e === 't' ? '\t' : e; continue; }
+      if (c === q) { if (q === "'" && s[i + 1] === "'") { out += "'"; i++; continue; } break; }
+      out += c;
+    }
+    if (i < s.length) return out;
+  }
+  if (s[0] === '#') return '';
+  const c = s.search(/[ \t]#/);
+  return (c >= 0 ? s.slice(0, c) : s).trim();
+}
+const FM_BLOCK_RE = /^[|>][+-]?[0-9]?[ \t]*(?:#.*)?$/;
+const fmIsList = en => !en.value && en.more.length > 0 && en.more.every(x => /^\s*-(?:\s|$)/.test(x));
+/* 並びの値: [a, "b, c"](引用符の外のコンマで分ける)か、次の行から「- a」と並べたもの。そうでなければ1つの値 */
+function fmItems(en) {
+  const v = en.value.trim();
+  if (v[0] === '[') {
+    const close = v.lastIndexOf(']'), body = v.slice(1, close > 0 ? close : v.length), out = [];
+    let q = '', from = 0;
+    for (let i = 0; i <= body.length; i++) {
+      const c = body[i];
+      if (q && i < body.length) { if (c === q) q = ''; continue; }
+      if (c === '"' || c === "'") { q = c; continue; }
+      if (i === body.length || c === ',') { out.push(fmScalar(body.slice(from, i))); from = i + 1; }
+    }
+    return out.filter(x => x);
+  }
+  if (fmIsList(en)) return en.more.map(x => fmScalar(x.replace(/^\s*-\s*/, ''))).filter(x => x);
+  const t = fmText(en);
+  return t ? [t] : [];
+}
+/* 1つの文字としての値。| と > のブロック(次の行から字下げして書いたもの)、並び(コンマでつなぐ)、
+   次の行に字下げして続けた値(空白でつなぐ)も読む */
+function fmText(en) {
+  const v = en.value.trim();
+  if (FM_BLOCK_RE.test(v)) {
+    const ind = Math.min(...en.more.map(x => x.match(/^\s*/)[0].length));
+    const ls = en.more.map(x => x.slice(ind));
+    return (v[0] === '|' ? ls.join('\n') : ls.join(' ')).trim();
+  }
+  if (v[0] === '[' || fmIsList(en)) return fmItems(en).join(', ');
+  return [fmScalar(v)].concat(/^["']/.test(v) ? [] : en.more.map(x => x.trim())).filter(x => x).join(' ');
+}
+const fmGet = (fm, key) => fm.entries.find(en => en.key.toLowerCase() === key) || null;
+const fmOne = s => plainLine(String(s).replace(/\s+/g, ' '), true);
+/* フロントマターの title(題名に使う形: 空白をまとめ、装飾の記号を外す) */
+const fmTitle = fm => { const en = fmGet(fm, 'title'); return en ? fmOne(fmText(en)).slice(0, 500) : ''; };
+/* 書き出しに使う文書の情報: { title, author: [名前], date, keywords: [タグ] }。書いていないものは空 */
+function docMeta(text) {
+  const fm = frontMatter(text);
+  if (!fm) return { title: '', author: [], date: '', keywords: [] };
+  const au = fmGet(fm, 'author'), dt = fmGet(fm, 'date');
+  return {
+    title: fmTitle(fm),
+    author: au ? fmItems(au).map(x => fmOne(x).slice(0, 200)).filter(x => x).slice(0, 20) : [],
+    date: dt ? fmOne(fmText(dt)).slice(0, 100) : '',
+    keywords: fm.tags.map(t => t.name)
+  };
+}
+/* 印刷・PDF・HTML の本文の先頭に出す、題名・著者・日付(どれも無ければ '')。sep は著者の区切り */
+function titleBlockHtml(meta, sep) {
+  if (!meta || !(meta.title || meta.author.length || meta.date)) return '';
+  return '<header class="doc-head">'
+    + (meta.title ? '<h1 class="doc-title">' + esc(meta.title) + '</h1>' : '')
+    + (meta.author.length ? '<p class="doc-author">' + esc(meta.author.join(sep || ', ')) + '</p>' : '')
+    + (meta.date ? '<p class="doc-date">' + esc(meta.date) + '</p>' : '')
+    + '</header>';
+}
+/* メモごとの表示・印刷の設定(フロントマターの toc・toc-depth・lang・papersize・orientation)。書いていない・読めない値は既定のまま。
+   toc: true(yes・on も)なら目次を出す。toc-depth: 目次に入れる見出しの深さ(1〜6。既定は3)。lang: 文書の言語(ja・en-US など)。
+   papersize: a4・a5・b5(JIS の B5)・letter・legal(a4paper の形も読む)。orientation: landscape なら横向き(EverPad だけのキー) */
+const PAPERS = { a4: 'A4', a5: 'A5', b5: 'B5', letter: 'Letter', legal: 'Legal' };
+const PAPER_MM = { A4: [210, 297], A5: [148, 210], B5: [182, 257], Letter: [215.9, 279.4], Legal: [215.9, 355.6] };
+const LANG_RE = /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8}){0,4}$/;
+function docOpts(text) {
+  const o = { toc: false, tocDepth: 3, lang: '', paper: '', landscape: false };
+  const fm = frontMatter(text);
+  if (!fm) return o;
+  const one = key => { const en = fmGet(fm, key); return en ? fmText(en).replace(/\s+/g, ' ').trim() : ''; };
+  o.toc = /^(?:true|yes|on)$/i.test(one('toc'));
+  const d = one('toc-depth');
+  if (/^[1-6]$/.test(d)) o.tocDepth = +d;
+  const lg = one('lang').replace(/_/g, '-');
+  if (LANG_RE.test(lg)) o.lang = lg;
+  const p = one('papersize').toLowerCase().replace(/\s+/g, '').replace(/paper$/, '');
+  if (Object.prototype.hasOwnProperty.call(PAPERS, p)) o.paper = PAPERS[p];
+  o.landscape = /^landscape$/i.test(one('orientation'));
+  return o;
+}
+/* 印刷・PDF・HTML の @page の size の値(用紙も向きも決めていなければ '')。用紙は mm で書く(CSS の B5 は ISO の大きさなので) */
+function pageSizeCss(o) {
+  if (!o || (!PAPER_MM[o.paper] && !o.landscape)) return '';
+  if (!PAPER_MM[o.paper]) return 'landscape';
+  const s = PAPER_MM[o.paper], wh = o.landscape ? [s[1], s[0]] : s;
+  return wh[0] + 'mm ' + wh[1] + 'mm';
+}
+/* 目次の HTML。items: [{ level, id, html }](本文の順。見出しの中身は整形済みの HTML)。見出しが無ければ ''。
+   字下げは、いちばん浅い見出しからの深さ(toc-1〜toc-6)で付ける */
+function tocHtml(items, label) {
+  if (!items || !items.length) return '';
+  const min = Math.min(...items.map(x => x.level));
+  return '<nav class="toc"><p class="toc-title">' + esc(label) + '</p><ul>'
+    + items.map(x => '<li class="toc-' + (x.level - min + 1) + '"><a href="#' + esc(x.id) + '">' + x.html + '</a></li>').join('')
+    + '</ul></nav>';
+}
 /* タグ want(tagKey の形)に当たるか: 同じ名前か、その下の階層(「仕事」なら「仕事/会議」も) */
 const tagHit = (name, want) => { const k = tagKey(name); return k === want || k.startsWith(want + '/'); };
 /* メモのタグ(名前の並び)が、探すタグ(tagKey の形の並び)をすべて持っているか */
@@ -850,7 +967,9 @@ function frontMatterHtml(fm, attr) {
   const rows = fm.entries.map(en => {
     let v;
     if (en.tags) v = fm.tags.length ? fm.tags.map(t => '<button type="button" class="tag tag-link" data-tag="' + esc(t.name) + '">' + esc(t.name) + '</button>').join('') : '';
-    else v = esc([en.value].concat(en.more.map(x => x.trim().replace(/^-[ \t]+/, ''))).filter(x => x).join(', '));
+    // 値は引用符を外して出す。字下げした行に「キー: 値」を並べたもの(入れ子)などは、今までどおり行をコンマでつなぐ
+    else if (!en.more.length || FM_BLOCK_RE.test(en.value.trim()) || en.value.trim()[0] === '[' || fmIsList(en)) v = esc(fmText(en));
+    else v = esc([fmScalar(en.value)].concat(en.more.map(x => x.trim().replace(/^-[ \t]+/, ''))).filter(x => x).join(', '));
     return '<div class="fm-row' + (en.tags ? ' fm-tags' : '') + '"><span class="fm-k">' + esc(en.key) + '</span><span class="fm-v">' + v + '</span></div>';
   });
   return '<div class="fm"' + attr + '>' + rows.join('') + '</div>';
@@ -1836,5 +1955,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, tagKey, tagHit, hasTags, parseQuery, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

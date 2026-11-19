@@ -53,10 +53,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.43.2.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.44.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.43.2.exe
+EverPad 0.44.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -154,9 +154,13 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Edit → Insert Front Matter (Tags) (also in the right-click menu of the Text view and of the preview, where it reads Edit Front Matter (Tags) when the note already has front matter; a key can be assigned in File → Keyboard Shortcuts…) puts three lines, `---`, `tags: ` and `---`, at the top of the note, wherever the cursor is, and places the cursor after `tags: `. Type the tags separated by commas, for example `tags: YAML, design`. If the note already has front matter, the command only moves the cursor to the end of its tags (adding a `tags:` line if there is none). In the preview, the front matter then opens for editing. Inserting is one edit and can be undone; the command is grayed out in the history and for read-only notes.
 - Tags can also be written as `tags: [YAML, design]`, or as a list with one `  - YAML` line per tag under `tags:`. Put a tag in quotes (`"a, b"`) if it contains a comma; a `#` at the start of a tag is ignored. This is the front matter used by Obsidian, Jekyll, Hugo and Pandoc, so Markdown files from them keep their tags when imported.
 - The lines at the top count as front matter only when the first line is exactly `---` and every line up to the closing `---` (or `...`) is `key: value`, an indented line, a `- ` line, a blank line or a `#` comment. Otherwise `---` is a horizontal rule, as before. Keys other than `tags` are kept as written.
-- The preview and the history's Markdown view show the front matter as a box of keys and values, with the tags as labels. Click a label to search for that tag (`Ctrl`+click adds it to the current search; the labels can also be reached with Tab and pressed with Enter); click elsewhere in the box to edit it, like other parts. Printouts, PDFs, HTML, MHTML, AsciiDoc, Word and LaTeX files leave it out; text files and EverPad archives keep it as written. The note's title is the first line with text after the front matter.
+- The preview and the history's Markdown view show the front matter as a box of keys and values, with the tags as labels. Click a label to search for that tag (`Ctrl`+click adds it to the current search; the labels can also be reached with Tab and pressed with Enter); click elsewhere in the box to edit it, like other parts. Printouts, PDFs, HTML, MHTML, AsciiDoc, Word and LaTeX files leave the box out (the title, author and date are used as described below); text files and EverPad archives keep it as written. Values are shown without their quotes.
 - Search for `tag:YAML` to list the notes that have the tag YAML, one result per note. Case and full-width or half-width letters do not matter, and `tag:work` also finds `work/meeting`. With several `tag:`, a note must have all of them. Other words search inside those notes: `tag:work agenda` finds "agenda" in the notes tagged work (in the latest version or all history, as chosen). Use quotes for a tag with spaces: `tag:"two words"`. The tags are taken from the latest version of each note, also when searching all history. Clicking a result opens the note with the tag selected.
 - A note can have up to 50 tags of up to 100 characters each.
+- `title: Design notes` makes that the note's title: in the note list, the window title, search results, Insert Link to Note… and the file name suggested when exporting. This leaves the first line free for the text. Without `title`, the title is the first line with text after the front matter, as before.
+- `title`, `author` and `date` are also used when printing and exporting. Printouts, PDFs, HTML, MHTML and Word documents show them at the top of the text (Word uses the Title, Author and Date styles). They also go into the file information: the title of the PDF, the `<title>` and the author and keywords (from the tags) of HTML and MHTML files, the title, author and keywords of Word documents, `\title`, `\author` and `\date` in LaTeX, and the title, author line and `:revdate:` in AsciiDoc. When the front matter has a title, a `#` heading at the top of the text stays a heading in LaTeX and AsciiDoc instead of becoming the document title. Write several authors as `author: [Alex, Sam]`, and the date as written (`2026-11-19` is read as a date by other apps too).
+- Values are read the YAML way: put a value in quotes (`title: "Design: 2nd edition"`) if it contains `: ` or starts with `[`, `{`, `#`, `@`, `*`, `&`, `!`, `|`, `>`, a quote, `%` or a backtick, so that other apps can read it too; a `#` after a space starts a comment; `|` and `>` blocks and values continued on indented lines can also be used. Help → Markdown Guide explains the front matter and its keys.
+- Front matter can also set how a note is shown and printed. `toc: true` adds a table of contents with links to the headings at the top of the preview, printouts, PDFs, HTML and MHTML (click an entry to go to that heading); Word gets a table of contents field (choose Yes when Word asks whether to update the fields, to get page numbers), LaTeX gets `\tableofcontents` (compile twice) and AsciiDoc gets `:toc:`. `toc-depth: 2` sets how deep it goes (1–6, default 3). `lang: en` sets the language of the document: the preview, printouts, PDFs and HTML use the character shapes of that language, the language is recorded in Word, LaTeX, AsciiDoc and HTML files, and `ja` makes LaTeX use the Japanese document class. `papersize: a5` (a4, a5, b5, letter or legal; b5 is the Japanese JIS B5) and `orientation: landscape` (an EverPad-only key) set the paper for printing, PDF, Word and LaTeX, and for printing the HTML file from a browser; without them, the paper is chosen as before.
 
 **Recently viewed notes and links between notes**
 
@@ -343,7 +347,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 | Alerts | `> [!NOTE]` (or `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) on the first line of a block quote |
 | Code blocks | lines surrounded by ```` ``` ```` (or `~~~`); to put ```` ``` ```` lines inside, surround with ````` ```` ````` |
 | Horizontal rules | `---` |
-| Front matter (tags) | `---`, `tags: [YAML, design]` and `---` as the first lines of the note |
+| Front matter (tags, title, author, date, table of contents, language, paper) | `---`, `title: Design notes`, `tags: [YAML, design]` and `---` as the first lines of the note |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
 | Footnotes | `text[^1]` and `[^1]: the note` at the start of a line |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
@@ -429,15 +433,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.43.2.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.44.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.43.2-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.44.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.43.2`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.44.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -446,7 +450,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.43.2.AppImage` (x64)
+- Linux: `EverPad-0.44.0.AppImage` (x64)
 
 **macOS**
 
@@ -462,7 +466,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.43.2.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.44.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -585,10 +589,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.43.2.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.44.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.43.2.exe
+EverPad 0.44.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -686,9 +690,13 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「編集」→「フロントマター(タグ)を挿入」(「テキスト」表示とプレビューの右クリックにもあります。フロントマターがもうあるメモでは、右クリックでは「フロントマター(タグ)を編集」と出ます。「ファイル」→「キーボードショートカット…」でキーを割り当てられます)で、カーソルがどこにあっても、メモの先頭に `---`・`tags: `・`---` の3行を入れ、`tags: ` の後ろにカーソルを置きます。タグはコンマで区切って書きます(例: `tags: YAML, 設計`)。もうフロントマターがあるメモでは、2つ目は入れず、タグの終わりにカーソルを移します(`tags:` の行が無ければ足します)。プレビューでは、入れたあとフロントマターの編集欄が開きます。挿入は1回の編集として、元に戻せます。履歴の表示と読み取り専用のメモではグレーアウトします。
 - タグは `tags: [YAML, 設計]` や、`tags:` の次の行から1つずつ `  - YAML` と並べて書くこともできます。コンマを含むタグは引用符で囲みます(`"a, b"`)。タグの先頭の `#` は外して読みます。Obsidian・Jekyll・Hugo・Pandoc と同じ書き方なので、それらの Markdown ファイルを取り込んでも、タグはそのまま使えます。
 - 先頭の行をフロントマターとみなすのは、1行目がちょうど `---` で、閉じの `---`(か `...`)までの行が、すべて `キー: 値`・字下げした行・`- ` の行・空行・`#` のコメントのときだけです。そうでなければ、今までどおり `---` は区切り線です。`tags` 以外のキーも、書いたまま残します。
-- プレビューと履歴の「Markdown表示」では、フロントマターをキーと値の枠にして出し、タグは札の形で出します。札を押すと、そのタグで検索します(`Ctrl`+クリックでは今の検索に足します。札は Tab で選んで Enter でも押せます)。枠のほかの所をクリックすると、ほかの部分と同じく編集できます。印刷・PDF・HTML・MHTML・AsciiDoc・Word・LaTeX には出しません。テキストファイルと EverPad アーカイブには、書いたまま入ります。メモの題名は、フロントマターより後ろの、最初の文字のある行です。
+- プレビューと履歴の「Markdown表示」では、フロントマターをキーと値の枠にして出し、タグは札の形で出します。札を押すと、そのタグで検索します(`Ctrl`+クリックでは今の検索に足します。札は Tab で選んで Enter でも押せます)。枠のほかの所をクリックすると、ほかの部分と同じく編集できます。印刷・PDF・HTML・MHTML・AsciiDoc・Word・LaTeX には、この枠を出しません(題名・著者・日付は、下のように使います)。テキストファイルと EverPad アーカイブには、書いたまま入ります。値は、引用符を外して出します。
 - `tag:YAML` で検索すると、タグ YAML の付いたメモを、1つのメモに1件で出します。大文字/小文字と全角/半角は区別しません。`tag:仕事` は `仕事/会議` にも当たります。`tag:` を2つ以上書くと、すべてのタグを持つメモだけです。ほかの語も書くと、そのメモの中から探します(`tag:仕事 議事録` なら、タグ「仕事」のメモから「議事録」を、「最新の版」か「履歴すべて」で)。空白を含むタグは `tag:"二つの 語"` のように囲みます。タグは各メモの最新の版のものを使います(「履歴すべて」でも同じ)。結果を押すと、そのタグを選んでメモを開きます。
 - タグは1つのメモに50個まで、1つ100文字までです。
+- `title: 設計メモ` と書くと、それがメモの題名になります。メモ一覧・ウィンドウの題名・検索の結果・「メモへのリンクを挿入…」・書き出すときのファイル名の候補に使います。本文の1行目を、題名に縛られずに書けます。`title` が無ければ、今までどおりフロントマターより後ろの、最初の文字のある行が題名です。
+- `title`・`author`・`date` は、印刷と書き出しにも使います。印刷・PDF・HTML・MHTML・Word では、本文の先頭に出します(Word では「Title」「Author」「Date」のスタイル)。ファイルの情報にも入ります。PDF のタイトル、HTML・MHTML の `<title>` と著者とキーワード(タグから)、Word のタイトル・作成者・キーワード、LaTeX の `\title`・`\author`・`\date`、AsciiDoc の題名・著者の行・`:revdate:` です。フロントマターに題名があるときは、本文の先頭の `#` の見出しは、LaTeX と AsciiDoc でも文書の題名にせず、見出しのままにします。著者が複数なら `author: [山田, 佐藤]` と書きます。日付は書いたまま出します(`2026-11-19` の形なら、ほかのアプリでも日付として読まれます)。
+- 値は YAML の決まりで読みます。値に `: ` を含むときや、値が `[`・`{`・`#`・`@`・`*`・`&`・`!`・`|`・`>`・引用符・`%`・バッククォートで始まるときは、引用符で囲みます(`title: "設計: 第2版"`)。囲まないと、ほかのアプリで読めないことがあります。空白のあとの `#` から後ろはコメントです。`|` と `>` のブロックや、字下げした次の行に続けた値も読めます。フロントマターとそのキーの説明は、「ヘルプ」→「Markdown の書き方」にもあります。
+- フロントマターで、メモごとの表示と印刷の設定もできます。`toc: true` と書くと、プレビュー・印刷・PDF・HTML・MHTML の本文の先頭に、見出しへのリンクを並べた目次を出します(項目を押すと、その見出しへ移ります)。Word には目次のフィールド(開くときに Word がフィールドを更新するか尋ねるので「はい」を選ぶと、ページ番号が付きます)、LaTeX には `\tableofcontents`(2回コンパイルします)、AsciiDoc には `:toc:` を入れます。`toc-depth: 2` で、目次に入れる見出しの深さを決めます(1〜6、既定は3)。`lang: en` は文書の言語です。プレビュー・印刷・PDF・HTML では漢字の字形などがその言語のものになり、Word・LaTeX・AsciiDoc・HTML のファイルにも言語として入ります。`ja` なら、LaTeX は日本語用の文書クラスになります。`papersize: a5`(a4・a5・b5・letter・legal。b5 は JIS の B5)と `orientation: landscape`(EverPad だけのキー)で、印刷・PDF・Word・LaTeX と、HTML をブラウザで印刷するときの用紙を決めます。書かなければ、用紙は今までどおりです。
 
 **最近見たメモとメモ同士のリンク**
 
@@ -875,7 +883,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 | アラート | 引用の1行目に `> [!NOTE]`(`[!TIP]`・`[!IMPORTANT]`・`[!WARNING]`・`[!CAUTION]` も) |
 | コードブロック | ```` ``` ```` だけの行で前後を囲む(`~~~` も可)。中に ```` ``` ```` の行を書くときは ````` ```` ````` で囲む |
 | 区切り線 | `---` |
-| フロントマター(タグ) | メモの先頭の `---`、`tags: [YAML, 設計]`、`---` の行 |
+| フロントマター(タグ・題名・著者・日付・目次・言語・用紙) | メモの先頭の `---`、`title: 設計メモ`、`tags: [YAML, 設計]`、`---` の行 |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
 | 脚注 | `本文[^1]` と、行の先頭に `[^1]: 注の文` |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
@@ -961,15 +969,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.43.2.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.44.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.43.2-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.44.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.43.2` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.44.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -978,7 +986,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.43.2.AppImage`(x64)
+- Linux: `EverPad-0.44.0.AppImage`(x64)
 
 **macOS**
 
@@ -994,7 +1002,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.43.2.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.44.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。

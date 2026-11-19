@@ -22,7 +22,7 @@ function storeError(code, message) { const e = new Error(message); e.code = code
 const path = require('path');
 
 const INDEX_NAME = '.everpad-index.json';
-const INDEX_VERSION = 5;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした 4: ro(読み取り専用)を加えた 5: tags(フロントマターのタグ)を加え、題名をフロントマターの後ろから取るようにした
+const INDEX_VERSION = 6;   // 2: 題名が無いメモの title を '' にした 3: base(削除した版の数)を加え、n を版数(base + 編集の個数)にした 4: ro(読み取り専用)を加えた 5: tags(フロントマターのタグ)を加え、題名をフロントマターの後ろから取るようにした 6: フロントマターの title を題名にした
 const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_ATTACH = 50 * 1024 * 1024;
 const FILEID_RE = /^[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;

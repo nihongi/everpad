@@ -14,9 +14,9 @@
         'クリックで開けるリンクは、http:// か https:// で始まるアドレス(既定のブラウザで開きます)、他のメモへのリンク、同じメモの見出しへのリンク(#見出し)です。ファイルへの相対パスなどのリンクは、リンクの見た目で表示しますが、開けません。',
         'HTML のタグは、そのまま文字として表示されます。'
       ],
-      src: '書き方', out: '表示',
+      src: '書き方', out: '表示', keyHead: ['キー', '使われ方'],
       sections: [
-        { h: '見出し', note: '行の先頭に # を書き、空白を1つ入れます。# の数(1〜6)で大きさが変わります。最初の行は、メモ一覧の題名になります。',
+        { h: '見出し', note: '行の先頭に # を書き、空白を1つ入れます。# の数(1〜6)で大きさが変わります。最初の行は、メモ一覧の題名になります(フロントマターに title を書いたときは、その title が題名です)。',
           src: '# 見出し1\n## 見出し2\n### 見出し3' },
         { h: '段落と改行', note: '改行はそのまま改行になります。空の行を入れると、段落が分かれます。',
           src: '1行目\n2行目\n\n空の行のあとは、次の段落です。' },
@@ -57,7 +57,23 @@
         { h: '他のメモへのリンク', note: '[表示する文字](note:メモID) と書くと、他のメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(Ctrl+K)で一覧から選ぶか、参照先のメモの「プロパティ」で「このメモへのリンクをコピー」を押して貼り付けます。プレビューではクリック、「テキスト」表示では Ctrl+クリックで、そのメモに移動します。参照先の題名を変えてもリンクは切れません。参照先を削除すると、灰色の取り消し線で表示されます。',
           src: '詳しくは [会議メモ](note:20261021-120000-abcd) を参照。', noRender: true },
         { h: '画像・ファイルの添付', note: '画像を貼り付けるか、ファイルをドラッグ&ドロップするか、「添付」ボタンで選ぶと、カーソルの位置に次のように書かれます。! で始まるものは画像、ないものはファイルへのリンクです。「名前」の部分は自由に書き換えられます(| [ ] は使えません)。添付の書き方を別のメモにコピーしても表示されないので、ファイルを貼り付け直してください。',
-          src: '![スクリーンショット](attach:0123456789abcdef.png)\n[見積書](attach:fedcba9876543210.pdf)', noRender: true }
+          src: '![スクリーンショット](attach:0123456789abcdef.png)\n[見積書](attach:fedcba9876543210.pdf)', noRender: true },
+        { h: 'フロントマター', fm: true,
+          note: 'メモの先頭に、--- だけの行で囲んで「キー: 値」の行を書くと、フロントマター(メモの情報)になります。Obsidian・Jekyll・Hugo・Pandoc と同じ書き方です。「編集」→「フロントマター(タグ)を挿入」で入れることもできます。プレビューでは枠にして出し、タグの札を押すと、そのタグで検索します。印刷・PDF・HTML・Word などには枠を出さず、題名・著者・日付(と、toc: true なら目次)だけを本文の先頭に出します。テキストとして書き出したファイルには、書いたまま入ります。',
+          src: '---\ntitle: "設計メモ: 第2版"\nauthor: [山田, 佐藤]\ndate: 2026-11-19\ntags: [設計, YAML]\n---\nここから本文です。' },
+        { h: 'フロントマターのキーと値の書き方', noRender: true,
+          note: '値に「: 」を含むときや、値が [ { # @ * & ! | > \' " % ` で始まるときは、"…" で囲みます(YAML の決まりです。囲まないと、ほかのアプリで読めないことがあります)。空白のあとの # から後ろはコメントです。複数の値は [a, b] と書くか、次の行から「  - a」と1つずつ並べます。1行目がちょうど --- で、閉じの --- までの行がすべて「キー: 値」・字下げした行・「- 」の行・空行・# のコメントのときだけ、フロントマターとみなします(そうでなければ、--- は区切り線です)。EverPad が使うキーは次のとおりです。ほかのキーも、書いたまま残します。',
+          rows: [
+            ['tags', 'タグ。tag:名前 で検索すると、そのタグのメモが見つかります。書き出した Word のキーワードと、HTML の keywords にもなります。'],
+            ['title', 'メモの題名(メモ一覧・ウィンドウ・検索の結果・メモへのリンクの挿入など)。書かなければ、本文の最初の行が題名です。印刷と書き出しでは、本文の先頭とファイルの情報(Word のタイトル、HTML の title など)に入ります。'],
+            ['author', '著者。印刷と書き出しの本文の先頭と、ファイルの情報(Word の作成者など)に入ります。'],
+            ['date', '日付。書いたまま、印刷と書き出しの本文の先頭に出ます。2026-11-19 の形で書くと、ほかのアプリでも日付として読まれます。'],
+            ['toc', 'true と書くと、目次を出します。プレビュー・印刷・PDF・HTML・MHTML では本文の先頭に見出しへのリンクを並べ、項目を押すとその見出しへ移ります。Word には目次のフィールドを入れます(開くときに「更新しますか」と尋ねられたら「はい」を選ぶと、ページ番号の付いた目次になります)。LaTeX には \\tableofcontents(2回コンパイルすると目次ができます)、AsciiDoc には :toc: を入れます。'],
+            ['toc-depth', '目次に入れる見出しの深さ。1〜6 で、既定は 3(### まで)です。'],
+            ['lang', '文書の言語(ja・en・en-US など)。プレビュー・印刷・PDF・HTML では、漢字の字形などがその言語のものになります。Word・LaTeX・AsciiDoc・HTML の言語の情報にも入ります。ja なら、LaTeX は日本語用の文書クラスになります。'],
+            ['papersize', '用紙の大きさ。a4・a5・b5・letter・legal のどれかです(b5 は JIS の B5)。印刷・PDF・Word・LaTeX と、HTML をブラウザで印刷するときに使います。書かなければ、今までどおりです。'],
+            ['orientation', 'landscape と書くと、用紙を横向きにします。EverPad だけのキーです(ほかのアプリでは使われません)。']
+          ] }
       ]
     },
     en: {
@@ -70,9 +86,9 @@
         'Links you can open by clicking are addresses starting with http:// or https:// (opened in your default browser), links to other notes, and links to headings in the same note (#heading). Other links, such as relative paths to files, are shown as links but cannot be opened.',
         'HTML tags are shown as plain text.'
       ],
-      src: 'You type', out: 'You see',
+      src: 'You type', out: 'You see', keyHead: ['Key', 'Used for'],
       sections: [
-        { h: 'Headings', note: 'Start the line with # followed by a space. The number of # (1 to 6) sets the size. The first line becomes the note title in the note list.',
+        { h: 'Headings', note: 'Start the line with # followed by a space. The number of # (1 to 6) sets the size. The first line becomes the note title in the note list (unless the front matter has a title).',
           src: '# Heading 1\n## Heading 2\n### Heading 3' },
         { h: 'Paragraphs and line breaks', note: 'A line break is kept as a line break. An empty line starts a new paragraph.',
           src: 'First line\nSecond line\n\nAfter an empty line, a new paragraph starts.' },
@@ -113,7 +129,23 @@
         { h: 'Links to other notes', note: 'Write [text to show](note:note ID) to link to another note. You do not need to type the note ID: choose Edit > Insert Link to Note… (Ctrl+K) and pick a note from the list, or open the target note\'s Properties, click Copy Link to This Note, and paste it. Click the link in the preview, or Ctrl+click it in the Text view, to open that note. Changing the target\'s title does not break the link. If the target is deleted, the link is shown struck through in gray.',
           src: 'See [meeting notes](note:20261021-120000-abcd) for details.', noRender: true },
         { h: 'Images and attachments', note: 'Paste an image, drag and drop a file, or choose one with the Attach button, and text like the following is inserted at the cursor. Lines starting with ! are images; the others are links to files. You may change the "name" part freely (do not use |, [ or ]). Copying this syntax into another note does not work; paste the file again instead.',
-          src: '![Screenshot](attach:0123456789abcdef.png)\n[Quote](attach:fedcba9876543210.pdf)', noRender: true }
+          src: '![Screenshot](attach:0123456789abcdef.png)\n[Quote](attach:fedcba9876543210.pdf)', noRender: true },
+        { h: 'Front matter', fm: true,
+          note: 'Lines of "key: value" between two lines containing only --- at the top of a note are front matter (information about the note), written the same way as in Obsidian, Jekyll, Hugo and Pandoc. Edit > Insert Front Matter (Tags) adds it for you. The preview shows it as a box; click a tag label to search for that tag. Printouts, PDFs, HTML, Word and the other exports leave the box out and show only the title, author and date (and, with toc: true, a table of contents) at the top of the text. Text files keep it as written.',
+          src: '---\ntitle: "Design notes: 2nd edition"\nauthor: [Alex, Sam]\ndate: 2026-11-19\ntags: [design, YAML]\n---\nThe text starts here.' },
+        { h: 'Front matter keys and values', noRender: true,
+          note: 'Put a value in "…" if it contains ": " or starts with [ { # @ * & ! | > \' " % ` (this is a YAML rule; without the quotes, other apps may not be able to read it). A # after a space starts a comment. Write several values as [a, b], or one per line as "  - a" on the lines below. The lines count as front matter only when the first line is exactly --- and every line up to the closing --- is "key: value", an indented line, a "- " line, a blank line or a # comment (otherwise --- is a horizontal rule). EverPad uses the keys below and keeps other keys as written.',
+          rows: [
+            ['tags', 'Tags. Search for tag:name to find the notes with a tag. They also become the keywords of exported Word and HTML files.'],
+            ['title', 'The note title (in the note list, the window, search results, when inserting a link to the note and so on). Without it, the first line of the text is the title. Printouts and exports show it at the top of the text and put it in the file information (the Word title, the HTML title and so on).'],
+            ['author', 'The author. Printouts and exports show it at the top of the text and put it in the file information (such as the Word author).'],
+            ['date', 'The date, shown as written at the top of printouts and exports. Write it as 2026-11-19 so that other apps read it as a date.'],
+            ['toc', 'Write true to add a table of contents. The preview, printouts, PDF, HTML and MHTML list links to the headings at the top of the text; click an entry to go to that heading. Word gets a table of contents field (when Word asks whether to update the fields as it opens the file, choose Yes to get the table with page numbers). LaTeX gets \\tableofcontents (compile twice to fill it in), and AsciiDoc gets :toc:.'],
+            ['toc-depth', 'How deep the table of contents goes, from 1 to 6. The default is 3 (down to ###).'],
+            ['lang', 'The language of the document (ja, en, en-US and so on). The preview, printouts, PDF and HTML use the character shapes of that language (for kanji, for example). Word, LaTeX, AsciiDoc and HTML also record the language. With ja, LaTeX uses the Japanese document class.'],
+            ['papersize', 'The paper size: a4, a5, b5, letter or legal (b5 is the Japanese JIS B5). Used for printing, PDF, Word, LaTeX, and when the HTML file is printed from a browser. Without it, nothing changes.'],
+            ['orientation', 'Write landscape to turn the paper sideways. This key is EverPad\'s own (other apps do not use it).']
+          ] }
       ]
     }
   };

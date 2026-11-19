@@ -373,10 +373,12 @@
   function fitTail() {
     document.body.classList.toggle('sp-on', !!EDIT.scrollPast);
     if (!EDIT.scrollPast) return;
-    const ta = $('editor'), pv = $('preview');
-    if (ta.clientHeight) {
+    const ta = $('editor'), pv = $('preview'), wrap = $('edwrap');
+    /* 本文の欄は、下の余白(padding)より低くなれない。欄自身の高さから測ると、添付の帯が出て入れ物が低くなっても、
+       前の大きな余白のせいで欄が縮まず、帯の上にはみ出したまま(余白も測り直しても変わらない)になる。入れ物の高さから測る */
+    if (wrap.clientHeight) {
       const cs = getComputedStyle(ta);
-      const v = Math.max(22, Math.round(ta.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.lineHeight) || 21)));
+      const v = Math.max(22, Math.round(wrap.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.lineHeight) || 21)));
       if (ta.style.getPropertyValue('--ed-tail') !== v + 'px') ta.style.setProperty('--ed-tail', v + 'px');
     }
     if (pv.clientHeight) {
@@ -397,7 +399,7 @@
     }
   }
   fitTail();
-  if (window.ResizeObserver) { const ro = new ResizeObserver(fitTail); ro.observe($('editor')); ro.observe($('preview')); ro.observe($('hvBody')); }
+  if (window.ResizeObserver) { const ro = new ResizeObserver(fitTail); ro.observe($('edwrap')); ro.observe($('editor')); ro.observe($('preview')); ro.observe($('hvBody')); }
 
   /* ---------- メモの色(設定の「メモの色」。renderer/notecolor.js) ----------
      メモの欄(本文・プレビュー・履歴)に、いまの画面(明るい・ダーク)の設定の色を付ける。標準なら何も付けない。
@@ -934,6 +936,7 @@
       body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
       body.innerHTML = '<div class="md">' + md(text, { lines: true, fm: true }) + '</div>';
+      applyDocOpts(body.firstChild, docOpts(text), 'hv-h-');
       lastHydrate = hydrate(body, cur().id);
       highlight(body, S.qText);
     } else {
@@ -1097,7 +1100,7 @@
     ta.scrollTop = Math.max(0, y - ta.clientHeight / 3);
   }
 
-  function refreshView() {
+  function refreshViewNow() {
     if (S.mode === 'preview') setMode('preview');
     else if (S.mode === 'history') renderHist();
   }
@@ -1229,6 +1232,10 @@
     $('qClear').hidden = !$('q').value;
     $('results').hidden = !q;
     $('noteList').hidden = !!q;
+    /* 検索中にメモを書き換えると、2秒後に同じ検索語で検索し直す(commit)。そのときプレビューの編集欄が開いていれば、
+       表示を作り直さない(作り直すと編集欄が閉じる)。強調は、編集欄を閉じて作り直すときに付く */
+    const keepPe = q === had && !!pe.box && S.mode === 'preview';
+    const refreshView = () => { if (!keepPe) refreshViewNow(); };
     if (!q) { if (had) refreshView(); return; }
 
     // tag:名前 があれば、そのタグをすべて持つメモだけを探す
@@ -1699,8 +1706,47 @@
     else if (r === 'missing') toast(T('fileMissing'));
   }
   /* リンクにマウスを重ねている間、行き先を左下に出す */
+  /* フロントマターの設定を、整形した本文 root に当てる(プレビュー・履歴の表示・印刷・HTML・MHTML)。
+     lang: 本文の言語(漢字の字形などが変わる)。書いていなければ、画面の言語のまま。
+     toc: 本文の先頭(フロントマターの枠・題名の部分の次)に、見出しへのリンクの目次を入れる。入れる見出しは、いちばん外側の
+     (引用やリストの中ではない)、toc-depth までの深さのもの。見出しには prefix + 番号の id を付ける。
+     目次の見出しの言葉は、文書の言語が日本語か英語ならその言葉、ほかは画面の言葉。目次の言葉を返す */
+  function tocLabel(lang) {
+    const l = /^ja(?:-|$)/i.test(lang) ? 'ja' : /^en(?:-|$)/i.test(lang) ? 'en' : LANG;
+    return I18N.t(l, 'tocTitle');
+  }
+  function applyDocOpts(root, opts, prefix) {
+    if (!root) return;
+    if (opts.lang) root.lang = opts.lang; else root.removeAttribute('lang');
+    if (!opts.toc) return;
+    const hs = [...root.children].filter(h => /^H[1-6]$/.test(h.tagName) && +h.tagName[1] <= opts.tocDepth);
+    const items = hs.map((h, i) => {
+      h.id = prefix + (i + 1);
+      // 目次の中ではリンクにしない(リンクの中にリンクを入れない)。脚注の番号と画像は出さない
+      const c = h.cloneNode(true);
+      c.querySelectorAll('a, .link-other').forEach(a => a.replaceWith(...a.childNodes));
+      c.querySelectorAll('sup.fnref, img, .att-missing').forEach(x => x.remove());
+      return { level: +h.tagName[1], id: h.id, html: c.innerHTML };
+    });
+    const html = tocHtml(items, tocLabel(opts.lang));
+    if (!html) return;
+    const first = [...root.children].find(x => !x.matches('.fm, .doc-head'));
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    root.insertBefore(box.firstChild, first || null);
+  }
+  // 目次の項目をクリック: その見出しへ(プレビューと履歴の表示)
+  document.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('#preview .toc a, #hvBody .toc a');
+    if (!a) return;
+    e.preventDefault();
+    const id = (a.getAttribute('href') || '').slice(1);
+    const h = id && [...a.closest('#preview, #hvBody').querySelectorAll('h1, h2, h3, h4, h5, h6')].find(x => x.id === id);
+    if (h) h.scrollIntoView({ block: 'start' });
+  });
   const LINK_SEL = '#preview a, #hvBody a, #preview .link-other, #hvBody .link-other';
   function linkStatusText(el) {
+    if (el.closest('.toc')) return '';   // 目次の項目(同じメモの見出しへ)
     if (el.classList.contains('note-link')) return el.dataset.status || '';
     // 脚注の番号: 注の文を出す。「本文に戻る」はマウスを重ねたときの説明だけ
     if (el.classList.contains('fnback')) return '';
@@ -2269,7 +2315,7 @@
      Esc か、ほかの場所をクリックすると閉じて、整形した表示に戻す。数式と図はここでは編集しない(ダブルクリックで数式エディタ・図エディタ)。
      読み取り専用のメモでは編集しない。
      元に戻す: 編集欄の中ではその編集欄の Ctrl+Z。閉じたあとは、プレビューでの変更を1回ずつ戻す(peUndo。メモを移ると消える) */
-  const PE_SKIP = 'a, img, .math, .diagram, sup.fnref, .fnback, .link-other, .note-link, .att-file, input, button, textarea, .alert-title, .footnotes, .att-missing';
+  const PE_SKIP = 'a, img, .math, .diagram, sup.fnref, .fnback, .link-other, .note-link, .att-file, input, button, textarea, .alert-title, .footnotes, .att-missing, .toc';
   const peAllowed = () => S.mode === 'preview' && !!cur() && !isRO(cur()) && $('modal').hidden;
   // 何も書いていないメモのプレビューなら、「空のメモ」の表示(そうでなければ null)
   const peBlank = () => $('preview').querySelector(':scope > p.empty');
@@ -2284,6 +2330,7 @@
     const tok = ++pvAnchorTok;
     requestAnimationFrame(() => requestAnimationFrame(() => { if (tok === pvAnchorTok) pv.style.overflowAnchor = ''; }));
     pv.innerHTML = md(cur().text, { lines: true, fm: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
+    applyDocOpts(pv, docOpts(cur().text), 'pv-h-');
     lastHydrate = hydrate(pv, cur().id);
     highlight(pv, S.qText);
     peApplyRO();
@@ -3447,13 +3494,19 @@
     const text = k === N ? n.text : textAt(n, k);
     const op = k > 0 ? n.ops[k - 1] : null;
     const title = shownTitle(titleOf(text));
+    // フロントマターに題名・著者・日付があれば、本文の先頭に出す。PDF の文書のタイトルは、窓の題名から付くので、その間だけ題名にする
+    const meta = docMeta(text), winTitle = document.title;
+    // フロントマターの目次・言語・用紙の大きさと向き
+    const opts = docOpts(text), size = pageSizeCss(opts);
     const area = $('printArea');
-    area.innerHTML = '<div class="md">' + md(text) + '</div>';
+    area.innerHTML = '<div class="md">' + titleBlockHtml(meta, T('authorSep')) + md(text) + '</div>';
+    applyDocOpts(area.firstChild, opts, 'ep-h-');
+    document.title = meta.title || title;
     await hydrate(area, n.id, { light: true });
     const edited = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
     const stampText = T(kind === 'pdf' ? 'printCreated' : 'printPrinted', { when: fmtFull(Date.now()) });
     const box = 'font-family: ' + getComputedStyle(document.body).fontFamily.replace(/[;{}]/g, '') + '; font-size: 8.5pt; color: #4A5468;';
-    $('printPage').textContent = '@page { margin: 18mm 16mm; background: #fff;'
+    $('printPage').textContent = '@page { margin: 18mm 16mm; background: #fff;' + (size ? ' size: ' + size + ';' : '')
       + ' @top-left { content: ' + cssStr(title) + '; ' + box + ' }'
       + ' @top-right { content: ' + cssStr(edited) + '; ' + box + ' }'
       + ' @bottom-left { content: ' + cssStr(stampText) + '; ' + box + ' }'
@@ -3465,11 +3518,11 @@
     ]);
     try {
       if (kind === 'pdf') {
-        const r = await api.savePdf(title);
+        const r = await api.savePdf(title, { paper: opts.paper, landscape: opts.landscape });
         if (r && r.status === 'saved') toast(T('pdfSaved', { path: r.path }));
         else if (r && r.status === 'failed') toast(T('pdfFailed'));
       } else {
-        const r = await api.print();
+        const r = await api.print({ paper: opts.paper, landscape: opts.landscape });
         if (r === 'failed') toast(T('printFailed'));
       }
     } catch (e) {
@@ -3477,6 +3530,7 @@
     } finally {
       area.innerHTML = '';
       $('printPage').textContent = '';
+      document.title = winTitle;
       printing = false;
     }
   }
@@ -3498,7 +3552,11 @@
       const text = k === N ? n.text : textAt(n, k);
       const op = k > 0 ? n.ops[k - 1] : null;
       const box = document.createElement('div');
-      box.innerHTML = md(text);
+      const meta = docMeta(text), opts = docOpts(text);
+      // HTML・MHTML: フロントマターの題名・著者・日付と目次を本文の先頭に出す(AsciiDoc・Word・LaTeX は、meta と opts からそれぞれの形で書く)
+      const web = kind === 'html' || kind === 'mhtml';
+      box.innerHTML = (web ? titleBlockHtml(meta, T('authorSep')) : '') + md(text);
+      if (web) applyDocOpts(box, opts, 'ep-h-');   // 言語は、main.js が <html lang> に書く
       await Diagrams.render(box, { light: true });
       for (const el of box.querySelectorAll('.diagram[data-src]')) {
         el.removeAttribute('data-theme');
@@ -3539,7 +3597,7 @@
         });
       }
       const head = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
-      const r = await api.exportPage(n.id, { title: shownTitle(titleOf(text)), head: head, foot: T('printCreated', { when: fmtFull(Date.now()) }), bodyHtml: box.innerHTML }, kind);
+      const r = await api.exportPage(n.id, { title: shownTitle(titleOf(text)), head: head, foot: T('printCreated', { when: fmtFull(Date.now()) }), bodyHtml: box.innerHTML, meta: meta, opts: Object.assign({ tocTitle: tocLabel(opts.lang) }, opts) }, kind);
       if (r && r.status === 'saved') toast(T(kind + 'Saved', { path: r.path }));
       else if (r && r.status === 'failed') toast(T(kind + 'Failed'));
     } catch (e) {

@@ -7,7 +7,7 @@ const { Store, MAX_ATTACH, validId, validFileId } = require('./store');
 const { decodeText, MAX_IMPORT } = require('./textcodec');
 const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
 const { buildArchive, readArchive, looksLikeArchive } = require('./archive');
-const { titleOf } = require('./renderer/core');
+const { titleOf, pageSizeCss } = require('./renderer/core');
 const { buildTemplate, buildAttachTemplate, formatItems, inlineItems, tableItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
@@ -700,15 +700,32 @@ const canSendTo = () => process.platform === 'win32' && !isStore;
 
 /* ---------- 印刷・PDF ----------
    紙面は画面側が用意する(印刷するときだけ本文を出すスタイル)。ここでは印刷ダイアログと PDF の書き出しをする。 */
-ipcMain.handle('print:print', e => {
+/* 画面から来る、メモごとの表示・印刷の設定(フロントマターの toc・toc-depth・lang・papersize・orientation と、目次の見出しの言葉)を、
+   決まった形にそろえる。知らない値は既定に戻す */
+const PAPER_NAMES = ['A4', 'A5', 'B5', 'Letter', 'Legal'];
+function cleanOpts(o) {
+  o = o && typeof o === 'object' ? o : {};
+  const depth = Number.isInteger(o.tocDepth) && o.tocDepth >= 1 && o.tocDepth <= 6 ? o.tocDepth : 3;
+  const lang = typeof o.lang === 'string' && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{1,8}){0,4}$/.test(o.lang) ? o.lang : '';
+  const tocTitle = typeof o.tocTitle === 'string' ? o.tocTitle.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 100) : '';
+  return { toc: o.toc === true, tocDepth: depth, tocTitle: tocTitle, lang: lang, paper: PAPER_NAMES.includes(o.paper) ? o.paper : '', landscape: o.landscape === true };
+}
+/* 印刷の用紙: フロントマターで決めたときだけ渡す(決めていなければ、今までどおりプリンターの設定)。B5 は JIS の大きさ(μm) */
+function printPage(page) {
+  const p = cleanOpts(page), o = {};
+  if (p.paper) o.pageSize = p.paper === 'B5' ? { width: 182000, height: 257000 } : p.paper;
+  if (p.landscape) o.landscape = true;
+  return o;
+}
+ipcMain.handle('print:print', (e, page) => {
   if (!fromOurWindow(e)) return 'failed';
   return new Promise(resolve => {
-    win.webContents.print({ printBackground: true }, (ok, reason) => resolve(ok ? 'ok' : /cancel/i.test(String(reason)) ? 'cancelled' : 'failed'));
+    win.webContents.print(Object.assign({ printBackground: true }, printPage(page)), (ok, reason) => resolve(ok ? 'ok' : /cancel/i.test(String(reason)) ? 'cancelled' : 'failed'));
   });
 });
 // 用紙: 米国・カナダは Letter、それ以外は A4
 const paperSize = () => (/[-_](US|CA)\b/i.test(app.getSystemLocale() + ' ' + (app.getPreferredSystemLanguages()[0] || '')) ? 'Letter' : 'A4');
-ipcMain.handle('print:pdf', async (e, title) => {
+ipcMain.handle('print:pdf', async (e, title, page) => {
   if (!fromOurWindow(e)) return { status: 'failed' };
   const name = (String(title || '').replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.pdf';
   const r = await dialog.showSaveDialog(win, {
@@ -718,7 +735,8 @@ ipcMain.handle('print:pdf', async (e, title) => {
   });
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
   try {
-    const data = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, pageSize: paperSize() });
+    // 用紙の大きさと向きは、紙面の @page の size で決める(フロントマターで決めたとき。B5 は JIS の大きさ)。決めていなければ地域の用紙
+    const data = await win.webContents.printToPDF(Object.assign({ printBackground: true, preferCSSPageSize: true, pageSize: paperSize() }, cleanOpts(page).landscape ? { landscape: true } : {}));
     fs.writeFileSync(r.filePath, data);
     rememberDir('export', r.filePath);
     return { status: 'saved', path: r.filePath };
@@ -735,10 +753,18 @@ const PAGE_KINDS = {
   docx: { ext: 'docx', title: 'docxSaveTitle', filter: { name: 'Word', extensions: ['docx'] } },
   tex: { ext: 'tex', title: 'texSaveTitle', filter: { name: 'LaTeX', extensions: ['tex'] } }
 };
+/* 画面から来る文書の情報(フロントマターの題名・著者・日付・タグ)を、決まった形と長さにそろえる */
+function cleanMeta(m) {
+  m = m && typeof m === 'object' ? m : {};
+  const str = (v, n) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, n) : '');
+  const list = (v, max, n) => (Array.isArray(v) ? v.map(x => str(x, n)).filter(x => x).slice(0, max) : []);
+  return { title: str(m.title, 500), author: list(m.author, 20, 200), date: str(m.date, 100), keywords: list(m.keywords, 50, 100) };
+}
 ipcMain.handle('export:page', async (e, id, p, kind) => {
   const k = Object.prototype.hasOwnProperty.call(PAGE_KINDS, kind) ? PAGE_KINDS[kind] : null;
   if (!fromOurWindow(e) || !k || !validId(id) || !p || typeof p.bodyHtml !== 'string' || p.bodyHtml.length > 50 * 1024 * 1024) return { status: 'failed' };
   const title = String(p.title || '');
+  const meta = cleanMeta(p.meta), opts = cleanOpts(p.opts);
   const name = (title.replace(/[\\/:*?"<>|\r\n\t]/g, '_').trim().slice(0, 80) || APP_NAME) + '.' + k.ext;
   const r = await dialog.showSaveDialog(win, {
     title: T(k.title),
@@ -748,7 +774,7 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
   if (kind === 'adoc' || kind === 'docx' || kind === 'tex') {
     try {
-      await writeDocFile(id, title, p.bodyHtml, kind, r.filePath);
+      await writeDocFile(id, title, p.bodyHtml, kind, r.filePath, meta, opts);
       rememberDir('export', r.filePath);
       return { status: 'saved', path: r.filePath };
     } catch (err) { return { status: 'failed' }; }
@@ -766,7 +792,7 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
       for (const f of kx.fonts) parts.push({ cid: pageexport.cidOf(f), type: 'font/woff2', data: fs.readFileSync(path.join(dir, 'fonts', f)) });
     }
     const html = pageexport.pageHtml({
-      lang: lang, title: title, head: String(p.head || ''), foot: String(p.foot || ''), bodyHtml: p.bodyHtml,
+      lang: opts.lang || lang, title: meta.title || title, author: meta.author, keywords: meta.keywords, pageSize: pageSizeCss(opts), head: String(p.head || ''), foot: String(p.foot || ''), bodyHtml: p.bodyHtml,
       generator: APP_NAME + ' ' + app.getVersion(),
       css: pageexport.exportCss(fs.readFileSync(path.join(__dirname, 'renderer', 'styles.css'), 'utf8')),
       katexCss: kx && kx.css
@@ -783,12 +809,14 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
    Word: 画像はファイルの中に入れる。Word が読めない WebP・AVIF は PNG にして入れる。
    LaTeX: 画像と図の PNG は「(ファイル名)_images」フォルダーに置く(LaTeX で困る文字は _ にする)。LuaLaTeX が読めない形式の画像は PNG にする。
    PNG にできなかった画像は、.tex では [画像の説明] の文字になる */
-async function writeDocFile(id, title, bodyHtml, kind, filePath) {
+async function writeDocFile(id, title, bodyHtml, kind, filePath, meta, opts) {
+  meta = meta || cleanMeta(null);
+  opts = opts || cleanOpts(null);
   const tree = docexport.bodyTree(bodyHtml);
   const files = docexport.treeImages(tree).filter(f => store.attachmentPath(id, f));
   if (kind === 'adoc') {
     const dirName = path.basename(filePath, path.extname(filePath)).replace(/[{}[\]]/g, '_') + '_images';
-    const text = docexport.toAsciiDoc(tree, { title: title, imagesDir: files.length ? dirName : '' });
+    const text = docexport.toAsciiDoc(tree, { title: title, meta: meta, opts: opts, imagesDir: files.length ? dirName : '' });
     if (files.length) {
       const dir = path.join(path.dirname(filePath), dirName);
       fs.mkdirSync(dir, { recursive: true });
@@ -809,7 +837,7 @@ async function writeDocFile(id, title, bodyHtml, kind, filePath) {
       convert.forEach((c, k) => { if (pngs[k]) { const name = c.f.replace('.', '-') + '.png'; names[c.f] = name; out.push({ name: name, data: pngs[k] }); } });
     }
     for (const d of docexport.texDiagrams(tree)) out.push({ name: d.file, data: Buffer.from(d.png, 'base64') });
-    const text = docexport.toLatex(tree, { title: title, imagesDir: out.length ? dirName : '', images: names, paper: paperSize(), lang: lang, generator: APP_NAME + ' ' + app.getVersion() });
+    const text = docexport.toLatex(tree, { title: title, meta: meta, opts: opts, imagesDir: out.length ? dirName : '', images: names, paper: opts.paper || paperSize(), lang: lang, generator: APP_NAME + ' ' + app.getVersion() });
     if (out.length) {
       const dir = path.join(path.dirname(filePath), dirName);
       fs.mkdirSync(dir, { recursive: true });
@@ -829,7 +857,7 @@ async function writeDocFile(id, title, bodyHtml, kind, filePath) {
     const pngs = await imagesToPng(convert);
     convert.forEach((c, k) => { if (pngs[k]) images[c.f] = { data: pngs[k], ext: 'png' }; });
   }
-  fs.writeFileSync(filePath, docexport.toDocx(tree, { title: title, lang: lang, paper: paperSize(), generator: APP_NAME + ' ' + app.getVersion(), images: images }));
+  fs.writeFileSync(filePath, docexport.toDocx(tree, { title: title, meta: meta, opts: opts, lang: lang, paper: opts.paper || paperSize(), generator: APP_NAME + ' ' + app.getVersion(), images: images }));
 }
 /* 画像(WebP・AVIF など)を PNG にする。表示しない窓で、data: の画像を canvas に描いて PNG にする。
    読めなかったものは null */
