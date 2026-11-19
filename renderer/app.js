@@ -631,6 +631,7 @@
     S.mode = m;
     document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.mode === S.hbase)));
     $('histBtn').setAttribute('aria-pressed', String(m === 'history'));
+    const pvShown = !$('preview').hidden;   // プレビューのまま作り直すのか(それなら今の高さを保つ)
     $('edwrap').hidden = m !== 'edit';
     $('preview').hidden = m !== 'preview';
     $('histView').hidden = m !== 'history';
@@ -638,7 +639,7 @@
     if (typeof frShow === 'function') frShow();
     if (typeof updateStrip === 'function') updateStrip();
     $('attBtn').hidden = m === 'history';
-    if (m === 'preview') renderPreview();
+    if (m === 'preview') renderPreview(pvShown);
     if (m === 'history') { if (enteringHistory) S.rev = cur().ops.length; buildTimeline(); renderHist(); }
     if (m === 'edit') queueGutter();
     if (m === 'edit' && focusEditor) $('editor').focus({ preventScroll: true });
@@ -1945,9 +1946,12 @@
     const top = ref ? ref.getBoundingClientRect().top : null;
     if (!peSetText(r.text)) return;
     peRecord(before, r.text);
-    peRerender(el ? +el.dataset.line : r.at, top);
-    const added = peBlockAt(r.at);
-    if (added) added.scrollIntoView({ block: 'nearest' });
+    const id = S.active;
+    // 入れたかたまりが見えるようにするのは、位置が落ち着いてから(落ち着く前は、まだ仮の高さで測ってしまう)
+    peRerender(el ? +el.dataset.line : r.at, top).then(() => {
+      const added = S.active === id && S.mode === 'preview' ? peBlockAt(r.at) : null;
+      if (added) added.scrollIntoView({ block: 'nearest' });
+    });
   }
   /* プレビューで、ファイルを落とした場所: 編集欄を開いていればそのカーソル、そうでなければ落としたかたまり(その次に入れる) */
   /* 落とした高さで決める: かたまりの上半分ならその前、下半分ならその次。かたまりの無い所(余白)なら、上のかたまりの次
@@ -2325,8 +2329,8 @@
   // 何も書いていないメモのプレビューなら、「空のメモ」の表示(そうでなければ null)
   const peBlank = () => $('preview').querySelector(':scope > p.empty');
   /* プレビューを作り直す。anchor(元の文の行)のかたまりが、作り直す前の top(画面の上からの高さ)と同じ高さに来るようにする */
-  let pvAnchorTok = 0;
-  function renderPreview() {
+  let pvAnchorTok = 0, pvShownId = null;
+  function renderPreview(inPlace) {
     const pv = $('preview');
     // 中身をそっくり入れ替えると、次の描画で Chromium のスクロールアンカー(overflow-anchor)が位置をずらす
     // (検索で作り直すたびに、同じ向きに同じだけずれていった)。入れ替えた直後の描画の間だけ止める。
@@ -2334,11 +2338,32 @@
     pv.style.overflowAnchor = 'none';
     const tok = ++pvAnchorTok;
     requestAnimationFrame(() => requestAnimationFrame(() => { if (tok === pvAnchorTok) pv.style.overflowAnchor = ''; }));
+    // 見えているプレビューのまま、同じメモを作り直すときだけ、今の高さを保つ(「テキスト」から切り替えたときや、別のメモを開いたときは保たない)
+    const oldH = inPlace && pv.clientHeight && pvShownId === cur().id ? pv.scrollHeight : 0;
+    pvShownId = cur().id;
     pv.innerHTML = md(cur().text, { lines: true, fm: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
     applyDocOpts(pv, docOpts(cur().text), 'pv-h-');
     lastHydrate = hydrate(pv, cur().id);
     highlight(pv, S.qText);
     peApplyRO();
+    pvHold(pv, oldH, lastHydrate);
+  }
+  /* 作り直した直後は、見えていないかたまりの高さが仮の高さ(content-visibility の 1.6em)になり、画像(読み込み中)と図(描いている途中)
+     にも高さが無いので、本文がずっと短くなる。最後のあたりまでスクロールしていると、スクロールの位置がその短さに合わせて縮み、
+     あとで高さが戻っても、位置は戻らない(長いメモの終わりにリンクを落とすと、ずっと上へ飛んでいた)。
+     位置を合わせ直して、画像の読み込みと図の描画が終わるまで(長くても4秒)、足りない高さを最後に足しておく */
+  function pvHold(pv, oldH, drawn) {
+    const imgs = [...pv.querySelectorAll('img')].filter(i => !i.complete);
+    const short = oldH - pv.scrollHeight;
+    if (short <= 0) return;
+    const sp = document.createElement('div');
+    sp.className = 'pv-hold';
+    sp.setAttribute('aria-hidden', 'true');
+    sp.style.height = short + 'px';
+    pv.appendChild(sp);
+    const loaded = imgs.map(i => new Promise(r => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); }));
+    Promise.race([Promise.all(loaded.concat([Promise.resolve(drawn)])), new Promise(r => setTimeout(r, 4000))])
+      .then(() => requestAnimationFrame(() => requestAnimationFrame(() => sp.remove())));
   }
   /* プレビューの、編集できるかどうかで変わる所を、今のメモの「読み取り専用」に合わせる(作り直さずに。読み取り専用を付け外ししたときにも使う) */
   function peApplyRO() {
@@ -2357,12 +2382,39 @@
       pv.appendChild(t);
     }
   }
+  /* 作り直して、元の文の anchor 行のかたまりを、画面の高さ top に戻す。作り直した直後は、見えていないかたまりの高さが仮の高さなので、
+     本当の高さになっていく間(描画が落ち着くまで。長くても1秒)、毎回の描画で合わせ直す。途中でスクロールやキーの操作があればやめる。
+     落ち着いたら解決する Promise を返す */
   function peRerender(anchor, top) {
     const pv = $('preview');
-    renderPreview();
-    const el = anchor == null ? null : peBlockAt(anchor) || [...pv.querySelectorAll('[data-line]')].find(x => +x.dataset.line >= anchor);
-    if (el && top != null) pv.scrollTop += el.getBoundingClientRect().top - top;
+    renderPreview(true);
     if (S.frOpen) frRefresh();
+    if (anchor == null || top == null) return Promise.resolve();
+    const tok = pvAnchorTok;
+    const fix = () => {
+      const el = peBlockAt(anchor) || [...pv.querySelectorAll('[data-line]')].find(x => +x.dataset.line >= anchor);
+      if (!el) return 0;
+      const d = el.getBoundingClientRect().top - top;
+      if (Math.abs(d) >= 1) pv.scrollTop += d;
+      return Math.abs(d) >= 1 ? 1 : 0;
+    };
+    fix();
+    return new Promise(done => {
+      let n = 0, calm = 0, stop = false;
+      const quit = () => { stop = true; };
+      const evs = ['wheel', 'mousedown', 'keydown', 'touchstart'];
+      evs.forEach(t => window.addEventListener(t, quit, { capture: true, once: true }));
+      const step = () => {
+        if (!stop && tok === pvAnchorTok && ++n <= 60 && calm < 3) {
+          calm = fix() ? 0 : calm + 1;
+          requestAnimationFrame(step);
+          return;
+        }
+        evs.forEach(t => window.removeEventListener(t, quit, { capture: true }));
+        done();
+      };
+      requestAnimationFrame(step);
+    });
   }
   /* 元の文を v にする(「テキスト」表示の編集欄にも入れて、履歴に入れる) */
   function peSetText(v) {
@@ -2669,9 +2721,10 @@
     const top = el && el.isConnected ? el.getBoundingClientRect().top : null;
     peSetText(r.text);
     peRecord(before, r.text);
-    peRerender(top == null ? null : +el.dataset.line, top);
+    const settled = peRerender(top == null ? null : +el.dataset.line, top);
     peOpen({ row: r.row, col: 0, end: true });
-    if (pe.box) pe.box.scrollIntoView({ block: 'nearest' });
+    const box = pe.box;
+    if (box) settled.then(() => { if (pe.box === box) box.scrollIntoView({ block: 'nearest' }); });
   }
   function tableMenuAction(action) {
     if (action === 'insert') {
@@ -3398,9 +3451,10 @@
       const top = el ? el.getBoundingClientRect().top : null;
       if (!peSetText(r.text)) return;
       peRecord(before, r.text);
-      peRerender(el ? +el.dataset.line : r.line, top);
-      const d = $('preview').querySelector('.diagram[data-line="' + r.line + '"]');
-      if (d) d.scrollIntoView({ block: 'nearest' });
+      peRerender(el ? +el.dataset.line : r.line, top).then(() => {
+        const d = S.mode === 'preview' && $('preview').querySelector('.diagram[data-line="' + r.line + '"]');
+        if (d) d.scrollIntoView({ block: 'nearest' });
+      });
     });
   }
   /* プレビューの図を編集する(ダブルクリック・右クリックの「図を編集…」) */

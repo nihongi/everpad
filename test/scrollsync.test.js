@@ -105,10 +105,35 @@ test('目印を光らせる先: 行を含むかたまり。間の空行なら次
 test('プレビューを作り直しても位置がずれない: 中身を入れ替えた直後の描画の間だけ、スクロールアンカーを止める', () => {
   // 検索のたびに作り直すと、Chromium のスクロールアンカー(overflow-anchor)が同じ向きに同じだけ位置をずらしていった
   const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'renderer', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
-  const fn = app.match(/function renderPreview\(\) \{[\s\S]*?\n {2}\}/)[0];
-  const off = fn.indexOf("pv.style.overflowAnchor = 'none';"), html = fn.indexOf('pv.innerHTML = ');
+  const fn = app.match(/function renderPreview\(inPlace\) \{[\s\S]*?\n {2}\}/)[0];
+  const off =fn.indexOf("pv.style.overflowAnchor = 'none';"), html = fn.indexOf('pv.innerHTML = ');
   assert.ok(off >= 0 && off < html, '入れ替える前に止める');
   // 2回あとの描画で戻す(続けて作り直したときは、最後の分だけが戻す)
   assert.match(fn, /requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => \{ if \(tok === pvAnchorTok\) pv\.style\.overflowAnchor = ''; \}\)\);/);
   assert.match(fn, /const tok = \+\+pvAnchorTok;/);
+});
+
+test('プレビューを作り直しても、最後のあたりの位置が縮まない: 足りない高さを足し、落ち着くまで位置を合わせ直す', () => {
+  // 長いメモの終わりにリンクを落とすと、作り直した直後の仮の高さ(content-visibility)で位置が縮み、ずっと上へ飛んでいた
+  const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'renderer', 'app.js'), 'utf8').replace(/\r\n/g, '\n');
+  const fn = app.match(/function renderPreview\(inPlace\) \{[\s\S]*?\n {2}\}/)[0];
+  assert.ok(fn.indexOf('const oldH = inPlace && pv.clientHeight && pvShownId === cur().id ? pv.scrollHeight : 0;') >= 0, '見えているプレビューで同じメモを作り直すときだけ');
+  assert.ok(fn.indexOf('const oldH = ') < fn.indexOf('pv.innerHTML = '), '入れ替える前の高さを覚える');
+  // 「テキスト」から切り替えたときは保たない(プレビューのまま作り直すときだけ)。peRerender はプレビューのまま
+  assert.match(app, /const pvShown = !\$\('preview'\)\.hidden;[^\n]*\n\s+\$\('edwrap'\)\.hidden = /);
+  assert.match(app, /if \(m === 'preview'\) renderPreview\(pvShown\);/);
+  assert.match(app, /function peRerender\(anchor, top\) \{\n\s+const pv = \$\('preview'\);\n\s+renderPreview\(true\);/);
+  assert.match(fn, /pvHold\(pv, oldH, lastHydrate\);/);
+  const hold = app.match(/function pvHold\(pv, oldH, drawn\) \{[\s\S]*?\n {2}\}/)[0];
+  assert.match(hold, /const short = oldH - pv\.scrollHeight;\n\s+if \(short <= 0\) return;/);
+  assert.match(hold, /sp\.style\.height = short \+ 'px';/);
+  assert.match(hold, /Promise\.race\(\[Promise\.all\(loaded\.concat\(\[Promise\.resolve\(drawn\)\]\)\), new Promise\(r => setTimeout\(r, 4000\)\)\]\)/);
+  const re = app.match(/function peRerender\(anchor, top\) \{[\s\S]*?\n {2}\}/)[0];
+  assert.match(re, /if \(anchor == null \|\| top == null\) return Promise\.resolve\(\);/);
+  assert.match(re, /if \(!stop && tok === pvAnchorTok && \+\+n <= 60 && calm < 3\) \{/);
+  assert.match(re, /const evs = \['wheel', 'mousedown', 'keydown', 'touchstart'\];/);
+  // 入れたかたまり・表の編集欄・図を見せるのは、落ち着いてから
+  assert.match(app, /peRerender\(el \? \+el\.dataset\.line : r\.at, top\)\.then\(\(\) => \{\n\s+const added = /);
+  assert.match(app, /if \(box\) settled\.then\(\(\) => \{ if \(pe\.box === box\) box\.scrollIntoView\(\{ block: 'nearest' \}\); \}\);/);
+  assert.match(app, /peRerender\(el \? \+el\.dataset\.line : r\.line, top\)\.then\(\(\) => \{\n\s+const d = /);
 });

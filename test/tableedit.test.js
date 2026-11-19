@@ -166,7 +166,7 @@ test('プレビューでの編集: 画面・メニュー・main.js へのつな�
   // 表示の切り替え・メモの移動で閉じる
   assert.match(app, /function setMode\(m, focusEditor\) \{\n\s+if \(pe\.box\) peClose\(true\);/);
   assert.match(app, /function show\(id\) \{\n\s+if \(pe\.box\) peClose\(true\);\n\s+peUndo\.length = 0;/);
-  assert.match(app, /if \(m === 'preview'\) renderPreview\(\);/);
+  assert.match(app, /if \(m === 'preview'\) renderPreview\(pvShown\);/);
   // 書式はかたまりの編集欄にも、メニューの「表」は tbl:… で
   assert.match(app, /const ed = blk \? pe\.box : \$\('editor'\);/);
   assert.match(app, /else if \(name\.indexOf\('tbl:'\) === 0\) tableMenuAction\(name\.slice\(4\)\);/);

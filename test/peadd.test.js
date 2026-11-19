@@ -40,7 +40,7 @@ test('プレビュー: 最後のかたまりの下を押すと、メモの最後
   const app = read('renderer/app.js'), css = read('renderer/styles.css');
   // 編集できるメモ(空のメモ以外)だけ、最後に書き足す所を置く
   assert.match(app, /if \(ro \|\| peBlank\(\)\) \{ if \(tail\) tail\.remove\(\); \}\n\s+else if \(!tail\) \{\n\s+const t = document\.createElement\('div'\);\n\s+t\.className = 'pe-tail';\n\s+t\.dataset\.hint = T\('peAddHint'\);\n\s+pv\.appendChild\(t\);/);
-  assert.match(app, /function renderPreview\(\) \{[\s\S]*?peApplyRO\(\);\n  \}/);
+  assert.match(app, /function renderPreview\(inPlace\) \{[\s\S]*?peApplyRO\(\);\n {4}pvHold\(pv, oldH, lastHydrate\);\n {2}\}/);
   // 書き足す所か、最後のかたまりより下の何もない所を押したとき
   assert.match(app, /if \(t\.closest\('\.pe-tail'\)\) return \{ add: true \};/);
   assert.match(app, /return last && e\.clientY > last\.getBoundingClientRect\(\)\.bottom \? \{ add: true \} : null;/);
