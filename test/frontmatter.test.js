@@ -138,7 +138,7 @@ test('画面: メニュー・検索・プレビュー・文言がつながって
   assert.match(app, /const pq = parseQuery\(q\);/);
   assert.match(app, /pq\.tags\.length \? sorted\(\)\.filter\(n => hasTags\(n\.tags, pq\.tags\)\) : sorted\(\)/);
   assert.match(app, /if \(pq\.tags\.length && !pq\.text\) \{ paintTagResults\(q, pq\.tags, notes\); refreshView\(\); return; \}/);
-  assert.match(app, /searchHistory\(objs, pq\.text, 10\) : searchLatest\(objs, pq\.text, 10\)/);
+  assert.match(app, /searchHistory\(objs, pq\.text, 10\) : searchLatest\(objs, pq\.text\)/);
   assert.match(app, /tags: r\.tags \|\| \[\], ro: !!r\.ro, loaded: false/);
   assert.match(app, /n\.tags = tagsOf\(n\.text\);/);
   // 色付けと検索のバーには、タグを除いた検索語

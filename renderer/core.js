@@ -1298,14 +1298,15 @@ function snippetOf(text, s, e) {
   return (a > 0 ? '…' : '') + f(text.slice(a, s)) + '<mark>' + f(text.slice(s, e)) + '</mark>' + f(text.slice(e, b)) + (b < text.length ? '…' : '');
 }
 
-/* 最新の版だけを探す: 見つかった1か所ごとに1件 */
-function searchLatest(notes, q, per) {
+/* 最新の版だけを探す: 1つのメモに1件(最初の箇所の前後の文と、見つかった箇所の数 n)。total は箇所の数の合計 */
+function searchLatest(notes, q) {
   const res = [];
   let total = 0;
   for (const n of notes) {
     const rs = matchRanges(n.text, q);
+    if (!rs.length) continue;
     total += rs.length;
-    rs.slice(0, per).forEach(r => res.push({ id: n.id, s: r.s, e: r.e, snippet: snippetOf(n.text, r.s, r.e) }));
+    res.push({ id: n.id, s: rs[0].s, e: rs[0].e, n: rs.length, snippet: snippetOf(n.text, rs[0].s, rs[0].e) });
   }
   return { res: res, total: total };
 }

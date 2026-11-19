@@ -1139,6 +1139,8 @@
       ed.focus({ preventScroll: true });
       ed.setSelectionRange(opt.s, opt.e);
       scrollTextareaTo(ed, opt.s);
+      // 「最新の版」の検索結果は1つのメモに1件なので、同じ検索語で検索のバーを開き、Enter / F3 で次の箇所へ移れるようにする
+      if (opt.find && S.qText) { $('frFind').value = S.qText; S.frOpen = true; frShow(); frRefresh(); }
     }
   }
 
@@ -1165,10 +1167,11 @@
   }
   function paintResults(q, hist, res, total, progress, byNote) {
     const shown = res.slice(0, 60);
-    const matches = byNote ? T('tagMatches', { n: total }) : T('matches', { n: total, hist: hist });
+    // 最新の版は1つのメモに1件なので、メモの数と箇所の数を出す
+    const matches = byNote ? T('tagMatches', { n: total }) : hist ? T('matches', { n: total, hist: true }) : T('noteMatches', { notes: res.length, n: total });
     $('rhead').textContent = progress ? T('searching', { q: q, progress: progress }) + (total ? T('sep') + matches : '')
       : total === 0 ? T('notFound', { q: q })
-      : T('found', { q: q, matches: matches }) + (total > shown.length ? T('sep') + T('showingFirst', { n: shown.length }) : '');
+      : T('found', { q: q, matches: matches }) + ((hist ? total : res.length) > shown.length ? T('sep') + T('showingFirst', { n: shown.length }) : '');
     const ul = $('resList');
     ul.innerHTML = '';
     for (const r of shown) {
@@ -1185,9 +1188,11 @@
         const when = fmtMin(r.addedAt) + (LANG === 'en' ? ' – ' : ' 〜 ') + (r.removedAt ? fmtMin(r.removedAt) : T('now'));
         const bd = r.b === nOps(n) ? '<span class="bd">' + esc(T('inLatest')) + '</span>' : '<span class="bd gone">' + esc(T('gone')) + '</span>';
         meta = '<span class="hm"><span>' + range + '</span><span>' + when + '</span>' + bd + '</span>';
+      } else if (r.n) {
+        meta = '<span class="hm"><span>' + esc(T('hitCount', { n: r.n })) + '</span></span>';
       }
       b.innerHTML = '<span class="ht">' + esc(shownTitle(n.title)) + '</span><span class="hs">' + r.snippet + '</span>' + meta;
-      b.addEventListener('click', () => { openAt(r.id, hist ? { rev: r.a } : r.tag ? { tag: r.tag } : { s: r.s, e: r.e }); closeSide(); });
+      b.addEventListener('click', () => { openAt(r.id, hist ? { rev: r.a } : r.tag ? { tag: r.tag } : { s: r.s, e: r.e, find: true }); closeSide(); });
       li.appendChild(b);
       ul.appendChild(li);
     }
@@ -1250,7 +1255,7 @@
       let objs;
       try { objs = hist ? await chunkHistory(part) : await chunkLatest(part); } catch (e) { objs = []; }
       if (tok !== sTok) return;                 // 検索語などが変わった
-      const r = hist ? searchHistory(objs, pq.text, 10) : searchLatest(objs, pq.text, 10);
+      const r = hist ? searchHistory(objs, pq.text, 10) : searchLatest(objs, pq.text);
       res.push(...r.res); total += r.total;
       if (i + CH < notes.length) {
         paintResults(q, hist, res, total, T('searchProgress', { i: Math.min(i + CH, notes.length), n: notes.length }));

@@ -71,6 +71,32 @@ test('検索(最新の版): 大文字小文字を区別せず、記号は普通�
   assert.strictEqual(L.searchLatest([n], '.*', 10).total, 0);
 });
 
+test('検索(最新の版): 1つのメモに1件。最初の箇所と、見つかった箇所の数', () => {
+  const a = { id: 'a', text: 'x search_target y SEARCH_TARGET z search_target search_target' };
+  const b = { id: 'b', text: 'nothing here' };
+  const c = { id: 'c', text: 'one search_target' };
+  const r = L.searchLatest([a, b, c], 'search_target');
+  assert.strictEqual(r.total, 5);
+  assert.deepStrictEqual(r.res.map(x => [x.id, x.s, x.e, x.n]), [['a', 2, 15, 4], ['c', 4, 17, 1]]);
+  assert.match(r.res[0].snippet, /<mark>search_target<\/mark>/);
+  assert.deepStrictEqual(L.searchLatest([b], 'search_target'), { res: [], total: 0 });
+});
+
+test('検索(最新の版): 結果の一覧と、押したときに検索のバーを開くこと', () => {
+  const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'renderer', 'app.js'), 'utf8');
+  const I18N = require('../renderer/i18n');
+  assert.match(app, /T\('noteMatches', \{ notes: res\.length, n: total \}\)/);
+  assert.match(app, /else if \(r\.n\) \{/);
+  // 「先頭60件を表示」は、最新の版では箇所の数でなく、当たったメモの数で決める
+  assert.match(app, /\(\(hist \? total : res\.length\) > shown\.length \?/);
+  assert.match(app, /\{ s: r\.s, e: r\.e, find: true \}/);
+  assert.match(app, /if \(opt\.find && S\.qText\) \{ \$\('frFind'\)\.value = S\.qText; S\.frOpen = true; frShow\(\); frRefresh\(\); \}/);
+  assert.strictEqual(I18N.t('ja', 'noteMatches', { notes: 3, n: 12 }), '3件のメモ・計12件');
+  assert.strictEqual(I18N.t('en', 'noteMatches', { notes: 1, n: 4 }), '1 note, 4 matches');
+  assert.strictEqual(I18N.t('ja', 'hitCount', { n: 4 }), '4件');
+  assert.strictEqual(I18N.t('en', 'hitCount', { n: 4 }), '4 matches');
+});
+
 test('検索(履歴すべて): 同時に2か所あれば2件、片方を消せばそちらだけ「消えた」', () => {
   let n = typed(['foo', 'foo ', 'foo b', 'foo bar', 'foo bar ', 'foo bar f', 'foo bar fo', 'foo bar foo']);
   assert.strictEqual(L.searchLatest([n], 'foo', 10).total, 2);
