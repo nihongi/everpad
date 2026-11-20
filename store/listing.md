@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.44.2(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.45.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -63,7 +63,11 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューで、長いメモの最後までスクロールした状態で、メモの終わりにブラウザからリンクをドロップすると、メモの最初のほうまで勝手にスクロールしていたのを直しました。今は表示している位置のままで、リンクはドロップした所に入ります。プレビューでのほかの編集でも、同じように位置を保ちます。
+・保存先を OneDrive などで別のパソコンと共有していて、開いている EverPad とは別のパソコンで EverPad を開いたとき、あとから開いたほうは保存先を読み取り専用で開くようにしました。画面の上の帯に編集中の EverPad を出し、「再読み込み」でその EverPad が書いた内容を表示します。
+・帯の「編集を引き継ぐ」で、編集中の EverPad に引き継ぎを頼めます。頼まれた側は「編集を渡す」か「断る」を選べます。応答や返事が無いときは「待たずに引き継ぐ」も使えます。
+・閉じるときに書いたメモを書き残し、それが同期で届く前に別のパソコンで開いたときは、届くまで待ってから編集を始めます。
+・開いたあとでほかの EverPad がメモを変えていたときは、こちらの編集を同じ題名の新しいメモに残し、編集を失わないようにしました。
+・保存先を共有するときは、どのパソコンでも 0.45.0 以降を使ってください。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -161,7 +165,11 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Fixed: in Preview, dropping a link from the browser at the end of a long note that was scrolled to the end made the view jump far up toward the beginning. The view now stays where it was, and the link appears where you dropped it. Other edits in Preview keep their place in the same way.
+• When the data folder is shared with another computer through OneDrive or a similar service and EverPad is opened on another computer while it is already open, the EverPad opened later now opens the folder read-only. A bar at the top shows which EverPad is editing, with Reload to show what it wrote.
+• Take Over Editing in the bar asks the editing EverPad to hand over; there you can choose Hand Over or Decline. If there is no response or answer, Take Over Without Waiting is also available.
+• When EverPad is closed, it notes which notes it wrote. If you open the folder on another computer before they have arrived through sync, EverPad waits for them before it starts editing.
+• If another EverPad changed a note after you opened it, your edits are kept in a new note with the same title, so they are not lost.
+• To share a data folder, use 0.45.0 or later on every computer.
 
 ### Product features (up to 20, up to 200 characters each)
 
