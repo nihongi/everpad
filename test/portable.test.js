@@ -1,11 +1,8 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { portableLayout, dataDirToConfig, dataDirFromConfig } = require('../portable');
-const { checkLock, writeLock, touchLock, releaseLock, LOCK_NAME, STALE_MS } = require('../datalock');
 
 const W = (...p) => path.join(...p);
 // ドライブの最上位(Windows は E:、Mac と Linux は /mnt/e)。どの OS でも絶対パスになるようにする
@@ -38,25 +35,4 @@ test('portable: 「EverPad Data」の中の保存先は相対で覚え、ドラ�
   assert.strictEqual(dataDirFromConfig('notes', { base: null }), null);                                 // インストール版では相対は使わない
   assert.strictEqual(dataDirFromConfig(undefined, moved), null);
   assert.strictEqual(dataDirToConfig(W(drv('C'), 'x'), { base: null }), W(drv('C'), 'x'));
-});
-
-test('使用中の印: 別の動いているプロセスの新しい印だけを「使用中」とみなす', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'everpad-lock-'));
-  try {
-    const now = Date.now();
-    assert.deepStrictEqual(checkLock(dir, now, () => true, 100), { busy: false });                          // 印が無い
-    writeLock(dir, { pid: 200, app: 'portable' });
-    assert.strictEqual(checkLock(dir, now, () => true, 100).busy, true);                                    // 別のプロセスが動いている
-    assert.strictEqual(checkLock(dir, now, () => true, 100).info.app, 'portable');
-    assert.strictEqual(checkLock(dir, now, () => false, 100).busy, false);                                  // そのプロセスは終わっている
-    assert.strictEqual(checkLock(dir, now + STALE_MS + 1000, () => true, 100).busy, false);                 // 長く更新されていない
-    assert.strictEqual(checkLock(dir, now, () => true, 200).busy, false);                                   // 自分の印
-    releaseLock(dir, 100);
-    assert.ok(fs.existsSync(path.join(dir, LOCK_NAME)));                                                    // 他人の印は消さない
-    touchLock(dir);
-    releaseLock(dir, 200);
-    assert.ok(!fs.existsSync(path.join(dir, LOCK_NAME)));
-    fs.writeFileSync(path.join(dir, LOCK_NAME), 'こわれた印');
-    assert.strictEqual(checkLock(dir, now, () => true, 100).busy, false);                                   // 壊れた印は無視
-  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

@@ -98,36 +98,243 @@ function rememberDir(kind, file) {
 const importStartDir = () => lastDir('import') || store.dir;
 const exportStartDir = () => lastDir('export') || app.getPath('documents');
 
-let lockTimer = null;
-function openStore() {
-  for (;;) {
-    const wanted = dataDirFromConfig(readConfig().dataDir, layout) || defaultDir();
-    const st = datalock.checkLock(wanted, Date.now(), null, process.pid);
-    if (st.busy) {
-      const by = st.info.kind === 'portable' ? T('lockByPortable', { dir: st.info.dir || '' }) : T('lockByInstalled');
-      const r = dialog.showMessageBoxSync({ type: 'warning', title: APP_NAME, noLink: true, defaultId: 0, cancelId: 1,
-        buttons: [T('lockChoose'), T('mQuit')], message: T('lockBusy'), detail: T('lockBusyDetail', { dir: wanted, by: by }) });
-      const pick = r === 0 ? dialog.showOpenDialogSync({ title: T('dirPickTitle'), properties: ['openDirectory', 'createDirectory'] }) : null;
-      if (!pick || !pick[0]) return false;
-      writeConfig(Object.assign(readConfig(), { dataDir: dataDirToConfig(pick[0], layout) }));
-      continue;
-    }
-    try {
-      store = new Store(wanted);
-      store.init();
-    } catch (e) {
-      const fallback = path.join(app.getPath('userData'), 'notes');
-      dialog.showErrorBox(APP_NAME, T('dirFallback', { wanted: wanted, fallback: fallback }));
-      store = new Store(fallback);
-      store.init();
-    }
-    // 使用中の印を置き、開いている間は30秒ごとに新しくする(異常終了したときは、古い印として無視される)
-    try { datalock.writeLock(store.dir, { pid: process.pid, kind: isPortable ? 'portable' : 'installed', dir: portableDir, started: Date.now() }); } catch (e) { /* 書けなくても動く */ }
-    lockTimer = setInterval(() => datalock.touchLock(store.dir), 30 * 1000);
-    if (lockTimer.unref) lockTimer.unref();
-    return true;
-  }
+/* ---------- 同じ保存先を開いている、ほかの EverPad ----------
+   保存先を OneDrive などで共有すると、別の PC の EverPad が同じフォルダを開くことがある(datalock.js)。
+   先に開いた EverPad が編集し、あとから開いた EverPad は読み取り専用で開く。読み取り専用の EverPad は「編集を引き継ぐ」で、
+   編集中の EverPad に引き継ぎを頼める。頼まれた側は、帯に出して渡すかどうかを選んでもらい、渡すときは書き込み待ちの編集を
+   書き出してから読み取り専用になる。断ったときは、頼んだ側にそう出す。
+   応答が無いとき(スリープ中・オフラインなど)や、返事が無いとき(席を外しているなど)は、確かめたうえで待たずに引き継げる。
+   そのときに食い違ったメモは、書き足す前の確認(store.js)で見つけ、画面側が編集を別のメモに残す。
+   dirSt: { mode: 'edit' | 'ro', reason: 'busy'(ほかが編集中)| 'handed'(引き継いだ)| 'taken'(ほかが編集を始めた)| 'syncing'(同期を待っている),
+            by: { host, remote, kind, dir }, waiting: 引き継ぎを待っている, since: 待ち始めた時刻, left: 同期を待っているメモの数,
+            free: 編集中の EverPad がいなくなった, seen: 頼んだ相手が画面に出した(返事を待っている), denied: 断られた,
+            canForce: 待たずに引き継げる,
+            ask: 編集中に、ほかの EverPad から引き継ぎを頼まれている({ host, remote, kind, dir, rid }) } */
+const crypto = require('crypto');
+const me = { sid: crypto.randomBytes(8).toString('hex'), host: require('os').hostname(), pid: process.pid };
+const FORCE_AFTER_MS = 20 * 1000;        // 頼んだ相手から何も来ないとき(スリープ中・オフライン・古い EverPad)
+const FORCE_SEEN_MS = 2 * 60 * 1000;     // 頼んだ相手が画面に出したのに、返事が無いとき(席を外しているなど)
+let dirSt = { mode: 'edit' };
+let lockTimer = null, lastBeat = 0, lastSweep = 0, dirBusy = false;
+let lockExtra = {};   // 編集中の印に書く、引き継ぎの依頼への返事({ asked: rid } か { denied: rid })
+let myReq = null;     // この EverPad が出している引き継ぎの依頼({ rid, wrote })
+const startedAt = Date.now();
+const lockInfo = () => ({ sid: me.sid, host: me.host, pid: me.pid, kind: isPortable ? 'portable' : 'installed', dir: portableDir, started: startedAt });
+const byOf = info => ({ host: (info && info.host) || '', remote: !!(info && info.host && info.host !== me.host), kind: (info && info.kind) || '', dir: (info && info.dir) || '' });
+/* この起動で書いたメモの、いまの履歴ファイルの大きさ(同期を待つ側が、これに揃うまで待つ) */
+function touchedFiles() {
+  const out = {};
+  for (const id of store.touched.keys()) { try { out[id] = fs.statSync(path.join(store.dir, id + '.jsonl')).size; } catch (e) { out[id] = null; } }
+  return out;
 }
+function sendDirState() {
+  if (win && !win.isDestroyed()) win.webContents.send('dir:state', dirSt);
+  if (app.isReady()) buildMenu();   // 新しいメモ・インポート・読み取り専用を、押せる・押せないにする
+}
+function acquireLock() {
+  const now = Date.now();
+  try { datalock.writeLock(store.dir, Object.assign(lockInfo(), lockExtra), now); } catch (e) { /* 書けなくても動く */ }
+  // 同期の競合でできた印などのコピーを消す(編集中の EverPad だけが保存先に書く)
+  if (now - lastSweep >= datalock.BEAT_MS) { lastSweep = now; datalock.removeConflictCopies(store.dir); }
+  lastBeat = now;
+}
+/* 引き継ぎを頼まれたことに気づいてもらう(ウィンドウが手前に無ければ、タスクバーのアイコンを点滅させる) */
+function attention() {
+  if (!win || win.isDestroyed() || win.isFocused()) return;
+  win.flashFrame(true);
+  win.once('focus', () => { if (win && !win.isDestroyed()) win.flashFrame(false); });
+}
+function startLockTimer() {
+  if (lockTimer) return;
+  lockTimer = setInterval(lockTick, 3000);
+  if (lockTimer.unref) lockTimer.unref();
+}
+
+function openStore() {
+  const wanted = dataDirFromConfig(readConfig().dataDir, layout) || defaultDir();
+  const now = Date.now();
+  const lock = datalock.readLock(wanted);
+  let ro = null;
+  // ほかの EverPad が編集中(または、ほかの EverPad に引き継いだばかり)
+  if (!datalock.lockFree(lock, now, me)) ro = { mode: 'ro', reason: 'busy', by: byOf(datalock.holderOf(lock)), free: false };
+  else if (lock && lock.v.released && datalock.filesPending(wanted, lock.v.files) > 0) {
+    // 前に別の PC で書いたメモが、まだ同期で届いていない。届くまで読み取り専用で開き、届いたら編集を始める
+    ro = { mode: 'ro', reason: 'syncing', by: byOf(lock.v), waiting: true, free: true, since: now, left: datalock.filesPending(wanted, lock.v.files) };
+  }
+  try {
+    store = new Store(wanted);
+    if (ro) store.readOnly = true;
+    store.init();
+  } catch (e) {
+    const fallback = path.join(app.getPath('userData'), 'notes');
+    dialog.showErrorBox(APP_NAME, T('dirFallback', { wanted: wanted, fallback: fallback }));
+    store = new Store(fallback);
+    store.init();
+    ro = null;
+  }
+  dirSt = ro || { mode: 'edit' };
+  if (!ro) acquireLock();
+  startLockTimer();
+  return true;
+}
+
+/* 画面に、書き込み待ちの編集を書き出してもらう(プレビューの編集欄も閉じる) */
+function prepareRenderer() {
+  return new Promise(resolve => {
+    if (!win || win.isDestroyed() || !rendererReady) return resolve();
+    const done = () => { clearTimeout(t); ipcMain.removeListener('dir:prepared', done); resolve(); };
+    const t = setTimeout(done, 8000);
+    ipcMain.once('dir:prepared', done);
+    win.webContents.send('dir:prepare');
+  });
+}
+/* 編集をやめて読み取り専用になる。handed: 頼まれて引き継ぐ(印を手放す。req は引き継ぐ先の依頼)、taken: ほかの EverPad が印を書いた */
+async function demote(reason, by, req) {
+  if (dirBusy || dirSt.mode !== 'edit') return;
+  dirBusy = true;
+  try {
+    await prepareRenderer();
+    try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
+    lockExtra = {};
+    if (reason === 'handed') { try { datalock.releaseLock(store.dir, me, Date.now(), touchedFiles(), req); } catch (e) { /* 書けなくても読み取り専用にはなる */ } }
+    store.readOnly = true;
+    store.touched.clear();
+    dirSt = { mode: 'ro', reason: reason, by: by, free: false };
+    sendDirState();
+  } finally { dirBusy = false; }
+}
+/* 編集を始める(画面は、保存先から読み直してから編集できるようにする) */
+function promote() {
+  if (dirSt.mode === 'edit') return;
+  datalock.clearRequest(store.dir, me.sid);
+  myReq = null;
+  lockExtra = {};
+  store.readOnly = false;
+  store.touched.clear();
+  acquireLock();
+  dirSt = { mode: 'edit', reload: true };
+  sendDirState();
+  dirSt = { mode: 'edit' };
+}
+function setDirSt(next) {
+  const same = JSON.stringify(next) === JSON.stringify(dirSt);
+  dirSt = next;
+  if (!same) sendDirState();
+}
+function lockTick() {
+  if (!store || dirBusy) return;
+  const now = Date.now(), dir = store.dir;
+  const lock = datalock.readLock(dir);
+  if (dirSt.mode === 'edit') {
+    // ほかの EverPad が印を書いた(引き継ぎに応答しなかったあとで、待たずに引き継がれたなど)
+    if (lock && lock.v.sid !== me.sid && (lock.v.sid || now - lock.mtime < datalock.STALE_MS)) { demote('taken', byOf(lock.v)); return; }
+    // 引き継ぎの依頼: 帯に出して、渡すかどうかを選んでもらう(返事を待っていることを印に書く)
+    const req = datalock.readRequest(dir, now);
+    const ask = req && req.sid !== me.sid ? req : null;
+    const rid = ask ? String(ask.rid || ask.sid) : null;
+    if (ask && rid !== lockExtra.denied) {
+      if (!dirSt.ask || dirSt.ask.rid !== rid) {
+        lockExtra = { asked: rid };
+        acquireLock();
+        setDirSt({ mode: 'edit', ask: Object.assign(byOf(ask), { rid: rid }) });
+        attention();
+        return;
+      }
+    } else {
+      if (dirSt.ask) setDirSt({ mode: 'edit' });   // 依頼が取り下げられた
+      // 依頼が無くなったら(頼んだ側が、断られたのを読んだ・やめた)、印から返事を消す
+      if (lockExtra.asked || (lockExtra.denied && !ask)) { lockExtra = {}; acquireLock(); return; }
+    }
+    if (!lock || now - lastBeat >= datalock.BEAT_MS) acquireLock();
+    return;
+  }
+  const free = datalock.lockFree(lock, now, me);
+  const holder = datalock.holderOf(lock);
+  if (dirSt.waiting) {
+    // 同期を待っている間に、ほかの EverPad が編集を始めた
+    if (!free && dirSt.reason === 'syncing') { setDirSt({ mode: 'ro', reason: 'busy', by: byOf(holder), free: false }); return; }
+    // 頼んだ相手が断った
+    if (!free && myReq && lock && !lock.v.released && lock.v.denied === myReq.rid) {
+      datalock.clearRequest(dir, me.sid);
+      myReq = null;
+      setDirSt({ mode: 'ro', reason: dirSt.reason, by: byOf(holder), free: false, denied: true });
+      return;
+    }
+    const seen = !free && !!myReq && !!lock && lock.v.asked === myReq.rid;
+    const next = Object.assign({}, dirSt, { free: free, seen: seen, canForce: now - dirSt.since >= (seen ? FORCE_SEEN_MS : FORCE_AFTER_MS) });
+    if (free) {
+      const left = lock && lock.v.released ? datalock.filesPending(dir, lock.v.files) : 0;
+      if (left === 0) { promote(); return; }
+      next.left = left;
+    } else {
+      next.left = 0;
+      // 依頼が古くなって無視されないように、待っている間は新しくする
+      if (myReq && now - myReq.wrote >= datalock.BEAT_MS) { try { datalock.writeRequest(dir, lockInfo(), now, myReq.rid); myReq.wrote = now; } catch (e) { /* 次に試す */ } }
+    }
+    if (!free && holder) next.by = byOf(holder);
+    setDirSt(next);
+    return;
+  }
+  // 編集中の EverPad が変わったときは、その EverPad を「編集中」として出す(引き継いだばかりなら、引き継いだ先)
+  const by = !free && holder && !(holder === lock.v && lock.v.sid === me.sid) ? byOf(holder) : null;
+  const was = dirSt.by || {};
+  const moved = by && (by.host !== was.host || (!!was.kind && (by.kind !== was.kind || by.dir !== was.dir)));
+  setDirSt(Object.assign({}, dirSt, { free: free }, by ? { by: by } : {}, moved ? { reason: 'busy' } : {}));
+}
+/* 画面の帯のボタン。編集中: allow(頼まれた引き継ぎに応じて編集を渡す)、deny(断る)。
+   読み取り専用: takeover(編集を引き継ぐ・編集する)、cancel(引き継ぎをやめる)、force(待たずに引き継ぐ) */
+async function dirAction(name) {
+  if (!store) return dirSt;
+  const now = Date.now();
+  if (dirSt.mode === 'edit') {
+    if (!dirSt.ask || dirBusy) return dirSt;
+    if (name === 'allow') {
+      const req = datalock.readRequest(store.dir, now);
+      if (req && String(req.rid || req.sid) === dirSt.ask.rid) await demote('handed', byOf(req), req);
+      else setDirSt({ mode: 'edit' });   // 依頼は取り下げられていた
+    } else if (name === 'deny') {
+      lockExtra = { denied: dirSt.ask.rid };
+      acquireLock();
+      setDirSt({ mode: 'edit' });
+    }
+    return dirSt;
+  }
+  if (dirSt.mode !== 'ro') return dirSt;
+  if (name === 'takeover' && !dirSt.waiting) {
+    const lock = datalock.readLock(store.dir);
+    if (!datalock.lockFree(lock, now, me)) {
+      const rid = crypto.randomBytes(6).toString('hex');
+      try { datalock.writeRequest(store.dir, lockInfo(), now, rid); } catch (e) { return dirSt; }
+      myReq = { rid: rid, wrote: now };
+    }
+    setDirSt(Object.assign({}, dirSt, { waiting: true, since: now, canForce: false, seen: false, denied: false, left: 0 }));
+    lockTick();
+  } else if (name === 'cancel' && dirSt.waiting) {
+    datalock.clearRequest(store.dir, me.sid);
+    myReq = null;
+    const next = Object.assign({}, dirSt, { waiting: false, canForce: false, seen: false, left: 0 });
+    if (next.reason === 'syncing') next.reason = 'busy';
+    setDirSt(next);
+    lockTick();
+  } else if (name === 'force' && dirSt.waiting) {
+    const r = await dialog.showMessageBox(win, { type: 'warning', title: APP_NAME, noLink: true, defaultId: 1, cancelId: 1,
+      buttons: [T('dirForceButton'), T('cancel')], message: T('dirForceQ'), detail: T(dirSt.left ? 'dirForceSyncDetail' : 'dirForceDetail') });
+    if (r.response === 0 && dirSt.mode === 'ro') promote();
+  }
+  return dirSt;
+}
+ipcMain.handle('dir:state', e => (fromOurWindow(e) ? dirSt : null));
+ipcMain.handle('dir:action', (e, name) => (fromOurWindow(e) ? dirAction(String(name)) : null));
+/* 画面が持っているメモのうち、ほかから書き換えられたもの({ id: 'changed' | 'gone' }) */
+ipcMain.handle('memo:changed', (e, ids) => {
+  if (!fromOurWindow(e) || !Array.isArray(ids)) return null;
+  const out = {};
+  for (const id of ids.slice(0, 200)) { try { const c = store.changedOnDisk(id); if (c) out[id] = c; } catch (err) { /* 飛ばす */ } }
+  return out;
+});
+/* 書き込みの結果を画面に返す: true(書いた)・'changed'(ほかから書き換えられていた)・'gone'(メモのファイルが無い)・
+   'readonly'(保存先を読み取り専用で開いている)・false(そのほかの失敗) */
+const writeResult = err => (err && err.code === 'changed' ? 'changed' : err && err.code === 'noFile' ? 'gone' : err && err.code === 'dirReadOnly' ? 'readonly' : false);
 
 /* ---------- ごみ箱 ----------
    ごみ箱の無い場所(USB メモリなどのリムーバブルドライブ、ネットワークのフォルダ)では、Windows は「ごみ箱へ」の操作でも
@@ -153,7 +360,7 @@ ipcMain.handle('memo:load', e => {
 });
 ipcMain.handle('memo:loadNote', (e, id) => {
   if (!fromOurWindow(e)) return null;
-  try { return store.loadOne(id); } catch (err) { return null; }
+  try { return store.loadForEdit(id); } catch (err) { return null; }
 });
 // 検索用: 最新の本文だけをまとめて返す(履歴は読まない)
 ipcMain.handle('memo:readTexts', (e, ids) => {
@@ -175,14 +382,14 @@ ipcMain.handle('memo:create', (e, id, c) => {
 });
 ipcMain.handle('memo:append', (e, id, ops) => {
   if (!fromOurWindow(e)) return false;
-  try { return store.append(id, ops); } catch (err) { return false; }
+  try { return store.append(id, ops); } catch (err) { return writeResult(err); }
 });
 ipcMain.handle('memo:saveText', (e, id, text) => {
   if (!fromOurWindow(e)) return false;
   try { return store.saveText(id, text); } catch (err) { return false; }
 });
 ipcMain.on('memo:appendSync', (e, id, ops) => {
-  try { e.returnValue = fromOurWindow(e) && store.append(id, ops); } catch (err) { e.returnValue = false; }
+  try { e.returnValue = fromOurWindow(e) && store.append(id, ops); } catch (err) { e.returnValue = writeResult(err); }
 });
 ipcMain.on('memo:saveTextSync', (e, id, text) => {
   try { e.returnValue = fromOurWindow(e) && store.saveText(id, text); } catch (err) { e.returnValue = false; }
@@ -202,7 +409,7 @@ ipcMain.handle('memo:confirmTrash', async (e, message) => {
 });
 ipcMain.handle('memo:remove', async (e, id) => {
   if (!fromOurWindow(e)) return false;
-  if (store.isReadOnly(id)) return false;   // 読み取り専用のメモは消さない(画面側でも止める)
+  if (store.readOnly || store.isReadOnly(id)) return false;   // 読み取り専用のメモ・保存先は消さない(画面側でも止める)
   try {
     let where = 'recycle';
     for (const p of store.paths(id)) { if ((await moveToTrash(p)) === 'folder') where = 'folder'; }
@@ -411,7 +618,7 @@ ipcMain.handle('attach:menu', (e, noteId, fileId, name, image, x, y, canTrash) =
 /* 添付をごみ箱に入れる(編集画面で選んだとき)。確認してから、ファイルをごみ箱へ。refs = 本文の中のこの添付へのリンクの数
    (リンクを消すのは画面側で、「元に戻す」で戻せる)。ファイルは中身から名前が決まるので、ごみ箱から戻せばそのまま表示される */
 ipcMain.handle('attach:trash', async (e, noteId, fileId, name, refs) => {
-  if (!fromOurWindow(e) || store.isReadOnly(noteId)) return { status: 'failed' };
+  if (!fromOurWindow(e) || store.readOnly || store.isReadOnly(noteId)) return { status: 'failed' };
   const p = store.attachmentPath(noteId, fileId);
   if (!p) return { status: 'missing' };
   const n = Math.max(0, Math.floor(Number(refs) || 0));
@@ -435,7 +642,7 @@ ipcMain.handle('attach:trash', async (e, noteId, fileId, name, refs) => {
    → 残る版で使っていない添付をごみ箱へ。アーカイブを書き出せなかった・やめたときは、何も削除しない */
 const fmtBytes = b => (b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB');
 ipcMain.handle('history:prune', async (e, id, k, n, title) => {
-  if (!fromOurWindow(e) || !validId(id) || store.isReadOnly(id)) return { status: 'failed' };
+  if (!fromOurWindow(e) || !validId(id) || store.readOnly || store.isReadOnly(id)) return { status: 'failed' };
   let plan;
   try { plan = store.prunePlan(id, k, n); } catch (err) { return { status: 'failed' }; }
   const from = plan.base + 1, to = plan.base + plan.removed;
@@ -471,11 +678,12 @@ ipcMain.handle('history:prune', async (e, id, k, n, title) => {
    プレビュー・履歴の表示・読み取り専用のメモでは検索だけのバーになる)、fmt: 書式を使えるか(「テキスト」表示と、プレビューでかたまりを編集している間)、lines: 行番号が出る表示か(プレビューでは出ない)、
    back: 「前に見たメモに戻る」で戻れるメモがあるか、hist: 履歴の表示か(古い履歴の削除は履歴の表示だけ)、
    base: いま見ている表示(edit / preview。履歴の表示の中ではその元の表示。「表示」→「編集」「プレビュー」は、いま見ていないほうだけ押せる)、
-   ro: 今のメモが読み取り専用か(書式・リンクの挿入・添付・古い履歴の削除を押せなくする)。押せない項目はキー操作も効かない */
-let ui = { edit: true, fmt: true, lines: true, back: false, hist: false, base: 'edit', ro: false };
+   ro: 今のメモを変えられないか(メモの読み取り専用か、保存先を読み取り専用で開いている。書式・リンクの挿入・添付・古い履歴の削除を押せなくする)、
+   noteRo: 今のメモ自体が読み取り専用か(「読み取り専用」のチェック)。押せない項目はキー操作も効かない */
+let ui = { edit: true, fmt: true, lines: true, back: false, hist: false, base: 'edit', ro: false, noteRo: false };
 ipcMain.on('ui:state', (e, st) => {
   if (!fromOurWindow(e) || !st) return;
-  const next = { edit: !!st.edit, fmt: !!st.fmt, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit', ro: !!st.ro };
+  const next = { edit: !!st.edit, fmt: !!st.fmt, lines: !!st.lines, back: !!st.back, hist: !!st.hist, base: st.base === 'preview' ? 'preview' : 'edit', ro: !!st.ro, noteRo: !!st.noteRo };
   if (Object.keys(next).every(k => next[k] === ui[k])) return;
   ui = next;
   buildMenu();
@@ -608,6 +816,8 @@ async function runImport(files) {
   const flushOnce = () => flushed || (flushed = flushRenderer());
   const items = [];
   for (const file of files) {
+    // 保存先を読み取り専用で開いているときは、取り込まない(読めなかったファイルと同じ一覧で知らせる)
+    if (store.readOnly) { items.push({ name: path.basename(file), ok: false, message: T('dirRoBlocked') }); continue; }
     if (startsWithZip(file)) { const r = await importArchive(file, flushOnce); if (r) items.push(r); }
     else items.push(readTextFile(file));
   }
@@ -921,7 +1131,10 @@ async function changeFolder() {
   await flushRenderer();
   writeConfig(Object.assign(readConfig(), { dataDir: dataDirToConfig(r.filePaths[0], layout) }));
   closing = true;
-  app.relaunch();
+  // portable 版は、一時フォルダに展開した EverPad ではなく portable 版の exe から起動し直す
+  // (展開した EverPad をじかに起動し直すと、元の起動役が終わるときに一時フォルダを消してしまう)
+  if (isPortable && process.env.PORTABLE_EXECUTABLE_FILE) app.relaunch({ execPath: process.env.PORTABLE_EXECUTABLE_FILE, args: [] });
+  else app.relaunch();
   app.quit();
 }
 
@@ -1065,13 +1278,13 @@ function buildMenu() {
     {
       label: T('mFile'),
       submenu: [
-        { label: T('mNewNote'), accelerator: A('new'), click: () => send('new') },
+        { label: T('mNewNote'), accelerator: A('new'), enabled: dirSt.mode !== 'ro', click: () => send('new') },
         { label: T('mSearchAll'), accelerator: A('search'), click: () => send('search') },
         { type: 'separator' },
         { label: T('mRecent'), submenu: recentMenu() },
         { id: 'back', label: T('mBack'), accelerator: A('back'), enabled: ui.back, click: () => send('back') },
         { type: 'separator' },
-        { label: T('mImport'), accelerator: A('import'), click: pickImport },
+        { label: T('mImport'), accelerator: A('import'), enabled: dirSt.mode !== 'ro', click: pickImport },
         { label: T('mExportMenu'), submenu: [
           { label: T('mExportText'), accelerator: A('export'), click: () => send('export') },
           { label: T('mExportPdf'), accelerator: A('pdf'), click: () => send('pdf') },
@@ -1084,7 +1297,7 @@ function buildMenu() {
         ] },
         { label: T('mPrint'), accelerator: A('print'), click: () => send('print') },
         { type: 'separator' },
-        { id: 'readonly', label: T('mReadOnly'), type: 'checkbox', checked: ui.ro, accelerator: A('readonly'), click: () => send('readonly') },
+        { id: 'readonly', label: T('mReadOnly'), type: 'checkbox', checked: ui.noteRo, enabled: dirSt.mode !== 'ro', accelerator: A('readonly'), click: () => send('readonly') },
         { id: 'props', label: T('mProps'), accelerator: A('props'), click: () => send('props') },
         { type: 'separator' },
         { label: T('mOpenDir'), accelerator: A('openDir'), click: () => shell.openPath(store.dir) },
@@ -1534,7 +1747,12 @@ if (!app.requestSingleInstanceLock()) {
   app.on('activate', () => ensureWindow());
   app.on('will-quit', () => {
     try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
-    if (store) datalock.releaseLock(store.dir, process.pid);
+    // 編集していたときは、印を「手放した」にして、この起動で書いたメモの大きさを残す(次に開く EverPad が同期を待てるように)。
+    // 読み取り専用のときは印に触らず、自分の引き継ぎの依頼だけを消す
+    if (store) {
+      clearInterval(lockTimer);
+      try { if (dirSt.mode === 'edit') datalock.releaseLock(store.dir, me, Date.now(), touchedFiles()); else datalock.clearRequest(store.dir, me.sid); } catch (e) { /* 次の起動で古い印として扱われる */ }
+    }
     // ダウンロードの途中で終わるときは、書きかけを消す
     if (updateJob) {
       updateJob.ctrl.abort();

@@ -50,6 +50,7 @@
       <button class="btn" id="attBtn" data-key="attach" type="button" data-i18n="attach" data-i18n-title="attachTitle" title="画像・ファイルを添付 (Ctrl+Shift+U)。貼り付けやドラッグ&ドロップでも追加できます">添付</button>
       <button class="btn" id="delBtn" type="button" data-i18n="delete">削除</button>
     </header>
+    <div class="dirbar" id="dirBar" role="status" aria-live="polite" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg><span id="dirText"></span><span class="dirbtns"><button type="button" class="btn" id="dirReload" data-i18n="dirReload" data-i18n-title="dirReloadTitle" title="保存先からメモを読み直して、ほかの EverPad で書いた内容を表示します">再読み込み</button><button type="button" class="btn" id="dirCancel" data-i18n="dirCancel" hidden>やめる</button><button type="button" class="btn" id="dirForce" data-i18n="dirForce" hidden>待たずに引き継ぐ</button><button type="button" class="btn primary" id="dirTake" hidden></button><button type="button" class="btn" id="dirDeny" data-i18n="dirDeny" hidden>断る</button><button type="button" class="btn primary" id="dirAllow" data-i18n="dirAllow" hidden>編集を渡す</button></span></div>
 
     <section class="stage">
       <div class="frbar" id="frbar" role="search" aria-label="検索と置換" data-i18n-aria="frAria" hidden>

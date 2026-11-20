@@ -77,10 +77,22 @@ Start-Sleep 35   # 初回は一時フォルダへの展開に時間がかかる
 Save-Screenshot (Join-Path $Out 'screenshot-windows-portable.png')
 if (-not (Test-AppRunning $p)) { Fail 'Smoke test (Windows portable)' 'EverPad exited (or did not start) within 35 seconds' }
 Note 'notice' 'Smoke test (Windows portable)' 'EverPad was running after 35 seconds'
+# 起動中にもう一度起動する: 自分の一時フォルダに展開して、1つ目を手前に出して終わる(1つ目のファイルを消したり、1つ目が終わるまで待ったりしない)
+$unpack = @(Get-Tree $p | Where-Object { $_.Name -eq 'EverPad.exe' } | ForEach-Object { (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.ProcessId)").ExecutablePath } | Where-Object { $_ } | ForEach-Object { Split-Path $_ } | Select-Object -Unique)
+$before = if ($unpack.Count -eq 1) { @(Get-ChildItem -Recurse -File $unpack[0]).Count } else { -1 }
+$second = Start-Process -FilePath $pexe -WorkingDirectory $pdir -PassThru
+for ($i = 0; $i -lt 40 -and -not $second.HasExited; $i++) { Start-Sleep 1 }
+if (-not $second.HasExited) { Stop-Process -Id $second.Id -Force -ErrorAction SilentlyContinue; Stop-Tree $p; Fail 'Smoke test (Windows portable)' 'starting the portable exe again while it was running did not finish within 40 seconds' }
+if (-not (Test-AppRunning $p)) { Fail 'Smoke test (Windows portable)' 'the first EverPad exited when the portable exe was started again' }
+$after = if ($unpack.Count -eq 1) { @(Get-ChildItem -Recurse -File $unpack[0] -ErrorAction SilentlyContinue).Count } else { -1 }
+if ($before -lt 1 -or $after -ne $before) { Stop-Tree $p; Fail 'Smoke test (Windows portable)' "starting the portable exe again changed the files of the running EverPad (unpack folder: $($unpack -join ', '); files before: $before, after: $after)" }
+Note 'notice' 'Smoke test (Windows portable)' "Starting it again finished in about $i seconds and left the running EverPad alone ($before files in its unpack folder)"
 Stop-Tree $p
 if (-not (Test-Path (Join-Path $pdir 'EverPad Data\notes'))) { Fail 'Smoke test (Windows portable)' "EverPad Data was not created next to the exe:`n$((Get-ChildItem $pdir -Recurse -Depth 2 | ForEach-Object FullName) -join "`n")" }
 Note 'notice' 'Smoke test (Windows portable)' 'EverPad Data was created next to the exe'
-if (Test-Path (Join-Path $pdir 'EverPad Data\notes\.everpad-lock')) { Fail 'Smoke test (Windows portable)' 'the data folder lock was not removed after closing' }
+# 閉じると、保存先の印は「手放した」になる(次に開く EverPad が、同期を待てるように残す)
+$lockFile = Join-Path $pdir 'EverPad Data\notes\.everpad-lock'
+if ((Test-Path $lockFile) -and -not ((Get-Content -Raw $lockFile | ConvertFrom-Json).released)) { Fail 'Smoke test (Windows portable)' "the data folder lock was not released after closing:`n$(Get-Content -Raw $lockFile)" }
 if (-not $hadSettings -and (Test-Path $settingsDir)) { Fail 'Smoke test (Windows portable)' "the portable version wrote to $settingsDir" }
 
 if ($SkipInstaller) { Write-Output 'Installer test skipped'; exit 0 }

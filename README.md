@@ -374,7 +374,12 @@ The data folder also contains `.everpad-index.json`, an index for the note list 
 - To back up, just copy the data folder.
 - If a `.jsonl` file is damaged partway through, the readable part is used and the original file is kept under the name `.corrupt-…`.
 - Deleting a note moves its files and its attachment folder to the Recycle Bin. On drives without a Recycle Bin (USB drives, network folders), they are moved to a `.trash` folder inside the data folder instead, because Windows would otherwise delete them permanently. Overwriting a note by importing an archive works the same way. Empty `.trash` yourself when you no longer need it. On macOS and Linux, files go to the system Trash, and to `.trash` only if that fails.
-- The same data folder cannot be opened by two EverPads at the same time on one computer: while open, EverPad keeps a `.everpad-lock` file in it, and another EverPad (for example the portable version) that tries to open the folder asks you to choose another folder or quit. The lock is ignored if it is left over from a crash. If you share the folder between computers with OneDrive or similar, close EverPad on one computer before opening it on another.
+- Only one EverPad edits a data folder at a time, also when the folder is shared between computers with OneDrive or similar. While editing, EverPad keeps a `.everpad-lock` file in the folder with the computer's name, and updates it every 30 seconds. Another EverPad that opens the same folder (the portable version, or EverPad on another computer) opens it read-only: a bar at the top says which EverPad is editing, and you can read, search, copy, print and export notes, but not change them. Reload in the bar reads the notes again to show what the other EverPad wrote (they are also read again when you switch back to the window).
+- To edit in the read-only EverPad, press Take Over Editing in the bar. The editing EverPad shows the request in a bar at the top (its taskbar button flashes if it is not in front) and keeps editing until someone there chooses Hand Over or Decline. With Hand Over, it saves its edits and becomes read-only, and the asking EverPad becomes editable (this takes a few seconds, longer if the folder is synced). With Decline, the asking EverPad says so and stays read-only.
+- If there is no response for 20 seconds (for example because the other computer is asleep or offline), or no answer for 2 minutes after the request was shown (for example because nobody is at the other computer), Take Over Without Waiting appears; it asks before taking over. When the other EverPad is closed, the bar shows Edit instead.
+- When EverPad is closed, it notes in `.everpad-lock` which notes it wrote. If you open the folder on another computer before those notes have arrived through sync, EverPad opens it read-only and starts editing by itself when they arrive (Take Over Without Waiting is also available).
+- If both computers write `.everpad-lock` at about the same time (for example after sync was paused), OneDrive keeps the other version as a copy such as `-PCNAME.everpad-lock`. The editing EverPad deletes these copies, as EverPad does not use them.
+- If a note was changed by another EverPad anyway (for example, both computers were offline), EverPad does not write to it. Your edits are kept in a new note with the same title, which opens in its place, and the original note shows the other EverPad's version. A lock left over from a crash is ignored after 90 seconds on the same computer, and after 5 minutes when it is from another computer. EverPad 0.44 and earlier do not know this way of sharing, so use the same version on every computer.
 
 ### Performance with many notes
 
@@ -489,7 +494,7 @@ updatecheck.js   Checking GitHub for a newer version (testable without Electron)
 updatedownload.js  Downloading a new version and checking its SHA-256 for updating from within the app (testable without Electron)
 pageexport.js    Building HTML and MHTML files for File → Export (testable without Electron)
 docexport.js     Building AsciiDoc, Word and LaTeX files for File → Export (testable without Electron)
-datalock.js      The lock that keeps two EverPads from opening the same data folder (testable without Electron)
+datalock.js      The lock that lets only one EverPad edit a data folder, and hands editing over between them (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
 pasteclip.js     Checking the temporary image files that Word and Excel copy, before they are added as attachments (testable without Electron)
 archive.js       EverPad archives: building, checking and reading (testable without Electron)
@@ -502,6 +507,7 @@ renderer/        The UI (index.html / styles.css / app.js), the history, Markdow
 tools/           The Etherpad import tool (import-etherpad.js), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
                  the script that copies Mermaid into renderer/vendor/mermaid (vendor-mermaid.js),
                  the script that makes the Microsoft Store icons (make-store-assets.js), the script that makes renderer/emoji.js from gemoji (make-emoji.js),
+                 the script that makes the portable exe unpack to a folder of its own for each launch (portable-unpack.js; runs before npm run dist),
                  and the Windows startup checks used by GitHub Actions (ci-smoke-windows.ps1, ci-smoke-store.ps1)
 renderer/vendor/katex/  KaTeX for math (copied from node_modules automatically before npm start and npm run dist; not stored in Git)
 renderer/vendor/mermaid/  Mermaid for diagrams (copied the same way as KaTeX; not stored in Git)
@@ -910,7 +916,12 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - バックアップは、保存先フォルダをコピーするだけです。
 - `.jsonl` が途中で壊れていた場合は、読める範囲までを使い、元のファイルを `.corrupt-…` という名前で残します。
 - メモを削除すると、そのメモのファイルと添付のフォルダがごみ箱に入ります。ごみ箱の無いドライブ(USB メモリ、ネットワークのフォルダ)では、Windows が元に戻せない形で消してしまうため、代わりに保存先の中の `.trash` フォルダに移します。アーカイブのインポートでメモを上書きするときも同じです。`.trash` の中身は、要らなくなったらご自身で削除してください。macOS と Linux では OS のゴミ箱に入れ、入れられなかったときだけ `.trash` に移します。
-- 1台のパソコンで、同じ保存先を2つの EverPad で同時に開くことはできません。EverPad は開いている間、保存先に `.everpad-lock` を置き、同じ保存先を開こうとした別の EverPad(portable 版など)は、別の保存先を選ぶか終了するかを尋ねます。異常終了で残った印は無視します。OneDrive などで複数のパソコンから同じフォルダを使う場合は、片方の EverPad を閉じてから、もう一方で開いてください。
+- 1つの保存先を編集するのは、いつも1つの EverPad だけです。OneDrive などで複数のパソコンから同じフォルダを使う場合も同じです。編集している EverPad は、保存先に `.everpad-lock` を置き(パソコンの名前も書きます)、30秒ごとに新しくします。同じ保存先を開いた別の EverPad(portable 版や、別のパソコンの EverPad)は、読み取り専用で開きます。画面の上の帯に、編集している EverPad が出ます。メモを見る・検索する・コピーする・印刷とエクスポートはできますが、変えることはできません。帯の「再読み込み」で、もう一方の EverPad が書いた内容を読み直します(ウィンドウに戻ったときにも読み直します)。
+- 読み取り専用の EverPad で編集したいときは、帯の「編集を引き継ぐ」を押します。編集中の EverPad は、画面の上の帯に頼まれたことを出し(手前に無いときは、タスクバーのアイコンが点滅します)、「編集を渡す」か「断る」を選ぶまで編集を続けられます。「編集を渡す」を選ぶと、保存していない編集を書き出してから読み取り専用になり、頼んだ EverPad が編集できるようになります(数秒かかります。同期するフォルダでは、もっとかかります)。「断る」を選ぶと、頼んだ EverPad にそう出て、読み取り専用のままになります。
+- 20秒たっても応答が無いとき(もう一方のパソコンがスリープ中やオフラインのときなど)や、頼んだことが出てから2分たっても返事が無いとき(もう一方のパソコンの前にだれもいないときなど)は「待たずに引き継ぐ」が出ます。押すと、確かめてから引き継ぎます。もう一方の EverPad が閉じられたときは、帯に「編集する」が出ます。
+- EverPad は閉じるときに、書いたメモを `.everpad-lock` に書いておきます。それらのメモが同期で届く前に別のパソコンで保存先を開くと、読み取り専用で開き、届いたら自動で編集を始めます(「待たずに引き継ぐ」もできます)。
+- 2台のパソコンが同じころに `.everpad-lock` を書くと(同期を一時停止したあとなど)、OneDrive はもう一方の版を `-PC名.everpad-lock` のような名前のコピーにして残します。EverPad はこれらのコピーを使わないので、編集中の EverPad が消します。
+- それでも、ほかの EverPad で同じメモが変えられていたとき(両方のパソコンがオフラインだったときなど)は、そのメモには書き足しません。こちらの編集は、同じ題名の新しいメモに分けて残して開き、元のメモには、もう一方の EverPad の内容を表示します。異常終了で残った印は、同じパソコンなら90秒、別のパソコンからなら5分で無視します。0.44 までの EverPad はこの仕組みを知らないので、どのパソコンでも同じバージョンを使ってください。
 
 ### メモが増えたときの動き
 
@@ -1025,7 +1036,7 @@ updatecheck.js   GitHub に新しいバージョンがあるかの確認(Electro
 updatedownload.js  アプリの中からの更新のための、新しい版のダウンロードと SHA-256 の確認(Electron なしでテストできる)
 pageexport.js    「エクスポート」の HTML と MHTML のファイルの組み立て(Electron なしでテストできる)
 docexport.js     「エクスポート」の AsciiDoc・Word・LaTeX のファイルの組み立て(Electron なしでテストできる)
-datalock.js      同じ保存先を2つの EverPad で開かないための印(Electron なしでテストできる)
+datalock.js      同じ保存先を編集する EverPad を1つにする印と、編集の引き継ぎ(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
 pasteclip.js     Word・Excel がコピーした画像の一時ファイルを、添付にする前に確かめる(Electron なしでテストできる)
 archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)
@@ -1038,6 +1049,7 @@ renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・
 tools/           Etherpad からの取り込みツール(import-etherpad.js)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、
                  Mermaid を renderer/vendor/mermaid にコピーするスクリプト(vendor-mermaid.js)、
                  Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、gemoji から renderer/emoji.js を作るスクリプト(make-emoji.js)、
+                 portable 版の exe が起動ごとに別のフォルダへ展開するようにするスクリプト(portable-unpack.js。npm run dist の前に動く)、
                  GitHub Actions で使う Windows 版の起動の確認(ci-smoke-windows.ps1、ci-smoke-store.ps1)
 renderer/vendor/katex/  数式の表示に使う KaTeX(npm start と npm run dist の前に node_modules から自動でコピーする。Git には入れない)
 renderer/vendor/mermaid/  図の表示に使う Mermaid(KaTeX と同じく自動でコピーする。Git には入れない)

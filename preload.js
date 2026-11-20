@@ -29,6 +29,13 @@ contextBridge.exposeInMainWorld('memoApi', {
   editContext: st => ipcRenderer.sendSync('edit:ctx', st),
   noteMenu: (title, ro) => ipcRenderer.invoke('note:menu', title, ro),
   setReadOnly: (id, on) => ipcRenderer.invoke('memo:setReadOnly', id, on),
+  // 同じ保存先を開いている、ほかの EverPad(読み取り専用で開いたとき・編集の引き継ぎ)
+  dirState: () => ipcRenderer.invoke('dir:state'),
+  dirAction: name => ipcRenderer.invoke('dir:action', name),
+  onDirState: cb => { ipcRenderer.on('dir:state', (_e, st) => cb(st)); },
+  onDirPrepare: cb => { ipcRenderer.on('dir:prepare', () => cb()); },
+  dirPrepared: () => ipcRenderer.send('dir:prepared'),
+  changedNotes: ids => ipcRenderer.invoke('memo:changed', ids),
   // 最近見たメモ(メニューを作り直してもらう)
   setRecent: items => ipcRenderer.send('recent:set', items),
   // 画面の状態(メニューの押せる・押せないに使う)

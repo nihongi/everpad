@@ -85,12 +85,48 @@ function parseLog(raw) {
   return { head, ops, bad, endsWithNewline: raw === '' || raw.endsWith('\n') };
 }
 
+/* ---- ほかの EverPad との食い違いを防ぐ ----
+   保存先を OneDrive などで共有すると、別の PC の EverPad が同じメモを書き換え、それが同期で届くことがある。
+   画面が持っている本文は読み込んだときのままなので、そこに編集を書き足すと、編集の位置がずれた履歴になる。
+   そこで、画面に渡した(読み込んだ)ときと、自分が書いたあとの履歴ファイルの大きさと更新時刻を覚えておき、
+   書き足す前に今のファイルと比べる。違っていれば書き足さず、changed のエラーにする(画面側が、編集を別のメモに残す)。
+   readOnly(保存先を読み取り専用で開いている)のときは、保存先に何も書かない(壊れた行の修復と索引も書かない)。
+   touched は、この起動で書いたメモの履歴ファイルの大きさ(削除したメモは null)。編集を手放すときに印に書く(datalock.js) */
 class Store {
-  constructor(dir) { this.dir = dir; }
+  constructor(dir) { this.dir = dir; this.readOnly = false; this._known = new Map(); this.touched = new Map(); }
 
   init() {
     fs.mkdirSync(this.dir, { recursive: true });
-    fs.accessSync(this.dir, fs.constants.W_OK);
+    if (!this.readOnly) fs.accessSync(this.dir, fs.constants.W_OK);
+  }
+
+  _writable() { if (this.readOnly) throw storeError('dirReadOnly', '保存先を読み取り専用で開いています'); }
+  /* 書いたあと(または画面に渡したとき)のファイルの状態を覚える */
+  _track(id, wrote) {
+    const st = this._stat(id);
+    if (st) this._known.set(id, st); else this._known.delete(id);
+    if (wrote) this.touched.set(id, st ? st.size : null);
+  }
+  /* 画面が持っている内容のあとに、ほかから書き換えられたか。'changed'・'gone'(無くなった)・null(変わっていない、または覚えていない) */
+  changedOnDisk(id) {
+    const k = this._known.get(id);
+    if (!k) return null;
+    const st = this._stat(id);
+    if (!st) return 'gone';
+    return st.size !== k.size || st.mtime !== k.mtime ? 'changed' : null;
+  }
+  /* 画面に渡すために読む(読んだ内容のファイルの状態を覚える)。読んでいる間に変わったときは読み直す */
+  loadForEdit(id) {
+    for (let i = 0; i < 3; i++) {
+      const before = this._stat(id);
+      const n = this.loadOne(id);
+      const after = this._stat(id);
+      if (!n || !after) { this._known.delete(id); return n; }
+      if (before && before.size === after.size && before.mtime === after.mtime) { this._known.set(id, after); return n; }
+      if (n.repaired) { this._known.set(id, after); return n; }   // 壊れた行を直して書き直した
+    }
+    this._known.delete(id);
+    return this.loadOne(id);
   }
 
   file(id, ext) {
@@ -99,26 +135,34 @@ class Store {
   }
 
   create(id, c) {
+    this._writable();
     const f = this.file(id, '.jsonl');
     if (fs.existsSync(f)) return false;
     fs.writeFileSync(f, JSON.stringify({ v: 1, id: id, c: c }) + '\n', { flag: 'wx' });
+    this._track(id, true);
     if (this._idx) { const st = this._stat(id); if (st) { this._idx[id] = { c: c, t: c, n: 0, title: core.titleOf(''), size: st.size, mtime: st.mtime }; this._dirty(); } }
     return true;
   }
 
   append(id, ops) {
+    this._writable();
     const f = this.file(id, '.jsonl');
     if (!Array.isArray(ops) || !ops.every(validOp)) throw storeError('badOps', '編集データが正しくありません');
     if (!ops.length) return true;
     if (!fs.existsSync(f)) throw storeError('noFile', 'メモのファイルが見つかりません');
+    if (this.changedOnDisk(id)) throw storeError('changed', 'ほかの EverPad がメモを書き換えています');
     fs.appendFileSync(f, ops.map(o => JSON.stringify(o)).join('\n') + '\n');
+    this._track(id, true);
     const e = this._entry(id), st = e && this._stat(id);
     if (e && st) { e.n += ops.length; e.t = ops[ops.length - 1][3]; e.size = st.size; e.mtime = st.mtime; this._dirty(); }
     return true;
   }
 
   saveText(id, text) {
+    this._writable();
     if (typeof text !== 'string') throw storeError('badText', '本文が正しくありません');
+    // 履歴がほかから書き換えられていたら、こちらの本文で控えを上書きしない
+    if (this.changedOnDisk(id)) throw storeError('changed', 'ほかの EverPad がメモを書き換えています');
     const f = this.file(id, '.md');
     const tmp = f + '.tmp';
     try {
@@ -139,6 +183,7 @@ class Store {
 
   /* 添付を保存して、本文に書くための fileId を返す。同じ内容なら既にあるものを使う */
   saveAttachment(id, name, bytes) {
+    this._writable();
     if (!fs.existsSync(this.file(id, '.jsonl'))) throw storeError('noFile', 'メモのファイルが見つかりません');
     const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
     if (buf.length > MAX_ATTACH) throw storeError('tooLarge', 'ファイルが大きすぎます(上限 ' + (MAX_ATTACH / 1024 / 1024) + 'MB)');
@@ -160,6 +205,7 @@ class Store {
      'copied'(コピーした)・'exists'(もうある)・'missing'(元が無い)を返す */
   copyAttachment(from, to, fileId) {
     if (!validId(from) || !validId(to) || !validFileId(fileId)) return 'missing';
+    this._writable();
     if (!fs.existsSync(this.file(to, '.jsonl'))) throw storeError('noFile', 'メモのファイルが見つかりません');
     const src = this.attachmentPath(from, fileId);
     const dir = this.filesDir(to), dest = path.join(dir, fileId);
@@ -192,7 +238,8 @@ class Store {
     try { raw = fs.readFileSync(f, 'utf8'); } catch (e) { return null; }
     const r = parseLog(raw);
     if (!r.head) return null;
-    if (r.bad || !r.endsWithNewline) {
+    let repaired = false;
+    if ((r.bad || !r.endsWithNewline) && !this.readOnly) {
       // 途中で切れた行などを取り除いて書き直す。壊れていた場合は元のファイルを残しておく
       try {
         if (r.bad) fs.copyFileSync(f, f + '.corrupt-' + Date.now());
@@ -200,9 +247,13 @@ class Store {
         const tmp = f + '.tmp';
         fs.writeFileSync(tmp, fixed);
         fs.renameSync(tmp, f);
+        repaired = true;
+        if (this._known.has(id)) this._track(id);   // 書き込み中に落ちた行を取り除いただけなので、書き足してよい
       } catch (e) { /* 読み込みは続ける */ }
     }
-    return { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, base: baseOf(r.head), pruned: Number.isFinite(r.head.pruned) ? r.head.pruned : 0, ro: r.head.ro === true, ops: r.ops };
+    const out = { id: id, c: r.head.c, imported: Number.isFinite(r.head.imported) ? r.head.imported : 0, base: baseOf(r.head), pruned: Number.isFinite(r.head.pruned) ? r.head.pruned : 0, ro: r.head.ro === true, ops: r.ops };
+    if (repaired) Object.defineProperty(out, 'repaired', { value: true });   // 画面には渡さない
+    return out;
   }
 
   /* ---- 読み取り専用 ----
@@ -222,7 +273,9 @@ class Store {
   }
   setReadOnly(id, on) {
     if (!validId(id)) throw storeError('badId', 'メモの ID が正しくありません');
+    this._writable();
     const f = this.file(id, '.jsonl');
+    if (this.changedOnDisk(id)) throw storeError('changed', 'ほかの EverPad がメモを書き換えています');
     let raw;
     try { raw = fs.readFileSync(f, 'utf8'); } catch (e) { throw storeError('noFile', 'メモのファイルが見つかりません'); }
     const r = parseLog(raw);
@@ -233,6 +286,7 @@ class Store {
     const tmp = f + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(head) + '\n' + r.ops.map(o => JSON.stringify(o)).join('\n') + (r.ops.length ? '\n' : ''));
     fs.renameSync(tmp, f);
+    this._track(id, true);
     const e = this._entry(id), st = e && this._stat(id);
     if (e && st) { e.ro = !!on; e.size = st.size; e.mtime = st.mtime; this._dirty(); }
     return true;
@@ -244,6 +298,7 @@ class Store {
      (添付をごみ箱に入れるのは呼ぶ側)。一時ファイルに書いてから置き換えるので、途中で失敗しても元のファイルは壊れない */
   _prunable(id, k, expectN) {
     const f = this.file(id, '.jsonl');
+    if (this.changedOnDisk(id)) throw storeError('changed', 'ほかの EverPad がメモを書き換えています');
     let raw;
     try { raw = fs.readFileSync(f, 'utf8'); } catch (e) { throw storeError('noFile', 'メモのファイルが見つかりません'); }
     const r = parseLog(raw);
@@ -271,12 +326,14 @@ class Store {
     return { base: x.base, removed: x.removed, orphans: orphans, bytes: orphans.reduce((a, o) => a + o.size, 0) };
   }
   prune(id, k, expectN, prunedAt) {
+    this._writable();
     const x = this._prunable(id, k, expectN);
     const base = x.base + x.removed;
     const head = Object.assign({}, x.head, { base: base, pruned: prunedAt });
     const tmp = x.f + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(head) + '\n' + x.ops.map(o => JSON.stringify(o)).join('\n') + '\n');
     fs.renameSync(tmp, x.f);
+    this._track(id, true);
     const e = this._entry(id), st = e && this._stat(id);
     if (e && st) { e.base = base; e.size = st.size; e.mtime = st.mtime; this._dirty(); }
     return { base: base, removed: x.removed, ops: x.ops, orphans: this._orphans(id, x.ops) };
@@ -286,6 +343,7 @@ class Store {
      見出し行の id を差し替え、取り込んだ日時(imported)を記録する。本文(.md)は履歴から作り直す。
      添付と本文を先に書き、履歴(.jsonl)を最後に書く(途中で失敗しても、中途半端なメモが一覧に出ないように) */
   importNote(id, arc, importedAt) {
+    this._writable();
     const f = this.file(id, '.jsonl');
     if (fs.existsSync(f)) throw storeError('exists', 'メモが既にあります');
     if (arc.files.length) {
@@ -300,7 +358,8 @@ class Store {
     const tmp = f + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(head) + '\n' + arc.ops.map(o => JSON.stringify(o)).join('\n') + (arc.ops.length ? '\n' : ''));
     fs.renameSync(tmp, f);
-    this.forget(id);
+    this._unindex(id);
+    this._track(id, true);
     return true;
   }
 
@@ -334,7 +393,7 @@ class Store {
   }
   writeIndex() {
     clearTimeout(this._idxTimer); this._idxTimer = null;
-    if (!this._idx || !this._idxDirty) return;
+    if (!this._idx || !this._idxDirty || this.readOnly) return;   // 読み取り専用のときは、編集できるようになってから書く
     this._idxDirty = false;
     try {
       const tmp = this.indexPath() + '.tmp';
@@ -398,7 +457,8 @@ class Store {
   }
 
   /* ファイルを消した後に呼ぶ */
-  forget(id) { const idx = this._index(); if (idx[id]) { delete idx[id]; this._dirty(); } }
+  forget(id) { this._unindex(id); this._known.delete(id); if (validId(id)) this.touched.set(id, null); }
+  _unindex(id) { const idx = this._index(); if (idx[id]) { delete idx[id]; this._dirty(); } }
 }
 
 module.exports = { Store, validId, validFileId, MAX_ATTACH, validOp, parseLog, applyWire, pruneOps, attachHashes };

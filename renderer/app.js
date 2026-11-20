@@ -135,11 +135,14 @@
         if (!S.notes.some(x => x.id === id)) continue; // 削除されたメモ
         let ok = false;
         try { ok = await api.append(id, ops); } catch (e) { ok = false; }
-        if (!ok) {
+        // ほかの EverPad がこのメモを書き換えた・削除した: こちらの編集を別のメモに残し、元のメモは保存先から読み直す
+        if (ok === 'changed' || ok === 'gone') { await keepConflict(id, ok); continue; }
+        if (ok !== true) {
           // 失敗した分は順番を保ったまま戻し、少し待って再試行する
           pendingOps.set(id, ops.concat(pendingOps.get(id) || []));
           saveError = true;
-          clearTimeout(flushTimer); flushTimer = setTimeout(flush, 3000);
+          // 保存先が読み取り専用になったときは、編集できるようになってから書く(dir:state)
+          if (ok !== 'readonly') { clearTimeout(flushTimer); flushTimer = setTimeout(flush, 3000); }
           break;
         }
         saveError = false;
@@ -167,7 +170,7 @@
     for (const [id, ops] of Array.from(pendingOps)) {
       let ok = false;
       try { ok = api.appendSync(id, ops); } catch (e) { ok = false; }
-      if (ok) pendingOps.delete(id); else saveError = true;
+      if (ok === true) pendingOps.delete(id); else saveError = true;
     }
     for (const id of Array.from(textDirty)) {
       textDirty.delete(id);
@@ -224,7 +227,7 @@
     const box = $('stLeft');
     box.textContent = '';
     for (const p of parts) { const sp = document.createElement('span'); sp.className = p.cls; sp.textContent = p.text; sp.title = p.title; box.appendChild(sp); }
-    $('stRight').textContent = saveError ? T('saveError') : isPending() ? T('saving') : T('saved');
+    $('stRight').textContent = S.dirRO && !isPending() ? T('dirRoStatus') : saveError ? T('saveError') : isPending() ? T('saving') : T('saved');
   }
   /* ステータスバーの左側に出す、カーソル位置(編集画面だけ)と選択の文字数。{ cls, text, title } の配列 */
   function caretParts() {
@@ -451,17 +454,19 @@
      メモの履歴ファイルの1行目に ro: true を持つ(store.js)。読み取り専用のメモは、編集・添付・置換・過去の版への復元・
      古い履歴の削除・メモの削除をしない。見る・検索する・コピーする・印刷とエクスポートは今までどおり。
      編集欄は readOnly にし、文字を変えるキーや貼り付けを押したときは、読み取り専用であることを知らせる */
-  const isRO = n => !!(n && n.ro);
+  const isRO = n => !!(n && (n.ro || S.dirRO));   // S.dirRO: 保存先を読み取り専用で開いている(ほかの EverPad が編集中)
   let roToastAt = 0;
   function roBlocked() {
     const now = Date.now();
-    if (now - roToastAt > 1500) { roToastAt = now; toast(T('roBlocked')); }
+    if (now - roToastAt > 1500) { roToastAt = now; toast(T(S.dirRO ? 'dirRoBlocked' : 'roBlocked')); }
   }
   /* 今のメモに合わせて、編集欄・ボタン・ステータスバーの「読み取り専用」を切り替える */
   function applyRO() {
     const ro = isRO(cur());
     $('editor').readOnly = ro;
-    $('roBtn').setAttribute('aria-pressed', String(ro));
+    // 右下の「読み取り専用」は、メモ自体の設定だけを出す(保存先を読み取り専用で開いている間は、切り替えられない)
+    $('roBtn').setAttribute('aria-pressed', String(!!(cur() && cur().ro)));
+    $('roBtn').disabled = !!S.dirRO;
     $('attBtn').disabled = ro;
     $('delBtn').disabled = ro;
     for (const id of ['frRepl', 'frOne', 'frAll']) $(id).disabled = ro;
@@ -495,6 +500,7 @@
   async function toggleReadOnly(id) {
     const n = S.notes.find(x => x.id === id);
     if (!n || roBusy) return;
+    if (S.dirRO) { roBlocked(); return; }
     const on = !n.ro;
     roBusy = true;
     let ok = false;
@@ -653,7 +659,7 @@
     // 行番号が出るのは、編集画面と、編集から入った履歴の表示(変更箇所の表示)だけ
     const lines = S.mode === 'edit' || (S.mode === 'history' && S.hbase === 'edit');
     $('lnBtn').disabled = !lines;   // 右下の「行番号」ボタンも、メニューと同じく行番号が出る表示でだけ押せる
-    api.setUiState({ edit: S.mode === 'edit', fmt: S.mode === 'edit' || pe.kind === 'block', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase, ro: isRO(cur()) });
+    api.setUiState({ edit: S.mode === 'edit', fmt: S.mode === 'edit' || pe.kind === 'block', lines: lines, back: back, hist: S.mode === 'history', base: S.hbase, ro: isRO(cur()), noteRo: !!(cur() && cur().ro) });
   }
   /* ---------- 「編集」と「プレビュー」を切り替えたときの位置合わせ ----------
      切り替える前の表示で基準の場所(元の文の行と、画面の上からの高さ)を決め、切り替えたあとの表示で、その行を同じ高さに出して一瞬光らせる。
@@ -1291,6 +1297,7 @@
     return null;
   }
   async function createNote() {
+    if (S.dirRO) { roBlocked(); return; }
     const n = await makeNote();
     if (!n) { toast(T('createFailed')); return; }
     S.notes.push(n);
@@ -1304,7 +1311,7 @@
   async function deleteNote(id) {
     const target = S.notes.find(n => n.id === id);
     if (!target) return;
-    if (isRO(target)) { toast(T('roDelete')); return; }
+    if (isRO(target)) { toast(T(S.dirRO ? 'dirRoBlocked' : 'roDelete')); return; }
     let yes = false;
     try { yes = await api.confirmTrash(T('confirmTrash', { title: shownTitle(target.loaded ? titleOf(target.text) : target.title) })); } catch (e) { yes = false; }
     if (!yes || !S.notes.includes(target)) return;
@@ -4146,16 +4153,199 @@
     let n = S.notes.find(x => x.id === id);
     if (!n) { n = { id: id }; S.notes.push(n); }
     pendingOps.delete(id); textDirty.delete(id);
+    fillNote(n, r);
+    if (n.id === S.active && $('editor').value !== n.text) { $('editor').value = n.text; }   // 同じ本文なら書き換えない(元に戻すの記録を消さない)
+    if (n.id === S.active) { applyRO(); sendUiState(); }
+    return n;
+  }
+  /* 保存先から読んだメモ(api.loadNote の結果)で、メモの中身を置き換える */
+  function fillNote(n, r) {
     n.c = r.c; n.imported = r.imported || 0; n.base = r.base || 0; n.pruned = r.pruned || 0; n.ro = !!r.ro;
     n.ops = r.ops.map(o => ({ p: o[0], d: o[1], i: o[2], t: o[3] }));
     n._cp = null;
     n.text = textAt(n, n.ops.length);
     n.loaded = true; n.used = ++useSeq;
     syncMeta(n);
-    if (n.id === S.active && $('editor').value !== n.text) { $('editor').value = n.text; }   // 同じ本文なら書き換えない(元に戻すの記録を消さない)
-    if (n.id === S.active) { applyRO(); sendUiState(); }
-    return n;
   }
+
+  /* ---------- 同じ保存先を開いている、ほかの EverPad ----------
+     保存先を OneDrive などで共有していると、別の PC の EverPad が同じフォルダを開くことがある(main.js・datalock.js)。
+     あとから開いたほうは読み取り専用で開き(S.dirRO)、上の帯に、編集中の EverPad と「編集を引き継ぐ」を出す。
+     ほかの EverPad が書き換えたメモに書き足そうとしたときは(store.js が止める)、こちらの編集を新しいメモに分けて残す */
+  S.dirSt = { mode: 'edit' };
+  S.dirRO = false;
+  function whoText(by) {
+    if (!by) return T('dirByOther');
+    if (by.remote) return T('dirByHost', { host: by.host });
+    if (by.kind === 'portable') return T('lockByPortable', { dir: by.dir });
+    if (by.kind === 'installed') return T('lockByInstalled');
+    return T('dirByOther');
+  }
+  function renderDirBar() {
+    const st = S.dirSt, bar = $('dirBar');
+    // 編集中に、ほかの EverPad から引き継ぎを頼まれたときは、渡すかどうかを選んでもらう
+    const ask = st.mode === 'edit' && st.ask ? st.ask : null;
+    $('dirAllow').hidden = $('dirDeny').hidden = !ask;
+    if (st.mode !== 'ro' && !ask) { bar.hidden = true; return; }
+    const who = whoText(ask || st.by);
+    let msg, take = '';
+    if (ask) msg = T('dirAsked', { who: who });
+    else if (st.waiting) {
+      msg = !st.free ? T(st.seen ? 'dirWaitAnswer' : 'dirWaitOther', { who: who }) : st.left ? T('dirWaitSync', { n: st.left }) : T('dirWaitStart');
+      if (st.canForce) msg += ' ' + T(st.free ? 'dirNoSync' : st.seen ? 'dirNoReply' : 'dirNoAnswer');
+    } else if (st.free) { msg = T('dirFree'); take = T('dirEdit'); }
+    else if (st.denied) { msg = T('dirDenied', { who: who }); take = T('dirTake'); }
+    else { msg = T(st.reason === 'handed' ? 'dirHanded' : st.reason === 'taken' ? 'dirTaken' : 'dirBusy', { who: who }); take = T('dirTake'); }
+    $('dirText').textContent = msg;
+    $('dirReload').hidden = !!ask;
+    $('dirTake').hidden = !take;
+    $('dirTake').textContent = take;
+    $('dirForce').hidden = !(st.waiting && st.canForce);
+    $('dirCancel').hidden = !st.waiting;
+    bar.hidden = false;
+  }
+  async function applyDirState(st) {
+    if (!st) return;
+    S.dirSt = st;
+    if (st.mode === 'edit') {
+      // 編集を始める前に、保存先から読み直す(ほかの EverPad が書いた内容に合わせる。起動の途中なら、起動が読む)
+      if (st.reload && S.booted) await refreshFromDisk();
+      S.dirRO = false;
+      if (pendingOps.size) flush();   // 読み取り専用の間に書けなかった分
+    } else S.dirRO = true;
+    renderDirBar();
+    if (!cur()) return;
+    applyRO();
+    sendUiState();
+    updateStatus();
+    if (S.mode === 'history') renderHist();
+  }
+  api.onDirState(st => { applyDirState(st); });
+  // 読み取り専用になる前に: 入力を止め、プレビューの編集欄を閉じ、書き込み待ちの編集と本文を書き出す
+  api.onDirPrepare(async () => {
+    try {
+      if (pe.box) peClose();
+      S.dirRO = true;
+      if (cur()) applyRO();
+      await flush();
+      for (const id of Array.from(textDirty)) {
+        textDirty.delete(id);
+        const n = S.notes.find(x => x.id === id);
+        if (n && n.loaded) { try { await api.saveText(id, n.text); } catch (e) { /* .md は控え */ } }
+      }
+    } finally { api.dirPrepared(); }
+  });
+  $('dirTake').addEventListener('click', async () => { try { applyDirState(await api.dirAction('takeover')); } catch (e) { /* 次の状態の知らせで直る */ } });
+  $('dirCancel').addEventListener('click', async () => { try { applyDirState(await api.dirAction('cancel')); } catch (e) { /* 同上 */ } });
+  $('dirForce').addEventListener('click', async () => { try { await api.dirAction('force'); } catch (e) { /* 同上 */ } });
+  $('dirAllow').addEventListener('click', async () => { try { applyDirState(await api.dirAction('allow')); } catch (e) { /* 同上 */ } });
+  $('dirDeny').addEventListener('click', async () => { try { applyDirState(await api.dirAction('deny')); } catch (e) { /* 同上 */ } });
+  $('dirReload').addEventListener('click', async () => { await refreshFromDisk(); toast(T('dirReloaded')); });
+
+  /* 保存先から読み直す: 一覧(増えた・消えたメモ、開いていないメモの題名など)と、ほかから書き換えられた開いているメモ。
+     書き込み待ちの編集があるメモは読み直さない(書くときに食い違いを見つけて、別のメモに残す) */
+  let refreshing = null;
+  function refreshFromDisk() {
+    if (!refreshing) refreshing = doRefresh().catch(() => {}).then(() => { refreshing = null; });
+    return refreshing;
+  }
+  async function doRefresh() {
+    await chain;
+    let data = null;
+    try { data = await api.load(); } catch (e) { data = null; }
+    if (!data || !Array.isArray(data.notes)) return;
+    const onDisk = new Map(data.notes.map(r => [r.id, r]));
+    let changed = {};
+    try { changed = (await api.changedNotes(S.notes.filter(n => n.loaded).map(n => n.id))) || {}; } catch (e) { changed = {}; }
+    const busy = id => pendingOps.has(id) || (writing && S.active === id);
+    let listChanged = false, activeGone = false;
+    // 保存先から無くなったメモ(ほかの EverPad で削除した)
+    for (const n of S.notes.slice()) {
+      if (onDisk.has(n.id) || busy(n.id)) continue;
+      S.notes = S.notes.filter(x => x !== n);
+      textDirty.delete(n.id);
+      listChanged = true;
+      if (n.id === S.active) activeGone = true;
+    }
+    // 増えたメモと、開いていないメモの一覧用の情報
+    for (const r of data.notes) {
+      const n = S.notes.find(x => x.id === r.id);
+      const meta = { c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro };
+      if (!n) { S.notes.push(Object.assign({ id: r.id, loaded: false }, meta)); listChanged = true; }
+      else if (!n.loaded && !n.loading && (n.t !== meta.t || n.n !== meta.n || n.title !== meta.title || n.ro !== meta.ro)) { Object.assign(n, meta); listChanged = true; }
+    }
+    // 開いているメモのうち、ほかから書き換えられたもの
+    for (const id of Object.keys(changed)) {
+      if (changed[id] !== 'changed' || busy(id)) continue;
+      const n = S.notes.find(x => x.id === id);
+      if (!n || !n.loaded) continue;
+      if (id !== S.active) { textDirty.delete(id); unload(n); Object.assign(n, metaOf(onDisk.get(id))); listChanged = true; continue; }
+      await reloadActive(id);
+      listChanged = true;
+    }
+    if (activeGone || !cur()) {
+      if (!S.notes.length) S.notes.push((S.dirRO ? null : await makeNote()) || newNote());
+      const next = sorted()[0];
+      ++selTok;
+      if (!(await ensureLoaded(next.id))) return;
+      show(next.id);
+    } else if (listChanged) renderList();
+    if (S.q) runSearch();
+  }
+  const metaOf = r => (r ? { c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro } : {});
+  /* 開いているメモを保存先から読み直して、表示し直す(スクロールの位置とカーソルはなるべく保つ) */
+  async function reloadActive(id) {
+    let r = null;
+    try { r = await api.loadNote(id); } catch (e) { r = null; }
+    const n = S.notes.find(x => x.id === id);
+    if (!r || !n || pendingOps.has(id)) return false;
+    textDirty.delete(id);
+    fillNote(n, r);
+    if (S.active !== id) return true;
+    const ed = $('editor'), selS = ed.selectionStart, selE = ed.selectionEnd, top = ed.scrollTop, pvTop = $('preview').scrollTop;
+    show(id);
+    ed.setSelectionRange(Math.min(selS, ed.value.length), Math.min(selE, ed.value.length));
+    ed.scrollTop = top;
+    $('preview').scrollTop = pvTop;
+    return true;
+  }
+  /* 書き足そうとしたメモが、ほかの EverPad で書き換えられていた(kind: 'changed')・削除されていた('gone')。
+     こちらの本文を新しいメモに分けて残し(同じ題名のメモが2つになる)、元のメモは保存先の内容に戻す */
+  async function keepConflict(id, kind) {
+    const n = S.notes.find(x => x.id === id);
+    if (!n || !n.loaded) { pendingOps.delete(id); textDirty.delete(id); return; }
+    const title = shownTitle(titleOf(n.text)), keep = !!n.text;
+    const m = keep ? await makeNote() : null;
+    // ここから先は、待たずに続ける(この間の入力が、元のメモに入らないように)
+    const text = n.text;
+    pendingOps.delete(id);
+    textDirty.delete(id);
+    if (m) {
+      S.notes.push(m);
+      const op = makeOp('', text, Date.now()); m.ops.push(op); m.text = text; syncMeta(m); queueOp(m, op);
+    }
+    const wasActive = S.active === id;
+    if (wasActive && m) { ++selTok; show(m.id); }
+    if (kind === 'gone') S.notes = S.notes.filter(x => x !== n);
+    else {
+      let r = null;
+      try { r = await api.loadNote(id); } catch (e) { r = null; }
+      if (r) fillNote(n, r); else unload(n);
+    }
+    if (wasActive && !m) {
+      const next = S.notes.includes(n) ? n : sorted()[0];
+      if (next && (await ensureLoaded(next.id))) { ++selTok; show(next.id); }
+    } else renderList();
+    if (keep) toast(T(!m ? 'conflictLost' : kind === 'gone' ? 'conflictGone' : 'conflictKept', { title: title }));
+  }
+  // ほかのアプリから戻ってきたときに、保存先から読み直す(ほかの EverPad で書き換えたメモを取り込む)
+  let lastRefreshAt = 0;
+  window.addEventListener('focus', () => {
+    const now = Date.now();
+    if (now - lastRefreshAt < 2000 || !S.booted || !cur()) return;
+    lastRefreshAt = now;
+    refreshFromDisk();
+  });
   // EverPad アーカイブとしてエクスポート: 書き込み待ちの編集と本文を先に書き出してから、main.js にまとめてもらう
   async function exportArchive(target) {
     const n = target || cur();
@@ -4251,6 +4441,9 @@
     if (!data) { toast(T('dirLoadFailed')); return; }
     $('dirPath').textContent = data.dir;
     S.dir = data.dir;
+    // 保存先を読み取り専用で開いたか(ほかの EverPad が編集中)。メモを表示する前に決める
+    try { const st = await api.dirState(); if (st) { S.dirSt = st; S.dirRO = st.mode === 'ro'; } } catch (e) { /* 編集できるとみなす */ }
+    renderDirBar();
     loadRecent();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
     S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro, loaded: false }));
@@ -4269,6 +4462,7 @@
     const view = takeView();
     if (view) restoreView(view);
     else setMode('edit', true);
+    S.booted = true;
     api.ready();
   })();
 })();

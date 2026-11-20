@@ -85,7 +85,8 @@ foreach ($p in Get-StoreApp) { if ($p.MainWindowHandle -ne 0) { [void]$p.CloseMa
 for ($i = 0; $i -lt 20 -and (Get-StoreApp).Count -gt 0; $i++) { Start-Sleep 1 }
 if ((Get-StoreApp).Count -gt 0) { Get-StoreApp | Stop-Process -Force; Fail 'EverPad (Microsoft Store) did not exit within 20 seconds after closing its window' }
 if (-not (Test-Path $notesDir)) { Fail "the data folder $notesDir was not created" }
-if (Test-Path (Join-Path $notesDir '.everpad-lock')) { Fail 'the data folder lock was not removed after closing' }
+$lockFile = Join-Path $notesDir '.everpad-lock'   # 閉じると「手放した」になる(次に開く EverPad が、同期を待てるように残す)
+if ((Test-Path $lockFile) -and -not ((Get-Content -Raw $lockFile | ConvertFrom-Json).released)) { Fail "the data folder lock was not released after closing:`n$(Get-Content -Raw $lockFile)" }
 Remove-AppxPackage -Package $inst.PackageFullName
 if (Get-AppxPackage -Name $appx.identityName) { Fail 'the package was still installed after Remove-AppxPackage' }
 if (-not (Test-Path $notesDir)) { Fail "uninstalling deleted the data folder $notesDir (it should be kept)" }
