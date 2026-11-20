@@ -27,6 +27,7 @@ This program was created with the help of Claude Code.
 - **Keyboard shortcuts you can change**: assign the keys you like from File → Keyboard Shortcuts….
 - **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
+- **Sharing between computers**: keep the data folder in OneDrive or similar and use it from several computers. One EverPad edits at a time; the others open it read-only, and editing can be handed over (see "Sharing the data folder between computers").
 
 ### Download
 
@@ -53,10 +54,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.44.2.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.45.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.44.2.exe
+EverPad 0.45.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -374,12 +375,26 @@ The data folder also contains `.everpad-index.json`, an index for the note list 
 - To back up, just copy the data folder.
 - If a `.jsonl` file is damaged partway through, the readable part is used and the original file is kept under the name `.corrupt-…`.
 - Deleting a note moves its files and its attachment folder to the Recycle Bin. On drives without a Recycle Bin (USB drives, network folders), they are moved to a `.trash` folder inside the data folder instead, because Windows would otherwise delete them permanently. Overwriting a note by importing an archive works the same way. Empty `.trash` yourself when you no longer need it. On macOS and Linux, files go to the system Trash, and to `.trash` only if that fails.
-- Only one EverPad edits a data folder at a time, also when the folder is shared between computers with OneDrive or similar. While editing, EverPad keeps a `.everpad-lock` file in the folder with the computer's name, and updates it every 30 seconds. Another EverPad that opens the same folder (the portable version, or EverPad on another computer) opens it read-only: a bar at the top says which EverPad is editing, and you can read, search, copy, print and export notes, but not change them. Reload in the bar reads the notes again to show what the other EverPad wrote (they are also read again when you switch back to the window).
+- The data folder can be shared between computers with OneDrive or similar; see "Sharing the data folder between computers".
+
+### Sharing the data folder between computers
+
+You can put the data folder in OneDrive (or another folder that is synced between computers) and use the same notes on several computers. On each computer, choose File → Change Data Folder… and select the same folder. With the portable version, keep the executable outside the synced folder and change only the data folder, because its `EverPad Data\settings` folder is meant for one computer.
+
+- Only one EverPad edits the data folder at a time. The editing EverPad keeps a marker file, `.everpad-lock`, in the data folder. It tells other EverPads which EverPad (on which computer) is editing the folder, and is updated every 30 seconds. Another EverPad that opens the same folder (on another computer, or the portable version on the same computer) opens it read-only: a bar at the top says which EverPad is editing, and you can read, search, copy, print and export notes, but not change them. Reload in the bar reads the notes again to show what the other EverPad wrote (they are also read again when you switch back to the window).
 - To edit in the read-only EverPad, press Take Over Editing in the bar. The editing EverPad shows the request in a bar at the top (its taskbar button flashes if it is not in front) and keeps editing until someone there chooses Hand Over or Decline. With Hand Over, it saves its edits and becomes read-only, and the asking EverPad becomes editable (this takes a few seconds, longer if the folder is synced). With Decline, the asking EverPad says so and stays read-only.
 - If there is no response for 20 seconds (for example because the other computer is asleep or offline), or no answer for 2 minutes after the request was shown (for example because nobody is at the other computer), Take Over Without Waiting appears; it asks before taking over. When the other EverPad is closed, the bar shows Edit instead.
-- When EverPad is closed, it notes in `.everpad-lock` which notes it wrote. If you open the folder on another computer before those notes have arrived through sync, EverPad opens it read-only and starts editing by itself when they arrive (Take Over Without Waiting is also available).
-- If both computers write `.everpad-lock` at about the same time (for example after sync was paused), OneDrive keeps the other version as a copy such as `-PCNAME.everpad-lock`. The editing EverPad deletes these copies, as EverPad does not use them.
-- If a note was changed by another EverPad anyway (for example, both computers were offline), EverPad does not write to it. Your edits are kept in a new note with the same title, which opens in its place, and the original note shows the other EverPad's version. A lock left over from a crash is ignored after 90 seconds on the same computer, and after 5 minutes when it is from another computer. EverPad 0.44 and earlier do not know this way of sharing, so use the same version on every computer.
+- When EverPad is closed, it notes in the marker file which notes it wrote. If you open the folder on another computer before those notes have arrived through sync, EverPad opens it read-only and starts editing by itself when they arrive (Take Over Without Waiting is also available). This is why `.everpad-lock` stays in the folder after EverPad is closed, marked as released.
+- A marker left over from a crash is ignored after 90 seconds on the same computer, and after 5 minutes when it is from another computer.
+- If both computers write the marker file at about the same time (for example after sync was paused), OneDrive keeps the other version as a copy such as `-PCNAME.everpad-lock`. The editing EverPad deletes these copies, as EverPad does not use them.
+
+**Things to know**
+
+- **Use EverPad 0.45.0 or later on every computer.** EverPad 0.44 and earlier do not know the read-only mode or taking over editing, so with them two computers can edit at the same time.
+- **The marker works only while sync is running.** While a computer is offline or sync is paused, it does not see the other computer's marker, so both computers may edit. If the other computer's changes to a note have already arrived, EverPad notices before saving and does not write to that note: your edits are kept in a new note with the same title, which opens in its place, and the original note shows the other EverPad's version. If both computers changed the same note before either change arrived, OneDrive keeps one of them as a copy named like `<note>-PCNAME.jsonl`, which EverPad shows as another note with the same title (its images and attachments are not shown; they stay with the original note). Compare the two notes, combine them, and delete the one you no longer need.
+- **EverPad does not overwrite another EverPad's edits.** It only appends to the history files (`.jsonl`) and does not write to a note that another EverPad changed. If a history file arrives cut off partway, the readable part is used and the original is kept as `.corrupt-…`. What can happen is that edits end up split between two notes, as described above.
+- **Tested with OneDrive.** Other sync services (Dropbox, Google Drive and so on) should work the same way, but they name their conflict copies differently, so EverPad does not delete their copies of `.everpad-lock` (they do no harm, and you can delete them yourself). A shared network folder without a sync service should also work, without sync delays.
+- **Back up from time to time** by copying the data folder, especially before leaving sync paused for a long time.
 
 ### Performance with many notes
 
@@ -438,15 +453,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.44.2.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.45.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.44.2-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.45.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.44.2`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.45.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -455,7 +470,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.44.2.AppImage` (x64)
+- Linux: `EverPad-0.45.0.AppImage` (x64)
 
 **macOS**
 
@@ -471,7 +486,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.44.2.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.45.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -494,7 +509,7 @@ updatecheck.js   Checking GitHub for a newer version (testable without Electron)
 updatedownload.js  Downloading a new version and checking its SHA-256 for updating from within the app (testable without Electron)
 pageexport.js    Building HTML and MHTML files for File → Export (testable without Electron)
 docexport.js     Building AsciiDoc, Word and LaTeX files for File → Export (testable without Electron)
-datalock.js      The lock that lets only one EverPad edit a data folder, and hands editing over between them (testable without Electron)
+datalock.js      The marker file that lets only one EverPad edit a data folder, and hands editing over between them (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
 pasteclip.js     Checking the temporary image files that Word and Excel copy, before they are added as attachments (testable without Electron)
 archive.js       EverPad archives: building, checking and reading (testable without Electron)
@@ -569,6 +584,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **キーボードショートカットを変えられる**: 「ファイル」→「キーボードショートカット…」で、好きなキーを割り当てられます。
 - **日本語と英語**: 画面の言語を設定から切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
+- **パソコンの間で共有**: 保存先を OneDrive などに置いて、複数のパソコンで使えます。編集するのはいつも1つの EverPad で、ほかは読み取り専用で開き、編集を引き継げます(「保存先を別のパソコンと共有する」を参照)。
 
 ### ダウンロード
 
@@ -595,10 +611,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.44.2.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.45.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.44.2.exe
+EverPad 0.45.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -916,12 +932,26 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - バックアップは、保存先フォルダをコピーするだけです。
 - `.jsonl` が途中で壊れていた場合は、読める範囲までを使い、元のファイルを `.corrupt-…` という名前で残します。
 - メモを削除すると、そのメモのファイルと添付のフォルダがごみ箱に入ります。ごみ箱の無いドライブ(USB メモリ、ネットワークのフォルダ)では、Windows が元に戻せない形で消してしまうため、代わりに保存先の中の `.trash` フォルダに移します。アーカイブのインポートでメモを上書きするときも同じです。`.trash` の中身は、要らなくなったらご自身で削除してください。macOS と Linux では OS のゴミ箱に入れ、入れられなかったときだけ `.trash` に移します。
-- 1つの保存先を編集するのは、いつも1つの EverPad だけです。OneDrive などで複数のパソコンから同じフォルダを使う場合も同じです。編集している EverPad は、保存先に `.everpad-lock` を置き(パソコンの名前も書きます)、30秒ごとに新しくします。同じ保存先を開いた別の EverPad(portable 版や、別のパソコンの EverPad)は、読み取り専用で開きます。画面の上の帯に、編集している EverPad が出ます。メモを見る・検索する・コピーする・印刷とエクスポートはできますが、変えることはできません。帯の「再読み込み」で、もう一方の EverPad が書いた内容を読み直します(ウィンドウに戻ったときにも読み直します)。
+- 保存先は、OneDrive などで別のパソコンと共有できます。「保存先を別のパソコンと共有する」を見てください。
+
+### 保存先を別のパソコンと共有する
+
+保存先フォルダを OneDrive など(パソコンの間で同期されるフォルダ)に置くと、同じメモを複数のパソコンで使えます。どのパソコンでも「ファイル」→「保存先フォルダを変更…」で、同じフォルダを選んでください。portable 版は、実行ファイルを同期するフォルダの外に置き、保存先だけを変えてください。`EverPad Data\settings` は、そのパソコンだけで使う設定だからです。
+
+- 保存先を編集するのは、いつも1つの EverPad だけです。編集している EverPad は、保存先に目印のファイル `.everpad-lock` を置きます。どの EverPad(どのパソコン)がこの保存先を編集しているかを、ほかの EverPad に知らせるためのもので、30秒ごとに新しくします。同じ保存先を開いた別の EverPad(別のパソコンの EverPad や、同じパソコンの portable 版)は、読み取り専用で開きます。画面の上の帯に、編集している EverPad が出ます。メモを見る・検索する・コピーする・印刷とエクスポートはできますが、変えることはできません。帯の「再読み込み」で、もう一方の EverPad が書いた内容を読み直します(ウィンドウに戻ったときにも読み直します)。
 - 読み取り専用の EverPad で編集したいときは、帯の「編集を引き継ぐ」を押します。編集中の EverPad は、画面の上の帯に頼まれたことを出し(手前に無いときは、タスクバーのアイコンが点滅します)、「編集を渡す」か「断る」を選ぶまで編集を続けられます。「編集を渡す」を選ぶと、保存していない編集を書き出してから読み取り専用になり、頼んだ EverPad が編集できるようになります(数秒かかります。同期するフォルダでは、もっとかかります)。「断る」を選ぶと、頼んだ EverPad にそう出て、読み取り専用のままになります。
 - 20秒たっても応答が無いとき(もう一方のパソコンがスリープ中やオフラインのときなど)や、頼んだことが出てから2分たっても返事が無いとき(もう一方のパソコンの前にだれもいないときなど)は「待たずに引き継ぐ」が出ます。押すと、確かめてから引き継ぎます。もう一方の EverPad が閉じられたときは、帯に「編集する」が出ます。
-- EverPad は閉じるときに、書いたメモを `.everpad-lock` に書いておきます。それらのメモが同期で届く前に別のパソコンで保存先を開くと、読み取り専用で開き、届いたら自動で編集を始めます(「待たずに引き継ぐ」もできます)。
-- 2台のパソコンが同じころに `.everpad-lock` を書くと(同期を一時停止したあとなど)、OneDrive はもう一方の版を `-PC名.everpad-lock` のような名前のコピーにして残します。EverPad はこれらのコピーを使わないので、編集中の EverPad が消します。
-- それでも、ほかの EverPad で同じメモが変えられていたとき(両方のパソコンがオフラインだったときなど)は、そのメモには書き足しません。こちらの編集は、同じ題名の新しいメモに分けて残して開き、元のメモには、もう一方の EverPad の内容を表示します。異常終了で残った印は、同じパソコンなら90秒、別のパソコンからなら5分で無視します。0.44 までの EverPad はこの仕組みを知らないので、どのパソコンでも同じバージョンを使ってください。
+- EverPad は閉じるときに、書いたメモを目印のファイルに書いておきます。それらのメモが同期で届く前に別のパソコンで保存先を開くと、読み取り専用で開き、届いたら自動で編集を始めます(「待たずに引き継ぐ」もできます)。そのため、EverPad を閉じたあとも、`.everpad-lock` は「手放した」として保存先に残ります。
+- 異常終了で残った目印は、同じパソコンなら90秒、別のパソコンからなら5分で無視します。
+- 2台のパソコンが同じころに目印のファイルを書くと(同期を一時停止したあとなど)、OneDrive はもう一方の版を `-PC名.everpad-lock` のような名前のコピーにして残します。EverPad はこれらのコピーを使わないので、編集中の EverPad が消します。
+
+**気をつけること**
+
+- **どのパソコンでも 0.45.0 以降を使ってください。** 0.44 までの EverPad は、読み取り専用で開くことや編集の引き継ぎを知らないので、2台で同時に編集できてしまいます。
+- **目印が働くのは、同期が動いているときだけです。** オフラインのときや同期を一時停止しているときは、もう一方のパソコンの目印が届かないので、両方で編集できてしまいます。もう一方の変更がもう届いていれば、EverPad は保存する前に気づき、そのメモには書き足しません。こちらの編集は同じ題名の新しいメモに分けて残して開き、元のメモには、もう一方の EverPad の内容を表示します。どちらの変更も届く前に、両方のパソコンで同じメモを変えたときは、OneDrive が片方を `<メモ>-PC名.jsonl` のような名前のコピーにして残します。EverPad はこれを、同じ題名の別のメモとして表示します(このメモには画像と添付が出ません。画像と添付は元のメモに残っています)。2つのメモを見比べて1つにまとめ、要らなくなったほうを削除してください。
+- **ほかの EverPad の編集を上書きすることはありません。** EverPad は履歴のファイル(`.jsonl`)に書き足すだけで、ほかの EverPad が変えたメモには書き込みません。途中で切れた履歴のファイルが届いたときも、読める範囲までを使い、元のファイルを `.corrupt-…` として残します。起こりうるのは、上のように編集が2つのメモに分かれることです。
+- **試したのは OneDrive です。** ほかの同期サービス(Dropbox、Google ドライブなど)でも同じように働くはずですが、衝突したときのコピーの名前が違うため、それらが作った `.everpad-lock` のコピーは消しません(害はないので、ご自身で削除してかまいません)。同期サービスを使わないネットワークの共有フォルダでも使えるはずで、同期の遅れもありません。
+- **ときどきバックアップしてください。** 保存先フォルダをコピーするだけです。同期を長く止めておく前には、特におすすめします。
 
 ### メモが増えたときの動き
 
@@ -980,15 +1010,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.44.2.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.45.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.44.2-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.45.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.44.2` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.45.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -997,7 +1027,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.44.2.AppImage`(x64)
+- Linux: `EverPad-0.45.0.AppImage`(x64)
 
 **macOS**
 
@@ -1013,7 +1043,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.44.2.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.45.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -1036,7 +1066,7 @@ updatecheck.js   GitHub に新しいバージョンがあるかの確認(Electro
 updatedownload.js  アプリの中からの更新のための、新しい版のダウンロードと SHA-256 の確認(Electron なしでテストできる)
 pageexport.js    「エクスポート」の HTML と MHTML のファイルの組み立て(Electron なしでテストできる)
 docexport.js     「エクスポート」の AsciiDoc・Word・LaTeX のファイルの組み立て(Electron なしでテストできる)
-datalock.js      同じ保存先を編集する EverPad を1つにする印と、編集の引き継ぎ(Electron なしでテストできる)
+datalock.js      同じ保存先を編集する EverPad を1つにする目印のファイルと、編集の引き継ぎ(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)
 pasteclip.js     Word・Excel がコピーした画像の一時ファイルを、添付にする前に確かめる(Electron なしでテストできる)
 archive.js       EverPad アーカイブの作成・検査・読み込み(Electron なしでテストできる)
