@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.46.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.47.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -63,9 +63,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・検索結果からメモを開いても、プレビューを「テキスト」表示に切り替えなくなりました。プレビューでは、見つかった箇所までスクロールして開き、同じ検索語で検索のバーを開きます(Enter / F3 で次の箇所へ)。
-・tag:名前 で見つけたメモは、メモ一覧から開いたときと同じく、今の表示のまま、前に見ていた場所とカーソルの位置から出します。
-・検索結果からメモを開いたときに、メモの読み取り専用の状態が正しく反映されないことがあったのを直しました。
+・検索欄に tag: と打つと、当たるタグを、メモの件数つきで候補に出します。↑↓ で選んで Enter か Tab で(クリックでも)、そのタグで探します。
+・tag: だけで、タグを持つメモをすべて出します。tag:名前 を打っている間は、打った文字で始まるタグを探すので、打つにつれて絞られます。
+・検索で、フロントマターのキーの名前(tags: や title: など)には当てないようにしました。「tag」で探しても、タグを持つメモがすべて出ることはありません。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -163,9 +163,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Opening a note from the search results no longer switches the preview to the Text view. In the preview, the note opens scrolled to the match, with the find bar open on the same text (Enter / F3 moves to the next match).
-• Notes found with tag:name open like from the note list: in the current view, at the place you were viewing and with the cursor where it was.
-• Fixed the read-only state of a note sometimes not being applied when the note was opened from the search results.
+• Type tag: in the search box to see the matching tags, with their number of notes. Choose one with ↑↓ and Enter or Tab, or click it, to search for that tag.
+• tag: alone lists all the notes that have tags, and while you are typing tag:name, it finds the tags that begin with what you have typed, so the results narrow as you type.
+• Searching no longer matches the key names of the front matter (such as tags: and title:), so searching for "tag" no longer finds every note that has tags.
 
 ### Product features (up to 20, up to 200 characters each)
 
