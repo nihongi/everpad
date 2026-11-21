@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.45.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.46.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -63,17 +63,18 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・保存先を OneDrive などで別のパソコンと共有していて、開いている EverPad とは別のパソコンで EverPad を開いたとき、あとから開いたほうは保存先を読み取り専用で開くようにしました。画面の上の帯に編集中の EverPad を出し、「再読み込み」でその EverPad が書いた内容を表示します。
-・帯の「編集を引き継ぐ」で、編集中の EverPad に引き継ぎを頼めます。頼まれた側は「編集を渡す」か「断る」を選べます。応答や返事が無いときは「待たずに引き継ぐ」も使えます。
-・閉じるときに書いたメモを書き残し、それが同期で届く前に別のパソコンで開いたときは、届くまで待ってから編集を始めます。
-・開いたあとでほかの EverPad がメモを変えていたときは、こちらの編集を同じ題名の新しいメモに残し、編集を失わないようにしました。
-・保存先を共有するときは、どのパソコンでも 0.45.0 以降を使ってください。
+・表のセルを、複数の列や行にまたがらせられるようにしました。セルの後ろに | を足すと右のセルと、^^ だけのセルは上のセルと結合します(MultiMarkdown の書き方)。セルを右クリックして「右のセルと結合」「下のセルと結合」「結合を解除」でもできます。
+・セルの中身の前後の空白で、そのセルだけの配置を決められます。両側に空白が2つ以上なら中央、左だけなら右寄せ、右だけなら左寄せです。
+・表のすぐ上か下の [表題] だけの行は、表の表題になります。見出しの行も複数にできます。
+・Word・Excel・Web ページから貼り付けた表の、結合したセル・表題・セルの配置を引き継ぎます。見出しの行の無い表は、コピーした行をすべて表の中身にします。
+・印刷・PDF・HTML・Word・LaTeX・AsciiDoc への書き出しでも、結合したセルと表題を保ちます。
+・メモをまた開くと、前に見ていた場所とカーソルの位置から表示します。EverPad を閉じても覚えています。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
 1. すべての編集を履歴に残し、タイムスライダーで巻き戻せる
 2. 過去の版をワンクリックで復元
-3. Markdown のプレビュー(見出し・リスト・チェックボックス・表・コード・引用)
+3. Markdown のプレビュー(見出し・リスト・チェックボックス・表(セルの結合と表題も)・コード・引用)
 4. LaTeX の数式と化学式の表示。ひな型と記号から選べる数式エディタ
 5. すべてのメモから検索(履歴全体の検索や、フロントマターのタグでの検索も可能)
 6. 検索と置換(正規表現にも対応)
@@ -81,11 +82,11 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 8. 他のメモへのリンクと、ブラウザからドロップしたページへのリンク
 9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word・LaTeX への書き出し(フロントマターで題名・著者・目次・用紙も設定)
 10. 履歴と添付ファイルごと移せる EverPad アーカイブ
-11. メモは選んだフォルダに普通のファイルとして保存
+11. メモは選んだフォルダに普通のファイルとして保存(OneDrive などで、複数のパソコンから共有もできます)
 12. アカウント不要、インターネットに接続しない
 13. 日本語と英語の画面、ダークモード、メモの背景と文字の色の設定、常に手前に表示
 14. Mermaid の図(フローチャート・シーケンス図など)と、拡大・移動しながら書ける図エディタ
-15. プレビューのままで段落・表・チェックボックスを編集でき、段落の書き足しや、表の行・列の挿入と削除・配置も簡単
+15. プレビューのままで段落・表・チェックボックスを編集でき、段落の書き足しや、表の行・列の挿入と削除、セルの結合、配置も簡単
 16. 選んだ文字を右クリックで太字・斜体・取り消し線・コードに
 17. キーボードショートカットを好きなキーに変えられる
 18. GitHub と同じ絵文字ショートコード(入力候補つき)・アラート・脚注
@@ -165,17 +166,18 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• When the data folder is shared with another computer through OneDrive or a similar service and EverPad is opened on another computer while it is already open, the EverPad opened later now opens the folder read-only. A bar at the top shows which EverPad is editing, with Reload to show what it wrote.
-• Take Over Editing in the bar asks the editing EverPad to hand over; there you can choose Hand Over or Decline. If there is no response or answer, Take Over Without Waiting is also available.
-• When EverPad is closed, it notes which notes it wrote. If you open the folder on another computer before they have arrived through sync, EverPad waits for them before it starts editing.
-• If another EverPad changed a note after you opened it, your edits are kept in a new note with the same title, so they are not lost.
-• To share a data folder, use 0.45.0 or later on every computer.
+• Table cells can now span several columns or rows. Add | after a cell to merge it with the cell on its right, and write ^^ in a cell to merge it with the cell above (as in MultiMarkdown). You can also right-click a cell and choose Merge with Cell on the Right, Merge with Cell Below or Unmerge Cells.
+• Spaces around the text of a cell align just that cell: two or more on both sides center it, on the left only align it right, and on the right only align it left.
+• A line containing only [title] just above or below a table becomes its title. Tables can also have several header rows.
+• Tables pasted from Word, Excel or web pages keep their merged cells, title and cell alignment. In a table without a header row, all the copied rows stay in the table.
+• Printing and exporting to PDF, HTML, Word, LaTeX and AsciiDoc keep merged cells and titles.
+• A note you open again shows the place you were viewing, with the cursor where it was, also after EverPad is closed.
 
 ### Product features (up to 20, up to 200 characters each)
 
 1. Every edit is kept; rewind any note with the time slider
 2. Restore any earlier version with one click
-3. Markdown preview: headings, lists, check boxes, tables, code and block quotes
+3. Markdown preview: headings, lists, check boxes, tables (with merged cells and titles), code and block quotes
 4. LaTeX math and chemical formulas, with a formula editor of templates and symbols
 5. Search all notes, including their entire history, or by tags in front matter
 6. Find and replace, with regular expressions
@@ -183,11 +185,11 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 8. Links between notes, and links to web pages dropped from the browser
 9. Print, and export to PDF, HTML, MHTML, AsciiDoc, Word and LaTeX, with title, author, table of contents and paper set in the front matter
 10. EverPad archives that move a note with its history and attachments
-11. Notes saved as ordinary files in a folder you choose
+11. Notes saved as ordinary files in a folder you choose (it can also be shared between computers through OneDrive or similar)
 12. No account, and no internet connection
 13. English and Japanese interface, dark mode, note background and text colors you can choose, and Always on Top
 14. Mermaid diagrams (flowcharts, sequence diagrams and more), with a diagram editor you can zoom and pan
-15. Edit paragraphs, tables and check boxes right in the preview, add paragraphs, and easily change table rows, columns and alignment
+15. Edit paragraphs, tables and check boxes right in the preview, add paragraphs, and easily change table rows, columns, merged cells and alignment
 16. Bold, italic, strikethrough and code from the right-click menu
 17. Keyboard shortcuts you can change
 18. GitHub emoji shortcodes (with suggestions), alerts and footnotes
