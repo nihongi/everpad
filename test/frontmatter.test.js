@@ -71,12 +71,83 @@ test('フロントマター: プレビュー(fm: true)ではキーと値の並�
 });
 
 test('タグの検索: tag:名前 を検索語から分け、大文字・小文字と全角・半角は区別しない。下の階層にも当たる', () => {
-  assert.deepStrictEqual(core.parseQuery('tag:YAML'), { text: '', tags: ['yaml'] });
-  assert.deepStrictEqual(core.parseQuery('設計  tag:YAML 書き方'), { text: '設計 書き方', tags: ['yaml'] });
-  assert.deepStrictEqual(core.parseQuery('tag:"a b" TAG：ＹＡＭＬ tag:#yaml'), { text: '', tags: ['a b', 'yaml'] });
-  assert.deepStrictEqual(core.parseQuery('tag: 文字'), { text: 'tag: 文字', tags: [] }, 'tag: の後ろが空ならふつうの文字');
-  assert.deepStrictEqual(core.parseQuery('a  b'), { text: 'a  b', tags: [] }, 'タグが無ければ検索語はそのまま');
-  assert.deepStrictEqual(core.parseQuery('mytag:x'), { text: 'mytag:x', tags: [] });
+  const pq = (text, tags, pre, any) => ({ text: text, tags: tags, pre: pre || '', any: !!any });
+  assert.deepStrictEqual(core.parseQuery('tag:YAML'), pq('', ['yaml']));
+  assert.deepStrictEqual(core.parseQuery('設計  tag:YAML 書き方'), pq('設計 書き方', ['yaml']));
+  assert.deepStrictEqual(core.parseQuery('tag:"a b" TAG：ＹＡＭＬ tag:#yaml'), pq('', ['a b', 'yaml']));
+  assert.deepStrictEqual(core.parseQuery('tag: 文字'), pq('文字', [], '', true), 'tag: の後ろが空なら、タグを持つメモ');
+  assert.deepStrictEqual(core.parseQuery('tag:'), pq('', [], '', true));
+  assert.deepStrictEqual(core.parseQuery('tag:""'), pq('', [], '', true));
+  assert.deepStrictEqual(core.parseQuery('a  b'), pq('a  b', []), 'タグが無ければ検索語はそのまま');
+  assert.deepStrictEqual(core.parseQuery(' a '), pq('a', []));
+  assert.deepStrictEqual(core.parseQuery('mytag:x'), pq('mytag:x', []));
+  assert.deepStrictEqual(core.parseQuery('tag:a"b'), pq('tag:a"b', []));
+});
+
+test('タグの検索: 打っている途中(欄の最後で、後ろに空白が無い)の tag:名前 は、その文字で始まるタグを探す', () => {
+  const P = q => core.parseQuery(q, true);
+  assert.deepStrictEqual(P('tag:s'), { text: '', tags: [], pre: 's', any: false });
+  assert.deepStrictEqual(P('tag:s '), { text: '', tags: ['s'], pre: '', any: false }, '空白を打ったら、名前が同じタグ');
+  assert.deepStrictEqual(P('tag:"a b'), { text: '', tags: [], pre: 'a b', any: false }, '引用符を閉じる前');
+  assert.deepStrictEqual(P('tag:"a b"'), { text: '', tags: ['a b'], pre: '', any: false }, '引用符を閉じたら、名前が同じタグ');
+  assert.deepStrictEqual(P('tag:x 会議 tag:ＳＴ'), { text: '会議', tags: ['x'], pre: 'st', any: false }, '最後のものだけ');
+  assert.deepStrictEqual(P('tag:'), { text: '', tags: [], pre: '', any: true });
+  assert.deepStrictEqual(P('tag:仕事 tag:仕事/'), { text: '', tags: ['仕事'], pre: '', any: false }, 'もう同じタグで絞っていれば、足さない');
+  assert.deepStrictEqual(P('tag'), { text: 'tag', tags: [], pre: '', any: false });
+  // メモのタグとの照らし合わせ
+  const F = (names, q) => core.tagFilter(names, P(q));
+  assert.ok(F(['star'], 'tag:s') && F(['star'], 'tag:sta') && F(['star'], 'tag:star') && F(['Star/x'], 'tag:st'));
+  assert.ok(!F(['star'], 'tag:t') && !F(['star'], 'tag:stars'));
+  assert.ok(F(['star'], 'tag:') && !F([], 'tag:') && !F(undefined, 'tag:'));
+  assert.ok(F(['star'], 'tag:star ') && !F(['starfish'], 'tag:star '), '空白の後は、名前が同じタグ');
+  assert.ok(F(['starfish'], 'tag:star'), '打っている途中は、その文字で始まるタグ');
+  assert.ok(F(['a', 'star'], 'tag:a tag:s') && !F(['a'], 'tag:a tag:s'));
+  assert.ok(core.hasTagQuery(P('tag:')) && core.hasTagQuery(P('tag:s')) && core.hasTagQuery(P('tag:s ')) && !core.hasTagQuery(P('s')));
+  // 打っている途中の tag:
+  assert.deepStrictEqual(core.tagTypingAt('tag:'), { from: 0, pre: '' });
+  assert.deepStrictEqual(core.tagTypingAt('会議 TAG：#St'), { from: 3, pre: 'st' });
+  assert.deepStrictEqual(core.tagTypingAt('a tag:"b c'), { from: 2, pre: 'b c' });
+  assert.strictEqual(core.tagTypingAt('tag:s '), null);
+  assert.strictEqual(core.tagTypingAt('mytag:s'), null);
+  assert.strictEqual(core.tagTypingAt('tag:"b"'), null);
+});
+
+test('タグの候補: その文字で始まるタグを、名前が同じもの・メモの数の多い順に。もう絞っているタグは出さない', () => {
+  const notes = [{ tags: ['star', 'Sun'] }, { tags: ['STAR', '#star'] }, { tags: ['sun', 'stone'] }, { tags: ['sun'] }, {}, { tags: ['仕事/会議'] }];
+  assert.deepStrictEqual(core.tagSuggest(notes, 's'), [{ name: 'Sun', n: 3 }, { name: 'star', n: 2 }, { name: 'stone', n: 1 }]);
+  assert.deepStrictEqual(core.tagSuggest(notes, 'st'), [{ name: 'star', n: 2 }, { name: 'stone', n: 1 }]);
+  assert.deepStrictEqual(core.tagSuggest(notes, 'stone'), [{ name: 'stone', n: 1 }]);
+  assert.deepStrictEqual(core.tagSuggest(notes, 's', ['sun']), [{ name: 'star', n: 2 }, { name: 'stone', n: 1 }]);
+  assert.deepStrictEqual(core.tagSuggest([{ tags: ['sun'] }, { tags: ['sun'] }, { tags: ['s'] }], 's'), [{ name: 's', n: 1 }, { name: 'sun', n: 2 }], '名前が同じものを先に');
+  assert.strictEqual(core.tagSuggest(notes, '').length, 4);
+  assert.strictEqual(core.tagSuggest(notes, '', null, 2).length, 2);
+  assert.deepStrictEqual(core.tagSuggest(notes, '仕事'), [{ name: '仕事/会議', n: 1 }]);
+  assert.strictEqual(core.tagToken('a b'), 'tag:"a b"');
+  assert.strictEqual(core.tagToken('仕事/会議'), 'tag:仕事/会議');
+});
+
+test('メモの検索: フロントマターのキーの名前と --- の行には当てない。値には当てる', () => {
+  const t = '---\ntags: [star, tagged]\ntitle: 題名\n---\n本文の tag と ---';
+  assert.deepStrictEqual(core.fmKeySpans(t).map(r => t.slice(r.s, r.e)), ['---', 'tags:', 'title:', '---']);
+  const at = q => core.searchRanges(t, q).map(r => r.s);
+  assert.deepStrictEqual(at('tag'), [t.indexOf('tagged'), t.indexOf('tag と')], '「tags:」のキーには当てない');
+  assert.deepStrictEqual(at('title'), []);
+  assert.deepStrictEqual(at('---'), [t.lastIndexOf('---')], '本文の --- には当てる');
+  assert.deepStrictEqual(at('tags: [s'), [t.indexOf('tags:')], 'キーと値にまたがるものには当てる');
+  assert.deepStrictEqual(at('題名'), [t.indexOf('題名')]);
+  assert.deepStrictEqual(core.fmKeySpans('tags: a\n本文'), [], 'フロントマターでなければ、どこにでも当てる');
+  assert.deepStrictEqual(core.fmKeySpans('---\nただの段落\n---'), []);
+  // 最新の版の検索
+  const r = core.searchLatest([{ id: 'a', text: t }, { id: 'b', text: '---\ntags: [x]\n---\n' }], 'tag');
+  assert.deepStrictEqual(r.res.map(x => [x.id, x.n]), [['a', 2]]);
+  // 履歴すべての検索: 最後の版でキーの名前の中にあるものは出さない
+  const typed = s => { const ops = []; for (let i = 0; i < s.length; i++) ops.push({ p: i, d: '', i: s[i], t: i + 1 }); return { id: 'h', ops: ops }; };
+  const h = core.searchHistory([typed('---\ntags: [a]\n---\nmy tag')], 'tag', 10);
+  assert.deepStrictEqual(h.res.map(x => x.s), ['---\ntags: [a]\n---\nmy '.length]);
+  // 消したあとの箇所も、消す直前の版で決める
+  const n2 = typed('---\ntags: [a]\n---\nmy tag');
+  n2.ops.push({ p: 0, d: '---\ntags: [a]\n---\nmy tag', i: '', t: 99 });
+  assert.deepStrictEqual(core.searchHistory([n2], 'tag', 10).res.map(x => x.removedAt), [99]);
   assert.ok(core.hasTags(['YAML', '仕事/会議'], ['yaml']));
   assert.ok(core.hasTags(['YAML', '仕事/会議'], ['仕事']));
   assert.ok(core.hasTags(['YAML', '仕事/会議'], ['yaml', '仕事/会議']));
@@ -135,10 +206,23 @@ test('画面: メニュー・検索・プレビュー・文言がつながって
   assert.match(app, /else if \(name === 'frontmatter'\) frontMatterCommand\(\);/);
   assert.match(app, /const r = frontMatterInsert\(before\);|r = frontMatterInsert\(before\)/);
   // 検索: タグで絞り、タグだけなら索引のタグから(ファイルを読まない)
-  assert.match(app, /const pq = parseQuery\(q\);/);
-  assert.match(app, /pq\.tags\.length \? sorted\(\)\.filter\(n => hasTags\(n\.tags, pq\.tags\)\) : sorted\(\)/);
-  assert.match(app, /if \(pq\.tags\.length && !pq\.text\) \{ paintTagResults\(q, pq\.tags, notes\); refreshView\(\); return; \}/);
+  assert.match(app, /const raw = \$\('q'\)\.value, q = raw\.trim\(\);/);
+  assert.match(app, /const pq = parseQuery\(raw, true\);/);
+  assert.match(app, /const tagged = hasTagQuery\(pq\);\n\s+const notes = tagged \? sorted\(\)\.filter\(n => tagFilter\(n\.tags, pq\)\) : sorted\(\);/);
+  assert.match(app, /if \(tagged && !pq\.text\) \{ paintTagResults\(q, pq, notes\); refreshView\(\); return; \}/);
   assert.match(app, /searchHistory\(objs, pq\.text, 10\) : searchLatest\(objs, pq\.text\)/);
+  // 履歴の変更箇所の表示の色付けも、フロントマターのキーの名前には付けない
+  assert.match(app, /const ranges = S\.qText \? searchRanges\(text, S\.qText\) : \[\];/);
+  // タグの候補: 検索欄の最後で tag: を打っている間だけ出す。選ぶと tag:名前 と空白を入れて探す
+  assert.match(app, /q\.selectionStart === v\.length && q\.selectionEnd === v\.length \? tagTypingAt\(v\) : null;/);
+  assert.match(app, /const items = at \? tagSuggest\(S\.notes, at\.pre, parseQuery\(v\.slice\(0, at\.from\)\)\.tags, 10\) : \[\];/);
+  assert.match(app, /q\.value = q\.value\.slice\(0, at\.from\) \+ tagToken\(it\.name\) \+ ' ';/);
+  assert.match(app, /\$\('q'\)\.addEventListener\('input', \(\) => \{ if \(!qComposing\) \{ tagPickUpdate\(\); scheduleSearch\(150\); \} \}\);/);
+  assert.match(app, /\$\('q'\)\.addEventListener\('blur', tagPickClose\);/);
+  assert.match(css, /\.tagpick \.tc \{/);
+  for (const l of ['ja', 'en']) assert.ok(I18N.DICT[l].tagPick, l);
+  assert.strictEqual(I18N.DICT.ja.tagCount({ n: 3 }), '3件');
+  assert.strictEqual(I18N.DICT.en.tagCount({ n: 1 }), '1 note');
   assert.match(app, /tags: r\.tags \|\| \[\], ro: !!r\.ro, loaded: false/);
   assert.match(app, /n\.tags = tagsOf\(n\.text\);/);
   // 色付けと検索のバーには、タグを除いた検索語
@@ -173,17 +257,19 @@ test('タグの札: プレビューで押すと検索欄を tag:名前 にし、
   const src = app.match(/function searchTag\(name, add\) \{[\s\S]*?\n {2}\}/)[0];
   const q = { value: '' };
   let ran = 0;
-  const searchTag = new Function('$', 'parseQuery', 'tagKey', 'showSide', 'qTimer', 'runSearch', src + '; return searchTag;')(() => q, core.parseQuery, core.tagKey, () => {}, null, () => { ran++; });
+  const searchTag = new Function('$', 'parseQuery', 'tagKey', 'tagToken', 'showSide', 'qTimer', 'runSearch', src + '; return searchTag;')(() => q, core.parseQuery, core.tagKey, core.tagToken, () => {}, null, () => { ran++; });
+  // 後ろに空白を付ける(打っている途中の名前ではなく、名前が同じタグで探す)
   const run = (start, name, add) => { q.value = start; searchTag(name, add); return q.value; };
-  assert.strictEqual(run('', 'YAML', false), 'tag:YAML');
-  assert.strictEqual(run('tag:設計 会議', 'YAML', false), 'tag:YAML', '押すと置き換える');
-  assert.strictEqual(run('tag:設計 会議', 'YAML', true), 'tag:設計 会議 tag:YAML', 'Ctrl+クリックでは足す');
-  assert.strictEqual(run('tag:yaml', 'YAML', true), 'tag:yaml', '同じタグがもうあれば、そのまま');
-  assert.strictEqual(run('', 'YAML', true), 'tag:YAML');
-  assert.strictEqual(run('', 'a b', false), 'tag:"a b"', '空白を含むタグは囲む');
-  assert.strictEqual(run('', '仕事/会議', false), 'tag:仕事/会議');
-  assert.deepStrictEqual(core.parseQuery(run('', 'a b', false)).tags, ['a b'], '入れた文字で、そのタグが探せる');
-  assert.strictEqual(ran, 8);
+  assert.strictEqual(run('', 'YAML', false), 'tag:YAML ');
+  assert.strictEqual(run('tag:設計 会議', 'YAML', false), 'tag:YAML ', '押すと置き換える');
+  assert.strictEqual(run('tag:設計 会議', 'YAML', true), 'tag:設計 会議 tag:YAML ', 'Ctrl+クリックでは足す');
+  assert.strictEqual(run('tag:yaml', 'YAML', true), 'tag:yaml ', '同じタグがもうあれば、そのまま');
+  assert.strictEqual(run('tag:yaml ', 'YAML', true), 'tag:yaml ');
+  assert.strictEqual(run('', 'a b', false), 'tag:"a b" ', '空白を含むタグは囲む');
+  assert.strictEqual(run('', '仕事/会議', false), 'tag:仕事/会議 ');
+  assert.deepStrictEqual(core.parseQuery(run('', 'a b', false), true).tags, ['a b'], '入れた文字で、そのタグが探せる');
+  assert.deepStrictEqual(core.parseQuery(run('', 'star', false), true), { text: '', tags: ['star'], pre: '', any: false }, '名前が同じタグで');
+  assert.strictEqual(ran, 9);
   // 説明: Mac では ⌘+クリック
   for (const l of ['ja', 'en']) assert.match(I18N.DICT[l].tagLinkTitle, /Ctrl\+(クリック|click)/);
   assert.match(core.macKeys(I18N.DICT.ja.tagLinkTitle), /⌘\+クリック/);

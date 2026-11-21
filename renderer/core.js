@@ -951,13 +951,57 @@ const tagHit = (name, want) => { const k = tagKey(name); return k === want || k.
 /* メモのタグ(名前の並び)が、探すタグ(tagKey の形の並び)をすべて持っているか */
 const hasTags = (names, wants) => wants.every(w => (names || []).some(n => tagHit(n, w)));
 /* 検索欄の文字を、タグ(tag:名前。空白を含むなら tag:"名前")と、そのほかの検索語に分ける。
-   tag: の後ろが空なら、ふつうの文字として探す。返すのは { text, tags: [tagKey の形] } */
-const TAG_TOKEN_RE = /(^|\s)tag[:：](?:"([^"]+)"|([^\s"]+))(?=\s|$)/gi;
-function parseQuery(q) {
+   返すのは { text, tags: [tagKey の形], pre: 先頭の一致で探すタグ(tagKey の形。無ければ ''), any: タグを持つメモだけか }。
+   - tag: の後ろが空(tag: だけ)なら、タグを持つメモをすべて探す(any)
+   - typing が真のとき(検索欄で打っている途中)、欄の最後にあって後ろに空白が無い tag:名前 は、まだ打っている途中とみなし、
+     その文字で始まるタグを探す(pre)。後ろに空白を打ったときと、引用符を閉じたときは、名前が同じタグ(とその下の階層)だけ */
+const TAG_TOKEN_RE = /(^|\s)tag[:：](?:"([^"]*)("?)|([^\s"]*))(?=\s|$)/gi;
+function parseQuery(q, typing) {
+  q = String(q);
   const tags = [];
-  const rest = String(q).replace(TAG_TOKEN_RE, (m, sp, quoted, bare) => { const k = tagKey(quoted || bare); if (k && !tags.includes(k)) tags.push(k); return sp; });
-  return tags.length ? { text: rest.replace(/\s{2,}/g, ' ').trim(), tags: tags } : { text: String(q), tags: [] };
+  let pre = '', any = false, found = false;
+  const rest = q.replace(TAG_TOKEN_RE, (m, sp, quoted, closed, bare, at) => {
+    found = true;
+    const k = tagKey(quoted != null ? quoted : bare);
+    if (!k) any = true;
+    else if (typing && at + m.length === q.length && !closed) pre = k;
+    else if (!tags.includes(k)) tags.push(k);
+    return sp;
+  });
+  if (pre && tags.some(t => pre === t || pre.startsWith(t + '/'))) pre = '';   // もう同じタグで絞っている
+  return found ? { text: rest.replace(/\s{2,}/g, ' ').trim(), tags: tags, pre: pre, any: any } : { text: q.trim(), tags: [], pre: '', any: false };
 }
+/* メモのタグ(名前の並び)が、検索の条件(parseQuery の tags・pre・any)に合うか */
+const tagFilter = (names, pq) => {
+  names = names || [];
+  return hasTags(names, pq.tags) && (!pq.pre || names.some(n => tagKey(n).startsWith(pq.pre))) && (!pq.any || names.length > 0);
+};
+const hasTagQuery = pq => pq.tags.length > 0 || !!pq.pre || pq.any;
+/* 検索欄の最後で打っている途中の tag:名前 ({ from: tag: の始まり, pre: tagKey の形の名前 })。無ければ null */
+function tagTypingAt(q) {
+  const m = /(^|\s)(tag[:：](?:"([^"]*)|([^\s"]*)))$/i.exec(String(q));
+  return m ? { from: m.index + m[1].length, pre: tagKey(m[3] != null ? m[3] : m[4]) } : null;
+}
+/* タグの候補: notes([{ tags }])のタグのうち pre で始まるもの(skip の tagKey は除く)。
+   名前が pre と同じものを先に、あとはメモの数の多い順、同じなら名前の順。[{ name, n }] */
+function tagSuggest(notes, pre, skip, max) {
+  const by = new Map();
+  for (const nt of notes) {
+    const seen = new Set();
+    for (const name of nt.tags || []) {
+      const k = tagKey(name);
+      if (!k || seen.has(k) || !k.startsWith(pre) || (skip && skip.includes(k))) continue;
+      seen.add(k);
+      const c = by.get(k);
+      if (c) c.n++; else by.set(k, { name: String(name).replace(/^#+/, '').trim(), n: 1, k: k });
+    }
+  }
+  return [...by.values()]
+    .sort((a, b) => (b.k === pre) - (a.k === pre) || b.n - a.n || a.k.localeCompare(b.k))
+    .slice(0, max || 10).map(x => ({ name: x.name, n: x.n }));
+}
+/* 検索欄に入れる tag:名前(空白と " を含むなら囲む。" は外す) */
+const tagToken = name => 'tag:' + (/[\s"]/.test(name) ? '"' + String(name).replace(/"/g, '') + '"' : name);
 /* フロントマターを入れる(メニューの「フロントマター(タグ)を挿入」)。入れる場所は、カーソルの位置に関係なく、いつもメモの先頭。
    もうあるときは2つ目を入れず、tags の値の終わりにカーソルを置く(tags が無ければ、閉じの行の前に「tags: 」の行を入れる)。
    返すのは { text, caret } */
@@ -1375,12 +1419,40 @@ function snippetOf(text, s, e) {
   return (a > 0 ? '…' : '') + f(text.slice(a, s)) + '<mark>' + f(text.slice(s, e)) + '</mark>' + f(text.slice(e, b)) + (b < text.length ? '…' : '');
 }
 
+/* メモの検索で当てない所: 先頭のフロントマターの --- の行と、キーの名前(行の始めから「:」まで。「tags:」「title:」など)。
+   値(タグの名前・題名など)には当てる。[{ s, e }] */
+function fmKeySpans(text) {
+  text = String(text == null ? '' : text);
+  if (!text.startsWith('---')) return [];
+  const lines = text.split('\n', FM_MAX_LINES + 2);
+  const n = frontMatterLines(lines);
+  if (!n) return [];
+  const out = [];
+  let p = 0;
+  for (let i = 0; i < n; i++) {
+    const ln = lines[i];
+    if (i === 0 || i === n - 1) out.push({ s: p, e: p + ln.length });
+    else if (FM_KEY_RE.test(ln)) out.push({ s: p, e: p + ln.indexOf(':') + 1 });
+    p += ln.length + 1;
+  }
+  return out;
+}
+/* s〜e が、どれかの範囲の中にすっかり入るか(キーの名前と値にまたがる一致には当てる) */
+const inSpans = (spans, s, e) => spans.some(k => s >= k.s && e <= k.e);
+/* メモの検索の一致(フロントマターのキーの名前と --- の行の中の一致は除く) */
+function searchRanges(text, q) {
+  const rs = matchRanges(text, q);
+  if (!rs.length) return rs;
+  const sp = fmKeySpans(text);
+  return sp.length ? rs.filter(r => !inSpans(sp, r.s, r.e)) : rs;
+}
+
 /* 最新の版だけを探す: 1つのメモに1件(最初の箇所の前後の文と、見つかった箇所の数 n)。total は箇所の数の合計 */
 function searchLatest(notes, q) {
   const res = [];
   let total = 0;
   for (const n of notes) {
-    const rs = matchRanges(n.text, q);
+    const rs = searchRanges(n.text, q);
     if (!rs.length) continue;
     total += rs.length;
     res.push({ id: n.id, s: rs[0].s, e: rs[0].e, n: rs.length, snippet: snippetOf(n.text, rs[0].s, rs[0].e) });
@@ -1390,7 +1462,8 @@ function searchLatest(notes, q) {
 
 /* 履歴すべてを探す: 検索語が見つかる「1か所」ごとに1件。
    その箇所が書かれた版(a)から、編集で壊されて消える直前の版(b)までを追いかける。
-   編集のたびに、すでにある箇所は位置をずらして引き継ぎ、新しく生まれた箇所だけを編集まわりで探す。 */
+   編集のたびに、すでにある箇所は位置をずらして引き継ぎ、新しく生まれた箇所だけを編集まわりで探す。
+   最後の版(b)でフロントマターのキーの名前か --- の行の中にある箇所は、結果に入れない(searchRanges と同じ) */
 function searchHistory(notes, q, per, probe) {
   const re = new RegExp(escRe(q), 'gi'), ql = q.length;
   const res = [];
@@ -1400,13 +1473,19 @@ function searchHistory(notes, q, per, probe) {
     let text = '', alive = [];
     for (let k = 1; k <= N; k++) {
       const op = n.ops[k - 1], dl = op.d.length, il = op.i.length, delta = il - dl;
-      text = applyOp(text, op);
+      const prev = text;
+      let sp = null;   // prev のキーの名前の範囲(壊れた箇所があるときだけ求める)
       const next = [];
       for (const m of alive) {
         if (m.e <= op.p) next.push(m);                                  // 編集より前: そのまま
         else if (m.s >= op.p + dl) { m.s += delta; m.e += delta; next.push(m); } // 編集より後: 位置だけずれる
-        else { m.b = k - 1; m.removedAt = op.t; found.push(m); }        // 編集で壊れた
+        else {                                                          // 編集で壊れた
+          m.b = k - 1; m.removedAt = op.t;
+          if (!sp) sp = fmKeySpans(prev);
+          if (!inSpans(sp, m.s, m.e)) found.push(m);
+        }
       }
+      text = applyOp(text, op);
       const lo = Math.max(0, op.p - (ql - 1)), hi = Math.min(text.length, op.p + il + (ql - 1));
       const seg = text.slice(lo, hi);
       re.lastIndex = 0;
@@ -1419,7 +1498,8 @@ function searchHistory(notes, q, per, probe) {
       alive = next;
       if (probe) probe(k, text, alive);
     }
-    for (const m of alive) { m.b = N; m.removedAt = 0; found.push(m); }
+    const spN = alive.length ? fmKeySpans(text) : [];
+    for (const m of alive) { m.b = N; m.removedAt = 0; if (!inSpans(spN, m.s, m.e)) found.push(m); }
     found.sort((x, y) => y.a - x.a);
     total += found.length;
     found.slice(0, per).forEach(f => { f.addedAt = n.ops[f.a - 1].t; res.push(f); });
@@ -2140,5 +2220,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

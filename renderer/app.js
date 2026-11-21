@@ -51,8 +51,9 @@
 
   const fmtMin = t => { const d = new Date(t); return fmtDate(d) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 
-  // q は検索欄の文字、qText はそのうちタグ(tag:名前)を除いた検索語(色付けと、検索のバーに使う)
-  const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', qText: '', scope: 'latest', lines: false, frOpen: false };
+  // q は検索欄の文字(前後の空白を除く)、qRaw はそのままの文字(最後の空白で、打っている途中のタグかが変わる)、
+  // qText はそのうちタグ(tag:名前)を除いた検索語(色付けと、検索のバーに使う)
+  const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', qRaw: '', qText: '', scope: 'latest', lines: false, frOpen: false };
   // プレビューでの編集の状態(「プレビューでの編集」を参照。表示の切り替えやメモの移動で閉じるので、ここで用意する)
   const pe = { box: null, holder: null, el: null, kind: '', s: 0, e: 0, n: 0, pre: '', post: '', hasPost: false, start: '', row: 0, col: 0, html: '', init: '' };
   let peComposing = false, peNext = null, peLastCell = null;
@@ -951,7 +952,7 @@
       lastHydrate = hydrate(body, cur().id);
       highlight(body, S.qText);
     } else {
-      const ranges = S.qText ? matchRanges(text, S.qText) : [];
+      const ranges = S.qText ? searchRanges(text, S.qText) : [];
       const lines = diffLines(text, op, ranges);
       // 50行ほどのかたまり(.hck)に分け、画面の外のかたまりは描画を省く(core.js の chunkLines)
       const chunks = render => chunkLines(lines, 50).map(([a, b]) => '<div class="hck" style="--n:' + (b - a) + '">' + render(a, b) + '</div>').join('');
@@ -1073,7 +1074,8 @@
   function highlight(root, q) {
     if (!q) return;
     const re = new RegExp(escRe(q), 'gi');
-    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && n.parentElement.closest('.math, .diagram') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    // 数式・図と、フロントマターのキーの名前(検索では当てない。core.js の searchRanges)には色を付けない
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement && n.parentElement.closest('.math, .diagram, .fm-k') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
     const nodes = [];
     while (w.nextNode()) nodes.push(w.currentNode);
     for (const nd of nodes) {
@@ -1226,9 +1228,10 @@
      Ctrl+クリック(Mac は ⌘+クリック)では、今の検索語に足す(同じタグがもうあれば、そのまま)。
      札はボタンなので、プレビューで押しても編集欄は開かない(PE_SKIP) */
   function searchTag(name, add) {
-    const tok = 'tag:' + (/[\s"]/.test(name) ? '"' + name.replace(/"/g, '') + '"' : name);
+    // 後ろに空白を付ける: 打っている途中の名前(先頭の一致で探す)ではなく、名前が同じタグで探す(core.js の parseQuery)
+    const tok = tagToken(name);
     const q = $('q').value.trim();
-    $('q').value = !add || !q ? tok : parseQuery(q).tags.includes(tagKey(name)) ? q : q + ' ' + tok;
+    $('q').value = (!add || !q ? tok : parseQuery(q).tags.includes(tagKey(name)) ? q : q + ' ' + tok) + ' ';
     showSide();
     clearTimeout(qTimer);
     runSearch();
@@ -1243,33 +1246,39 @@
   $('preview').addEventListener('click', onTagClick, true);
   $('hvBody').addEventListener('click', onTagClick, true);
 
-  /* タグだけの検索(tag:名前): 一覧の索引のタグから探す(メモのファイルは読まない)。1つのメモに1件 */
-  function paintTagResults(q, tags, notes) {
+  /* タグだけの検索(tag:名前): 一覧の索引のタグから探す(メモのファイルは読まない)。1つのメモに1件。
+     当たったタグ(打っている途中の名前なら、その文字で始まるタグ)に色を付ける */
+  function paintTagResults(q, pq, notes) {
+    const hit = t => pq.tags.some(w => tagHit(t, w)) || (!!pq.pre && tagKey(t).startsWith(pq.pre));
     const res = notes.map(n => ({
-      id: n.id, tag: tags[0],
-      snippet: (n.tags || []).map(t => '<span class="tag">' + (tags.some(w => tagHit(t, w)) ? '<mark>' + esc(t) + '</mark>' : esc(t)) + '</span>').join(' ')
+      id: n.id, tag: true,
+      snippet: (n.tags || []).map(t => '<span class="tag">' + (hit(t) ? '<mark>' + esc(t) + '</mark>' : esc(t)) + '</span>').join(' ')
     }));
     paintResults(q, false, res, res.length, '', true);
   }
   async function runSearch() {
-    const q = $('q').value.trim();
-    const had = S.q;
-    const pq = parseQuery(q);
+    // 欄の文字をそのまま parseQuery に渡す: 最後の tag:名前 の後ろに空白が無ければ、打っている途中として先頭の一致で探す
+    const raw = $('q').value, q = raw.trim();
+    const had = S.q, hadRaw = S.qRaw;
+    const pq = parseQuery(raw, true);
     S.q = q;
+    S.qRaw = raw;
     S.qText = pq.text;
     const tok = ++sTok;
     $('qClear').hidden = !$('q').value;
     $('results').hidden = !q;
     $('noteList').hidden = !!q;
+    tagPickUpdate();
     /* 検索中にメモを書き換えると、2秒後に同じ検索語で検索し直す(commit)。そのときプレビューの編集欄が開いていれば、
        表示を作り直さない(作り直すと編集欄が閉じる)。強調は、編集欄を閉じて作り直すときに付く */
-    const keepPe = q === had && !!pe.box && S.mode === 'preview';
+    const keepPe = raw === hadRaw && !!pe.box && S.mode === 'preview';
     const refreshView = () => { if (!keepPe) refreshViewNow(); };
     if (!q) { if (had) refreshView(); return; }
 
-    // tag:名前 があれば、そのタグをすべて持つメモだけを探す
-    const notes = pq.tags.length ? sorted().filter(n => hasTags(n.tags, pq.tags)) : sorted();
-    if (pq.tags.length && !pq.text) { paintTagResults(q, pq.tags, notes); refreshView(); return; }
+    // tag:名前 があれば、そのタグをすべて持つメモだけを探す(tag: だけならタグを持つメモ、打っている途中ならその文字で始まるタグ)
+    const tagged = hasTagQuery(pq);
+    const notes = tagged ? sorted().filter(n => tagFilter(n.tags, pq)) : sorted();
+    if (tagged && !pq.text) { paintTagResults(q, pq, notes); refreshView(); return; }
     const hist = S.scope === 'history';
     const CH = hist ? 20 : 100;
     const res = [];
@@ -1294,10 +1303,85 @@
   let qTimer = null;
   function scheduleSearch(ms) { clearTimeout(qTimer); qTimer = setTimeout(runSearch, ms); }
   let qComposing = false;
-  $('q').addEventListener('input', () => { if (!qComposing) scheduleSearch(150); });
+  $('q').addEventListener('input', () => { if (!qComposing) { tagPickUpdate(); scheduleSearch(150); } });
   $('q').addEventListener('compositionstart', () => { qComposing = true; });
-  $('q').addEventListener('compositionend', () => { qComposing = false; scheduleSearch(0); });
+  $('q').addEventListener('compositionend', () => { qComposing = false; tagPickUpdate(); scheduleSearch(0); });
   $('q').addEventListener('keydown', e => { if (e.key === 'Escape' && $('q').value) { $('q').value = ''; runSearch(); } });
+
+  /* タグの候補: 検索欄の最後で tag: を打っている間、その文字で始まるタグを、欄の下に出す(core.js の tagTypingAt・tagSuggest)。
+     タグは一覧の索引にあるので、メモのファイルは読まない。↑↓ で選び、Enter か Tab で tag:名前 と空白を入れて
+     (名前が同じタグで)探す。Esc で閉じる。クリックでも入る。もう絞っているタグは出さない */
+  const tp = { box: null, items: [], at: 0, key: '' };
+  function tagPickClose() {
+    if (tp.box) { tp.box.remove(); tp.box = null; }
+    tp.items = []; tp.key = '';
+    $('q').removeAttribute('aria-activedescendant');
+  }
+  function tagPickUpdate() {
+    const q = $('q'), v = q.value;
+    const at = document.activeElement === q && !qComposing && q.selectionStart === v.length && q.selectionEnd === v.length ? tagTypingAt(v) : null;
+    const items = at ? tagSuggest(S.notes, at.pre, parseQuery(v.slice(0, at.from)).tags, 10) : [];
+    if (!items.length) { tagPickClose(); return; }
+    const key = at.from + '\n' + at.pre;
+    if (!(tp.box && tp.key === key) || tp.at >= items.length) tp.at = 0;
+    tp.items = items; tp.key = key;
+    tagPickPaint();
+  }
+  function tagPickPaint() {
+    if (!tp.box) {
+      tp.box = document.createElement('ul');
+      tp.box.className = 'emopick tagpick';
+      tp.box.setAttribute('role', 'listbox');
+      tp.box.setAttribute('aria-label', T('tagPick'));
+      // 押しても検索欄からフォーカスを外さない
+      tp.box.addEventListener('mousedown', e => { e.preventDefault(); const li = e.target.closest('li'); if (li) tagPickChoose(+li.dataset.i); });
+      document.body.appendChild(tp.box);
+    }
+    tp.box.textContent = '';
+    tp.items.forEach((it, i) => {
+      const li = document.createElement('li');
+      li.id = 'tagpick-' + i; li.dataset.i = i;
+      li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(i === tp.at));
+      const n = document.createElement('span'); n.className = 'tn'; n.textContent = it.name;
+      const c = document.createElement('span'); c.className = 'tc'; c.textContent = T('tagCount', { n: it.n });
+      li.append(n, c);
+      tp.box.appendChild(li);
+    });
+    $('q').setAttribute('aria-activedescendant', 'tagpick-' + tp.at);
+    const r = $('q').getBoundingClientRect();
+    tp.box.style.minWidth = Math.round(r.width) + 'px';
+    tp.box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - tp.box.offsetWidth - 8)) + 'px';
+    tp.box.style.top = (r.bottom + 2) + 'px';
+  }
+  function tagPickChoose(i) {
+    const it = tp.items[i], at = tagTypingAt($('q').value);
+    if (!it || !at) return;
+    const q = $('q');
+    q.value = q.value.slice(0, at.from) + tagToken(it.name) + ' ';
+    q.setSelectionRange(q.value.length, q.value.length);
+    tagPickClose();
+    clearTimeout(qTimer);
+    runSearch();
+  }
+  // 候補が出ている間の ↑↓・Enter・Tab・Esc は候補の操作にする(Esc で検索欄を空にする処理より先に受け取る)
+  $('q').addEventListener('keydown', e => {
+    if (!tp.box || e.isComposing || e.keyCode === 229) return;
+    const plain = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && plain) {
+      const n = tp.items.length;
+      tp.at = (tp.at + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+      tagPickPaint();
+    } else if ((e.key === 'Enter' || e.key === 'Tab') && plain) tagPickChoose(tp.at);
+    else if (e.key === 'Escape') tagPickClose();
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+  $('q').addEventListener('keyup', e => { if (/^(ArrowLeft|ArrowRight|Home|End)$/.test(e.key)) tagPickUpdate(); });
+  $('q').addEventListener('focus', () => setTimeout(tagPickUpdate, 0));
+  $('q').addEventListener('mouseup', () => setTimeout(tagPickUpdate, 0));
+  $('q').addEventListener('blur', tagPickClose);
+  window.addEventListener('resize', tagPickClose);
   $('qClear').addEventListener('click', () => { $('q').value = ''; runSearch(); $('q').focus(); });
   document.querySelectorAll('#scopeSeg button').forEach(b => b.addEventListener('click', () => { S.scope = b.dataset.scope; updateHint(); runSearch(); }));
   updateHint();

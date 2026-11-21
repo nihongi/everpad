@@ -587,6 +587,10 @@ li.pe-li { list-style: none; }
 .emopick li[aria-selected="true"] { background: var(--accent-soft); }
 .emopick .ec { font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif; font-size: 18px; width: 1.4em; text-align: center; }
 .emopick .en { font-family: var(--mono); font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+/* 検索欄のタグの候補(絵文字の候補と同じ形。名前と、そのタグのメモの数) */
+.tagpick { max-width: 26rem; }
+.tagpick .tn { overflow: hidden; text-overflow: ellipsis; }
+.tagpick .tc { margin-left: auto; padding-left: 12px; font-size: 12px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
 /* キーボードショートカットの一覧 */
 .keys input[type=search] { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
 .keys-list { max-height: 48vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }

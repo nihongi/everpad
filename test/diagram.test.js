@@ -98,7 +98,7 @@ test('図: 画面・ヘルプ・main.js・ビルドへのつなぎ込み', () =>
   assert.match(app, /return Diagrams\.render\(root, diagramOpts \|\| noteDiag\(\)\)/);   // 印刷・書き出しは明るい配色、画面はメモの色に合わせる
   assert.match(app, /await hydrate\(area, n\.id, \{ light: true \}\)/);
   assert.match(app, /await Diagrams\.render\(box, \{ light: true \}\)/);
-  assert.match(app, /closest\('\.math, \.diagram'\)/);
+  assert.match(app, /closest\('\.math, \.diagram, \.fm-k'\)/);
   assert.match(app, /Diagrams\.onThemeChange/);
   assert.match(read('renderer/help.js'), /Diagrams\.render\(root\)/);
   assert.match(read('main.js'), /T\(kind === 'diagram' \? 'mCopyDiagram' : 'mCopyTex'\)/);
