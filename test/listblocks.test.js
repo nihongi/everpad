@@ -56,7 +56,7 @@ test('リストの項目の中のかたまりの行の範囲: 重ならず、項
 
 test('リストの項目の中の表も、プレビューでセルごとに編集でき、字下げを保つ', () => {
   const s = '- 手順\n  | a | b |\n  |---|---|\n  | 1 | 2 |\n- 次\n';
-  assert.deepStrictEqual(L.tableAt(s, 3), { head: 1, delim: 2, rows: [3], cols: 2, align: ['', ''] });
+  assert.deepStrictEqual(L.tableAt(s, 3), { heads: [1], head: 1, delim: 2, rows: [3], cols: 2, align: ['', ''], caption: -1, first: 1, last: 3 });
   assert.strictEqual(L.tableCell(s, 3, 1), '2');
   assert.strictEqual(L.tableEdit(s, 3, 0, 'cell', 'X').text, '- 手順\n  | a | b |\n  |---|---|\n  | X | 2 |\n- 次\n');
   assert.strictEqual(L.tableEdit(s, 3, 1, 'rowBelow').text, '- 手順\n  | a | b |\n  |---|---|\n  | 1 | 2 |\n  |  |  |\n- 次\n');

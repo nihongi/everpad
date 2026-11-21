@@ -453,14 +453,21 @@ function inlineWrap(u, kind) {
   const mk = INLINE_MARKS[kind];
   return { s: mk + c + mk, at: mk.length, len: c.length };
 }
-/* 表の行か(md と同じく、「|」のある行の次が |---| の行なら見出しの行、その下に続く「|」のある行も表の行) */
+/* 表の行か(md と同じく、「|」のある行の次が |---| の行なら見出しの行、その下に続く「|」のある行も表の行。
+   見出しの行の上に続く「|」で始まる行も、見出しの行) */
 function isTableRowAt(lines, k) {
   const bar = l => l != null && l.indexOf('|') >= 0;
+  const lead = l => l != null && l.trim()[0] === '|';
   if (!bar(lines[k])) return false;
   if (lines[k + 1] != null && isDelim(lines[k + 1])) return true;
   for (let j = k - 1; j >= 1; j--) {
-    if (isDelim(lines[j])) return bar(lines[j - 1]);
-    if (!lines[j].trim() || !bar(lines[j])) return false;
+    if (isDelim(lines[j])) { if (bar(lines[j - 1])) return true; break; }
+    if (!lines[j].trim() || !bar(lines[j])) break;
+  }
+  if (!lead(lines[k])) return false;
+  for (let j = k + 1; j + 1 < lines.length && bar(lines[j]); j++) {
+    if (isDelim(lines[j + 1])) return true;
+    if (!lead(lines[j])) return false;
   }
   return false;
 }
@@ -1087,8 +1094,13 @@ function mdList(lines, i, out, base) {
   return i;
 }
 
-/* 表: 「| a | b |」の行の次に「|---|---|」の行がある形 */
-function splitRow(line) {
+/* 表: 「| a | b |」の行の次に「|---|---|」の行がある形。MultiMarkdown の書き方で、次のことができる:
+   - 横の結合: セルの後ろに | を足す(「| 合計 || 180 |」の「合計」は2列)。空白の無い空のセルが、左のセルにつながる
+   - 縦の結合: 「^^」だけのセルは、上のセルにつながる(同じ幅のときだけ。見出しと本文はまたがない)。文字にするなら \^^
+   - 見出しの行を複数にする: 区切りの行の上に、空の行をはさまずに「|」で始まる行を続ける
+   - 表題: 表のすぐ上か下の「[表題]」だけの行(「[表題][ラベル]」なら、ラベルでメモの中から表へ飛べる)。上と下の両方にあれば上 */
+/* 行をセルに分ける(前後の空白はそのまま。\| は | にする) */
+function splitRaw(line) {
   let s = line.trim();
   if (s[0] === '|') s = s.slice(1);
   if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1);
@@ -1096,13 +1108,62 @@ function splitRow(line) {
   let cur = '';
   for (let i = 0; i < s.length; i++) {
     if (s[i] === '\\' && s[i + 1] === '|') { cur += '|'; i++; }
-    else if (s[i] === '|') { cells.push(cur.trim()); cur = ''; }
+    else if (s[i] === '|') { cells.push(cur); cur = ''; }
     else cur += s[i];
   }
-  cells.push(cur.trim());
+  cells.push(cur);
   return cells;
 }
+const splitRow = line => splitRaw(line).map(c => c.trim());
 const isDelim = line => line.indexOf('|') >= 0 && /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/.test(line);
+/* セルだけの配置(DokuWiki と同じ): 中身の両側に空白が2つ以上なら中央('c')、左だけなら右寄せ('r')、右だけなら左寄せ('l')。
+   それ以外('')は列の配置(区切りの行)。空のセルには付けない */
+function cellAlign(raw) {
+  if (!raw.trim()) return '';
+  const l = /^[ \t]*/.exec(raw)[0].length >= 2, r = /[ \t]*$/.exec(raw)[0].length >= 2;
+  return l && r ? 'c' : l ? 'r' : r ? 'l' : '';
+}
+/* 表題の行: { text, label } か null。「[…]」だけの行(脚注の [^1] は除く) */
+function tableCaption(line) {
+  const s = String(line == null ? '' : line).trim();
+  if (s[0] !== '[' || s[s.length - 1] !== ']' || s[1] === '^') return null;
+  const m = /^\[(.+?)\]\[([^\]]*)\]$/.exec(s);
+  const text = (m ? m[1] : s.slice(1, -1)).trim();
+  return text ? { text: text, label: m ? m[2].trim() : '' } : null;
+}
+/* 表のセルの結合を決める。rows は行ごとのセルの元の文(前後の空白を含む)、nh は見出しの行の数、n は列の数。
+   { grid: 行×列ごとに、そこを覆うセル, anchors: セル(行の順、左から), byRow: 行ごとの、その行から始まるセル }。
+   セルは { r, c, cs, rs, text }(左上の行・列、幅、高さ、前後の空白を除いた中身) */
+function tableGrid(rows, nh, n) {
+  const grid = rows.map(() => new Array(n).fill(null));
+  const anchors = [], byRow = rows.map(() => []);
+  for (let r = 0; r < rows.length; r++) {
+    const segs = rows[r];
+    // 横の結合: 空白の無い空のセル(「||」)は、左のセルにつながる(行の最初なら、ただの空のセル)
+    const groups = [];
+    for (let c = 0; c < n; c++) {
+      const raw = c < segs.length ? segs[c] : null;
+      if (raw === '' && groups.length) groups[groups.length - 1].cs++;
+      else groups.push({ c: c, cs: 1, text: raw == null ? '' : raw.trim(), al: raw == null ? '' : cellAlign(raw) });
+    }
+    for (const g of groups) {
+      // 縦の結合: 「^^」は、同じ幅で、同じ部分(見出し・本文)の真上のセルにつながる。つながらなければ文字のまま
+      if (g.text === '^^' && r > 0 && (r < nh) === (r - 1 < nh)) {
+        const up = grid[r - 1][g.c];
+        if (up && up.c === g.c && up.cs === g.cs && up.r + up.rs === r) {
+          up.rs++;
+          for (let k = 0; k < g.cs; k++) grid[r][g.c + k] = up;
+          continue;
+        }
+      }
+      const a = { r: r, c: g.c, cs: g.cs, rs: 1, text: g.text, al: g.al };
+      anchors.push(a);
+      byRow[r].push(a);
+      for (let k = 0; k < g.cs; k++) grid[r][g.c + k] = a;
+    }
+  }
+  return { grid: grid, anchors: anchors, byRow: byRow };
+}
 
 /* Markdown を HTML にする。opts.lines が真なら、かたまりごとに元の文の行の範囲を data-line(最初の行)・data-end(終わりの次の行)で付ける
    (行は 0 から数える)。編集とプレビューを切り替えたときに、同じ場所を見せるために使う(syncAnchors)。
@@ -1181,21 +1242,37 @@ function mdBlocks(lines, base, sep) {
     }
     if (/^\s*([-*+]|\d+[.)])\s+/.test(ln)) { flush(); i = mdList(lines, i, out, base); continue; }
     if (ln.indexOf('|') >= 0 && i + 1 < lines.length && isDelim(lines[i + 1])) {
-      const head = splitRow(ln), dl = splitRow(lines[i + 1]);
-      if (head.length === dl.length) {
-        flush();
-        const al = dl.map(c => (/^:-+:$/.test(c) ? 'c' : /-:$/.test(c) ? 'r' : 'l'));
-        const cls = k => ' class="al-' + al[k] + '"';
-        const th = head.map((c, k) => '<th' + cls(k) + '>' + inline(c) + '</th>').join('');
-        const headAt = i;
-        i += 2;
-        const rows = [];
-        while (i < lines.length && lines[i].trim() !== '' && lines[i].indexOf('|') >= 0) {
-          const r = splitRow(lines[i]);
-          rows.push('<tr' + lineAttr(base, i, i + 1) + '>' + head.map((_, k) => '<td' + cls(k) + '>' + inline(r[k] || '') + '</td>').join('') + '</tr>');
-          i++;
+      const dl = splitRow(lines[i + 1]);
+      if (splitRaw(ln).length === dl.length) {
+        // 見出しの行を足す: 段落の終わりの、「|」で始まる行。その上の「[…]」だけの行は表題
+        let hs = i, cap = null, capAt = -1;
+        if (para.length) {
+          while (hs - 1 >= paraAt && lines[hs - 1].trim()[0] === '|') hs--;
+          if (hs - 1 >= paraAt && (cap = tableCaption(lines[hs - 1]))) capAt = hs - 1;
+          para = para.slice(0, Math.max(0, (capAt >= 0 ? capAt : hs) - paraAt));
         }
-        out.push('<div class="tblwrap"><table><thead><tr' + lineAttr(base, headAt, headAt + 2) + '>' + th + '</tr></thead>' + (rows.length ? '<tbody>' + rows.join('') + '</tbody>' : '') + '</table></div>');
+        flush();
+        const n = dl.length;
+        const al = dl.map(c => (/^:-+:$/.test(c) ? 'c' : /-:$/.test(c) ? 'r' : 'l'));
+        const heads = [];
+        for (let k = hs; k <= i; k++) heads.push(k);
+        i += 2;
+        // 本文の行: 「|」のある行(表題の「[…]」だけの行は除く)。すぐ下の「[…]」だけの行は、上に表題が無ければ表題
+        const body = [];
+        while (i < lines.length && lines[i].trim() !== '' && lines[i].indexOf('|') >= 0 && !(lines[i].trim()[0] !== '|' && tableCaption(lines[i]))) body.push(i++);
+        if (!cap && i < lines.length && (cap = tableCaption(lines[i]))) capAt = i++;
+        const rowLines = heads.concat(body);
+        const g = tableGrid(rowLines.map(k => splitRaw(lines[k])), heads.length, n);
+        // セルだけの配置(列と違うもの)は、data-al にも書く(書き出しで列の配置と分けるため)
+        const own = a => (a.al && a.al !== al[a.c] ? a.al : '');
+        const cell = (a, tag) => '<' + tag + ' class="al-' + (own(a) || al[a.c]) + '"' + (own(a) ? ' data-al="' + own(a) + '"' : '') + (a.cs > 1 ? ' colspan="' + a.cs + '"' : '') + (a.rs > 1 ? ' rowspan="' + a.rs + '"' : '')
+          + (base < 0 ? '' : ' data-col="' + a.c + '"') + '>' + inline(a.text) + '</' + tag + '>';
+        // 行の範囲: 最後の見出しの行は、区切りの行まで
+        const tr = r => '<tr' + lineAttr(base, rowLines[r], rowLines[r] + (r === heads.length - 1 ? 2 : 1)) + '>' + g.byRow[r].map(a => cell(a, r < heads.length ? 'th' : 'td')).join('') + '</tr>';
+        const trs = (s, e) => { let h = ''; for (let r = s; r < e; r++) h += tr(r); return h; };
+        out.push('<div class="tblwrap"><table' + (cap && cap.label ? ' data-label="' + esc(cap.label) + '"' : '') + '>'
+          + (cap ? '<caption' + lineAttr(base, capAt, capAt + 1) + '>' + inline(cap.text) + '</caption>' : '')
+          + '<thead>' + trs(0, heads.length) + '</thead>' + (body.length ? '<tbody>' + trs(heads.length, rowLines.length) + '</tbody>' : '') + '</table></div>');
         continue;
       }
     }
@@ -1557,21 +1634,30 @@ function cellEscape(v) {
   }
   return out;
 }
-/* 元の文の line 行目を含む表(md と同じ読み方。引用の中の表も)。{ head(見出しの行), delim(区切りの行), rows(本文の行), cols, align } か null */
+/* 元の文の line 行目を含む表(md と同じ読み方。引用の中の表も。表題の行は含まない)。
+   { heads(見出しの行), head(最後の見出しの行), delim(区切りの行), rows(本文の行), cols, align, caption(表題の行。無ければ -1),
+     first, last(表題も含めた、表の最初と最後の行) } か null */
 function tableAt(text, line) {
   const html = md(text, { lines: true });
-  const re = /<table><thead><tr data-line="(\d+)"[^>]*>([\s\S]*?)<\/table>/g;
+  const re = /<table\b[^>]*>([\s\S]*?)<\/table>/g;
   let m;
   while ((m = re.exec(html))) {
-    const head = +m[1];
-    const rows = [];
-    m[2].replace(/<tr data-line="(\d+)"/g, (x, n) => { rows.push(+n); return x; });
+    const th = /<thead>([\s\S]*?)<\/thead>/.exec(m[1]);
+    if (!th) continue;
+    const heads = [], rows = [];
+    th[1].replace(/<tr data-line="(\d+)"/g, (x, n) => { heads.push(+n); return x; });
+    m[1].slice(th.index + th[0].length).replace(/<tr data-line="(\d+)"/g, (x, n) => { rows.push(+n); return x; });
+    if (!heads.length) continue;
+    const head = heads[heads.length - 1];
     const last = rows.length ? rows[rows.length - 1] : head + 1;
-    if (line < head || line > last) continue;
+    if (line < heads[0] || line > last) continue;
+    const cap = /^<caption data-line="(\d+)"/.exec(m[1]);
+    const caption = cap ? +cap[1] : -1;
     const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
     const d = tableRowParse(lines[head + 1]);
     const align = d.segs.map(s => { const t = s.trim(); return /^:-+:$/.test(t) ? 'c' : /-:$/.test(t) ? 'r' : /^:/.test(t) ? 'l' : ''; });
-    return { head: head, delim: head + 1, rows: rows, cols: d.segs.length, align: align };
+    return { heads: heads, head: head, delim: head + 1, rows: rows, cols: d.segs.length, align: align, caption: caption,
+      first: caption >= 0 ? Math.min(caption, heads[0]) : heads[0], last: Math.max(caption, last) };
   }
   return null;
 }
@@ -1581,77 +1667,175 @@ function tableCell(text, row, col) {
   const r = tableRowParse(lines[row] || '');
   return r.segs[col] != null ? segText(r.segs[col]) : '';
 }
-/* 表を編集する。row は元の文の行(見出しの行・区切りの行・本文の行)、col は列(0から)。
-   action: rowAbove / rowBelow / rowDelete / colLeft / colRight / colDelete / alignLeft / alignCenter / alignRight / alignNone / delete / cell(arg: 中身)。
-   { text, row, col }(編集のあとにカーソルを置くセル。表を消したときは row が表のあった行、col は -1)か、できないときは null */
-function tableEdit(text, row, col, action, arg) {
+/* 元の文の row 行目・col 列目のセルを含む表と、その結合。{ t, lines, rl(見出し・本文の行の番号), parsed(行の番号 → tableRowParse), g(tableGrid), ri(rl の中の番号), a(そこを覆うセル) } か null */
+function tablePrep(text, row, col) {
   const t = tableAt(text, row);
   if (!t) return null;
-  const nl = /\r\n/.test(text) ? '\r\n' : '\n';
   const lines = String(text).replace(/\r\n?/g, '\n').split('\n');
-  const all = [t.head, t.delim].concat(t.rows);
-  const n = t.cols;
-  col = Math.max(0, Math.min(n - 1, col | 0));
-  const isHead = row === t.head || row === t.delim;
-  if (row === t.delim) row = t.head;
+  const rl = t.heads.concat(t.rows);
   const parsed = {};
-  for (const i of all) parsed[i] = tableRowParse(lines[i]);
+  for (const i of rl.concat([t.delim])) parsed[i] = tableRowParse(lines[i]);
+  const g = tableGrid(rl.map(i => parsed[i].segs), t.heads.length, t.cols);
+  const ri = rl.indexOf(row === t.delim ? t.head : row);
+  const c = Math.max(0, Math.min(t.cols - 1, col | 0));
+  return { t: t, lines: lines, rl: rl, parsed: parsed, g: g, ri: ri, c: c, a: g.grid[ri][c] };
+}
+/* セル a と結合できる右・下のセル(高さ・幅が同じで、見出しと本文をまたがないもの): { right, down }(無ければ null) */
+function tableNeighbors(g, nh, n, a) {
+  let right = null, down = null;
+  if (a.c + a.cs < n) { const b = g.grid[a.r][a.c + a.cs]; if (b && b.r === a.r && b.rs === a.rs) right = b; }
+  const rb = a.r + a.rs;
+  if (rb < g.grid.length && (rb < nh) === (a.r < nh)) { const b = g.grid[rb][a.c]; if (b && b.r === rb && b.c === a.c && b.cs === a.cs) down = b; }
+  return { right: right, down: down };
+}
+/* セル(row, col)を覆う、結合したセルの左上: { row, col } か null */
+function tableAnchor(text, row, col) {
+  const p = tablePrep(text, row, col);
+  return p ? { row: p.rl[p.a.r], col: p.a.c } : null;
+}
+/* セル(row, col)で、結合の操作ができるか: { right(右のセルと結合), down(下のセルと結合), merged(結合を解除) } か null */
+function tableSpan(text, row, col) {
+  const p = tablePrep(text, row, col);
+  if (!p) return null;
+  const s = tableNeighbors(p.g, p.t.heads.length, p.t.cols, p.a);
+  return { right: !!s.right, down: !!s.down, merged: p.a.cs > 1 || p.a.rs > 1 };
+}
+/* セルを移る。dx: 次(1)・前(-1)のセル(行の終わりで次の行へ)、dy: 下(1)・上(-1)のセル。結合したセルは1つとして数える。
+   { row, col }、最後のセルの次なら { append: true }、移れなければ null */
+function tableNav(text, row, col, dx, dy) {
+  const p = tablePrep(text, row, col);
+  if (!p) return null;
+  const a = p.a, pos = x => ({ row: p.rl[x.r], col: x.c });
+  if (dy) {
+    const r = dy > 0 ? a.r + a.rs : a.r - 1;
+    return r >= 0 && r < p.rl.length ? pos(p.g.grid[r][a.c]) : null;
+  }
+  const k = p.g.anchors.indexOf(a) + (dx > 0 ? 1 : -1);
+  if (k >= p.g.anchors.length) return { append: true };
+  return k >= 0 ? pos(p.g.anchors[k]) : null;
+}
+/* 表を編集する。row は元の文の行(見出しの行・区切りの行・本文の行)、col は列(0から)。結合したセルの中なら、そのセル(左上)に対して行う。
+   action: rowAbove / rowBelow / rowDelete / colLeft / colRight / colDelete / alignLeft / alignCenter / alignRight / alignNone / delete /
+   mergeRight / mergeDown / unmerge / cell(arg: 中身)。
+   行・列を結合したセルの内側に足すと結合が広がり、結合したセルの一部を消すと縮む(左上を消したときは、中身を隣に移す)。
+   見出しの行の上・間に行を足すと、見出しの行が増える。見出しの行が1つなら、それは消せない。
+   { text, row, col }(編集のあとにカーソルを置くセル。表を消したときは row が表のあった行、col は -1)か、できないときは null */
+function tableEdit(text, row, col, action, arg) {
+  const p = tablePrep(text, row, col);
+  if (!p) return null;
+  const { t, lines, rl, parsed, g, ri, a } = p;
+  const nl = /\r\n/.test(text) ? '\r\n' : '\n';
+  const n = t.cols, nh = t.heads.length;
+  col = p.c;
+  if (row === t.delim) row = t.head;
+  const isHead = ri < nh;
+  const all = rl.concat([t.delim]);
   // セルが足りない行は、空のセルで補う(区切りの行は ---)
   const pad = (r, i) => { while (r.segs.length < n) r.segs.push(i === t.delim ? ' --- ' : '  '); };
   const out = (r, c) => ({ text: lines.join('\n').replace(/\n/g, nl), row: r, col: c });
+  const at = r => { const x = parsed[rl[r]]; pad(x, rl[r]); return x; };   // 行(rl の番号)のセルを書き換える準備
+  const put = r => { lines[rl[r]] = tableRowBuild(parsed[rl[r]]); };
+  const marker = (segs, k) => k > 0 && segs[k] === '';                     // 横の結合の続き(「||」)
+  const blank = seg => (seg === '' ? '  ' : seg);                          // 行の最初の「||」(ただの空のセル)を、空白のあるセルに
   const hp = parsed[t.head];
-  // 新しい行: 見出しの行と同じ書き方(両端の | と引用の >)で、空のセル。1列の表は両端に | が要る
-  const newRow = () => tableRowBuild({ pre: hp.pre, lead: hp.lead || n === 1, segs: Array.from({ length: n }, () => '  '), trail: hp.trail || n === 1, tail: '' });
+  // 新しい行: 見出しの行と同じ書き方(両端の | と引用の >)。見出しに足す行と、1列の表は両端に | が要る
+  const newRow = (segs, head) => tableRowBuild({ pre: hp.pre, lead: hp.lead || n === 1 || head, segs: segs, trail: hp.trail || n === 1 || head, tail: '' });
   if (action === 'cell') {
-    const r = parsed[row];
-    pad(r, row);
-    r.segs[col] = segSet(r.segs[col], cellEscape(arg == null ? '' : arg));
-    lines[row] = tableRowBuild(r);
-    return out(row, col);
+    const r = at(a.r);
+    r.segs[a.c] = segSet(r.segs[a.c], cellEscape(arg == null ? '' : arg));
+    put(a.r);
+    return out(rl[a.r], a.c);
   }
   if (action === 'rowAbove' || action === 'rowBelow') {
-    if (action === 'rowAbove' && isHead) return null;
-    const at = action === 'rowAbove' ? row : (isHead ? t.delim + 1 : row + 1);
-    lines.splice(at, 0, newRow());
-    return out(at, col);
+    // 新しい行を入れる位置(rl の番号。そこにあった行が下にずれる)。最後の見出しの行の下は、本文の最初
+    const pos = action === 'rowAbove' ? ri : (ri === nh - 1 ? nh : ri + 1);
+    const head = pos < nh;
+    const segs = Array.from({ length: n }, () => '  ');
+    // 上から続く縦の結合の内側に入れるときは、その結合を広げる
+    if (pos > 0 && pos < rl.length && (pos < nh) === (pos - 1 < nh)) {
+      for (let c = 0; c < n; c++) {
+        const x = g.grid[pos][c];
+        if (x && x.r < pos && x.c === c) { segs[c] = ' ^^ '; for (let k = 1; k < x.cs; k++) segs[c + k] = ''; }
+      }
+    }
+    const line = pos < rl.length ? rl[pos] : (rl.length > nh ? rl[rl.length - 1] + 1 : t.delim + 1);
+    lines.splice(line, 0, newRow(segs, head));
+    const c = segs[col] === '  ' ? col : Math.max(0, segs.indexOf('  '));
+    return out(line, c);
   }
   if (action === 'rowDelete') {
-    if (isHead) return null;
+    if (isHead && nh <= 1) return null;
+    // この行から下へ結合しているセルは、中身を下の行に移す
+    for (const x of g.byRow[ri]) if (x.rs > 1) { const q = at(ri + 1); q.segs[x.c] = blank(at(ri).segs[x.c]); put(ri + 1); }
+    // 最後の見出しの行を消すときは、上の見出しの行が区切りの行の上に来るので、セルの数を区切りの行に合わせる
+    if (ri === nh - 1) { const q = at(ri - 1); q.segs.length = n; put(ri - 1); }
     lines.splice(row, 1);
-    const k = t.rows.indexOf(row);
-    const next = k + 1 < t.rows.length ? row : k > 0 ? t.rows[k - 1] : t.head;
+    let next;
+    if (isHead) next = ri === nh - 1 ? rl[ri - 1] : row;
+    else next = ri + 1 < rl.length ? row : ri - 1 >= nh ? rl[ri - 1] : t.head;
     return out(next, col);
   }
   if (action === 'colLeft' || action === 'colRight' || action === 'colDelete') {
     if (action === 'colDelete' && n <= 1) return null;
-    const at = action === 'colRight' ? col + 1 : col;
+    // 右に足すときは、結合したセルの右に
+    const pos = action === 'colRight' ? a.c + a.cs : action === 'colLeft' ? a.c : col;
     for (const i of all) {
       const r = parsed[i];
       pad(r, i);
-      if (action === 'colDelete') r.segs.splice(col, 1);
-      else r.segs.splice(at, 0, i === t.delim ? ' --- ' : '  ');
+      if (action === 'colDelete') {
+        if (i !== t.delim && !marker(r.segs, col) && marker(r.segs, col + 1)) r.segs[col + 1] = blank(r.segs[col]);
+        r.segs.splice(col, 1);
+      } else r.segs.splice(pos, 0, i === t.delim ? ' --- ' : marker(r.segs, pos) ? '' : '  ');
       // 先頭の | の無い行で、最初の列を消して空になったときは、そのまま(区切りは残る)
       lines[i] = tableRowBuild(r);
     }
-    return out(row, action === 'colDelete' ? Math.min(col, n - 2) : at);
+    return out(row, action === 'colDelete' ? Math.min(col, n - 2) : pos);
   }
   if (/^align(Left|Center|Right|None)$/.test(action)) {
     const d = parsed[t.delim];
     pad(d, t.delim);
     const seg = d.segs[col];
     const dashes = Math.max(3, (seg.match(/-/g) || []).length);
-    const a = /^\s*/.exec(seg)[0], b = /\s*$/.exec(seg)[0];
+    const s0 = /^\s*/.exec(seg)[0], s1 = /\s*$/.exec(seg)[0];
     const v = action === 'alignLeft' ? ':' + '-'.repeat(dashes) : action === 'alignCenter' ? ':' + '-'.repeat(dashes) + ':' : action === 'alignRight' ? '-'.repeat(dashes) + ':' : '-'.repeat(dashes);
-    d.segs[col] = a + v + b;
+    d.segs[col] = s0 + v + s1;
     lines[t.delim] = tableRowBuild(d);
     return out(row, col);
   }
   if (action === 'delete') {
-    const first = t.head, last = all[all.length - 1];
-    lines.splice(first, last - first + 1);
+    const first = t.first;
+    lines.splice(first, t.last - first + 1);
     // 前後が空の行なら、空の行を1つにする
     if (first > 0 && lines[first - 1] === '' && lines[first] === '') lines.splice(first, 1);
     return out(first, -1);
+  }
+  if (action === 'unmerge') {
+    if (a.cs === 1 && a.rs === 1) return null;
+    for (let r = a.r; r < a.r + a.rs; r++) {
+      const x = at(r);
+      for (let c = a.c; c < a.c + a.cs; c++) x.segs[c] = r === a.r && c === a.c ? blank(x.segs[c]) : '  ';
+      put(r);
+    }
+    return out(rl[a.r], a.c);
+  }
+  if (action === 'mergeRight' || action === 'mergeDown') {
+    const s = tableNeighbors(g, nh, n, a);
+    const b = action === 'mergeRight' ? s.right : s.down;
+    if (!b) return null;
+    // 結合される側の中身は、こちらの中身の後ろに足す(消さない)
+    const xa = at(a.r), bt = segText(at(b.r).segs[b.c]), atx = segText(xa.segs[a.c]);
+    let v = atx && bt ? atx + ' ' + bt : atx || bt;
+    if (v === '^^') v = '\\^^';
+    xa.segs[a.c] = v === atx ? blank(xa.segs[a.c]) : segSet(blank(xa.segs[a.c]), v);
+    put(a.r);
+    if (action === 'mergeRight') {
+      for (let r = a.r; r < a.r + a.rs; r++) { const x = at(r); for (let c = b.c; c < b.c + b.cs; c++) x.segs[c] = ''; put(r); }
+    } else {
+      const x = at(b.r);
+      x.segs[b.c] = ' ^^ ';
+      put(b.r);
+    }
+    return out(rl[a.r], a.c);
   }
   return null;
 }
@@ -1844,7 +2028,7 @@ function tableInsertAfter(text, pos) {
   const src = String(text);
   const line = src.slice(0, pos).split('\n').length - 1;
   const t = tableAt(src, line);
-  if (t) return t.rows.length ? t.rows[t.rows.length - 1] : t.delim;
+  if (t) return t.last;
   const html = md(src, { lines: true });
   const re = /<(pre|div)\b([^>]*)>/g;
   let m;
@@ -1956,5 +2140,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

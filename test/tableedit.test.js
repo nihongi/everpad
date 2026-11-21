@@ -23,17 +23,17 @@ test('表: 行の読み書き(区切り、エスケープ、両端の |、引用
 });
 
 test('表: 行を含む表を探す(md と同じ読み方。引用の中も、コードの中は表ではない)', () => {
-  assert.deepStrictEqual(C.tableAt(T, 4), { head: 2, delim: 3, rows: [4, 5], cols: 2, align: ['', 'r'] });
+  assert.deepStrictEqual(C.tableAt(T, 4), { heads: [2], head: 2, delim: 3, rows: [4, 5], cols: 2, align: ['', 'r'], caption: -1, first: 2, last: 5 });
   assert.strictEqual(C.tableAt(T, 2).head, 2);
   assert.strictEqual(C.tableAt(T, 0), null);
   assert.strictEqual(C.tableAt(T, 7), null);
-  assert.deepStrictEqual(C.tableAt('> | a |\n> |:-:|\n> | 1 |', 2), { head: 0, delim: 1, rows: [2], cols: 1, align: ['c'] });
+  assert.deepStrictEqual(C.tableAt('> | a |\n> |:-:|\n> | 1 |', 2), { heads: [0], head: 0, delim: 1, rows: [2], cols: 1, align: ['c'], caption: -1, first: 0, last: 2 });
   assert.strictEqual(C.tableAt('```\n| a |\n|---|\n```', 1), null);
   assert.strictEqual(C.tableCell(T, 4, 1), '2');
   assert.strictEqual(C.tableCell(T, 5, 1), '');
 });
 
-test('表: 行の挿入と削除(見出しの行には挿入・削除しない)', () => {
+test('表: 行の挿入と削除(見出しの行の上には見出しの行を足す。見出しの行が1つなら消さない)', () => {
   let r = C.tableEdit(T, 4, 1, 'rowAbove');
   assert.deepStrictEqual(L(r.text).slice(2, 7), ['| a | b |', '|---|--:|', '|  |  |', '| 1 | 2 |', '| 3 |']);
   assert.deepStrictEqual([r.row, r.col], [4, 1]);
@@ -42,8 +42,11 @@ test('表: 行の挿入と削除(見出しの行には挿入・削除しない)'
   assert.strictEqual(r.row, 4);
   r = C.tableEdit(T, 5, 0, 'rowBelow');
   assert.strictEqual(L(r.text)[6], '|  |  |');
-  assert.strictEqual(C.tableEdit(T, 2, 0, 'rowAbove'), null);
+  r = C.tableEdit(T, 2, 0, 'rowAbove');   // 見出しの行の上 = 見出しの行を足す(| で始める)
+  assert.deepStrictEqual(L(r.text).slice(2, 5), ['|  |  |', '| a | b |', '|---|--:|']);
+  assert.deepStrictEqual([r.row, C.tableAt(r.text, 2).heads], [2, [2, 3]]);
   assert.strictEqual(C.tableEdit(T, 3, 0, 'rowDelete'), null);
+  assert.strictEqual(C.tableEdit(T, 2, 0, 'rowDelete'), null);
   r = C.tableEdit(T, 4, 0, 'rowDelete');
   assert.deepStrictEqual(L(r.text).slice(2, 6), ['| a | b |', '|---|--:|', '| 3 |', '']);
   assert.strictEqual(r.row, 4);   // 次の行(詰めたので同じ行番号)
@@ -105,7 +108,7 @@ test('表を挿入: 空の表(見出しの行 + 3行、3列)を次の行に。�
   let r = C.tableInsert('a\nb\nc', 0);
   assert.strictEqual(r.text, 'a\n\n' + NEW + '\n\nb\nc');
   assert.deepStrictEqual([r.row, r.col], [2, 0]);
-  assert.deepStrictEqual(C.tableAt(r.text, r.row), { head: 2, delim: 3, rows: [4, 5, 6], cols: 3, align: ['', '', ''] });
+  assert.deepStrictEqual(C.tableAt(r.text, r.row), { heads: [2], head: 2, delim: 3, rows: [4, 5, 6], cols: 3, align: ['', '', ''], caption: -1, first: 2, last: 6 });
   // 空の行で: その行に
   assert.strictEqual(C.tableInsert('a\n\nb', 1).text, 'a\n\n' + NEW + '\n\nb');
   // 最後(文の無い下の方): 最後の行の後ろ。終わりの空の行はまとめる
@@ -165,7 +168,7 @@ test('プレビューでの編集: 画面・メニュー・main.js へのつな�
   assert.match(sec, /tableEdit\(cur\(\)\.text, pe\.row, pe\.col, 'cell', pe\.box\.value\)/);
   // 表示の切り替え・メモの移動で閉じる
   assert.match(app, /function setMode\(m, focusEditor\) \{\n\s+if \(pe\.box\) peClose\(true\);/);
-  assert.match(app, /function show\(id\) \{\n\s+if \(pe\.box\) peClose\(true\);\n\s+peUndo\.length = 0;/);
+  assert.match(app, /function show\(id, opt\) \{\n\s+if \(pe\.box\) peClose\(true\);\n\s+if \(cur\(\) && cur\(\)\.id !== id\) rememberPos\(\);\n\s+peUndo\.length = 0;/);
   assert.match(app, /if \(m === 'preview'\) renderPreview\(pvShown\);/);
   // 書式はかたまりの編集欄にも、メニューの「表」は tbl:… で
   assert.match(app, /const ed = blk \? pe\.box : \$\('editor'\);/);
@@ -187,8 +190,14 @@ test('プレビューでの編集: 表のメニューの項目(見出しの行�
   const flat = items => items.reduce((a, x) => a.concat(x.submenu ? [x].concat(x.submenu) : [x]), []);
   let it = flat(tableItems(T2, () => {}, { head: true, cols: 1, align: 'c' }, {}, 'win32'));
   const by = label => it.find(x => x.label === label);
-  assert.strictEqual(by('上に行を挿入').enabled, false);
+  assert.strictEqual(by('上に行を挿入').enabled, true);   // 見出しの行を足す
   assert.strictEqual(by('行を削除').enabled, false);
+  assert.strictEqual(by('右のセルと結合').enabled, false);
+  assert.strictEqual(by('下のセルと結合').enabled, false);
+  assert.strictEqual(by('結合を解除').enabled, false);
+  it = flat(tableItems(T2, () => {}, { head: true, headDel: true, cols: 3, align: '', right: true, down: true, merged: true }, {}, 'win32'));
+  for (const l of ['行を削除', '右のセルと結合', '下のセルと結合', '結合を解除']) assert.strictEqual(by(l).enabled, true, l);
+  it = flat(tableItems(T2, () => {}, { head: true, cols: 1, align: 'c' }, {}, 'win32'));
   assert.strictEqual(by('列を削除').enabled, false);
   assert.strictEqual(by('下に行を挿入').enabled, true);
   assert.strictEqual(by('中央揃え').checked, true);

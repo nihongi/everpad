@@ -49,10 +49,10 @@ test('ほかのアプリ: Google ドキュメント・Word・Excel・GitHub', ()
   // Word: 箇条書きの段落。箇条書きの印(mso-list:Ignore)は外す(番号や入れ子は下の test)
   assert.strictEqual(md('<p class=MsoNormal><b><span>太字</span></b><span>の文<o:p></o:p></span></p><p class=MsoListParagraphCxSpFirst style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">・<span>&nbsp;&nbsp; </span></span><span>箇条1</span></p><p class=MsoListParagraphCxSpLast style="mso-list:l0 level1 lfo1"><span style="mso-list:Ignore">・</span><span>箇条2</span></p>'),
     '**太字**の文\n\n- 箇条1\n- 箇条2');
-  // Excel: 1行目を見出しの行に。配置は align から。| はエスケープ
-  assert.strictEqual(md('<table><col width=72><tr><td>名前</td><td align=right>数</td></tr><tr><td>a|b</td><td>3</td></tr></table>'), '| 名前 | 数 |\n| --- | ---: |\n| a\\|b | 3 |');
+  // Excel: 配置は align から。| はエスケープ
+  assert.strictEqual(md('<table><col width=72><tr><td>名前</td><td align=right>数</td></tr><tr><td>a|b</td><td>3</td></tr></table>'), '|  |  |\n| --- | ---: |\n| 名前 | 数 |\n| a\\|b | 3 |');   // 見出しの印(thead・th・太字)が無いので、空の見出しの行を足す
   // 結合したセルは外す。見出しの無い行も揃える
-  assert.strictEqual(md('<table><tr><th colspan=2>まとめ</th></tr><tr><td>1</td></tr></table>'), '| まとめ |   |\n| --- | --- |\n| 1 |   |');
+  assert.strictEqual(md('<table><tr><th colspan=2>まとめ</th></tr><tr><td>1</td></tr></table>'), '| まとめ ||\n| --- | --- |\n| 1 |  |');   // 横の結合は「||」
   // GitHub のコード(言語は外側の div)と、文中のリンクとコード
   assert.strictEqual(md('<div class="highlight highlight-source-js"><pre><span class="pl-k">const</span> x = 1;\n<span>y</span>();</pre></div><p>see <a href="https://github.com">GitHub</a> and <code>x</code></p>'),
     '```js\nconst x = 1;\ny();\n```\n\nsee [GitHub](https://github.com) and `x`');

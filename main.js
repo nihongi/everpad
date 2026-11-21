@@ -544,7 +544,8 @@ ipcMain.handle('math:menu', (e, tex, kind, canEdit) => {
 });
 
 /* 表の操作のメニュー(プレビューのセルを右クリックしたとき。表の外なら「表を挿入」だけ)。選んだ操作の名前を返す(選ばなければ null) */
-const cleanTableState = st => (st && typeof st === 'object' ? { inTable: st.inTable !== false, head: !!st.head, cols: Math.max(1, Math.min(1000, st.cols | 0)), align: ['l', 'c', 'r'].indexOf(st.align) >= 0 ? st.align : '' } : null);
+const cleanTableState = st => (st && typeof st === 'object' ? { inTable: st.inTable !== false, head: !!st.head, headDel: !!st.headDel, cols: Math.max(1, Math.min(1000, st.cols | 0)), align: ['l', 'c', 'r'].indexOf(st.align) >= 0 ? st.align : '',
+  right: !!st.right, down: !!st.down, merged: !!st.merged } : null);
 ipcMain.handle('table:menu', (e, st) => {
   if (!fromOurWindow(e)) return null;
   return new Promise(resolve => {

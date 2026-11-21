@@ -51,7 +51,9 @@ const hasClass = (n, c) => (' ' + (n.attrs && n.attrs.class || '') + ' ').indexO
 /* ---------- 本文の HTML → 構造 ----------
    ブロック: { t:'p', c } { t:'h', level, c } { t:'pre', text } { t:'math', tex, mml, error } { t:'hr' } { t:'diagram', src, png, w, h }
              { t:'quote', c:[ブロック] } { t:'list', ordered, start, items:[{ check: null|true|false, c:[ブロック] }] }
-             { t:'table', align:['l'|'c'|'r'], head:[セル], rows:[[セル]] }(セルは文中の要素の配列)
+             { t:'table', align:['l'|'c'|'r'], nh: 見出しの行の数, rows:[[セル|null]], caption: 文中の要素の配列|null }
+               (rows は見出しの行も含めた行×列。セルは { c: 文中の要素の配列, cs, rs(結合した幅と高さ), al(セルだけの配置。列と同じなら '') }で、
+                結合で覆われた場所は null)
              { t:'alert', kind:'note'|'tip'|'important'|'warning'|'caution', title:[文中], c:[ブロック] }
              { t:'footnotes', items:[{ n, c:[ブロック] }] }(脚注の一覧。本文の最後に1つ)
    文中: { t:'text', v } { t:'br' } { t:'b'|'i'|'s', c } { t:'code', v } { t:'a', href, c }
@@ -165,14 +167,52 @@ function listOf(n) {
   return { t: 'list', ordered: ordered, start: ordered ? Math.max(0, parseInt(n.attrs.start, 10) || 1) : 1, items: items };
 }
 function tableOf(n) {
-  const rows = [];
-  const walk = x => { for (const c of x.children || []) { if (c.tag === 'tr') rows.push(c); else if (c.tag) walk(c); } };
-  walk(n);
+  const head = [], body = [];
+  let caption = null;
+  const walk = (x, inHead) => {
+    for (const c of x.children || []) {
+      if (c.tag === 'tr') (inHead ? head : body).push(c);
+      else if (c.tag === 'caption') caption = inlinesOf(c.children);
+      else if (c.tag) walk(c, inHead || c.tag === 'thead');
+    }
+  };
+  walk(n, false);
+  const trs = head.concat(body), nh = Math.min(trs.length, head.length || 1);
   const cells = tr => tr.children.filter(c => c.tag === 'th' || c.tag === 'td');
-  const first = rows.length ? cells(rows[0]) : [];
-  const align = first.map(c => (hasClass(c, 'al-c') ? 'c' : hasClass(c, 'al-r') ? 'r' : 'l'));
-  const toCells = tr => { const cs = cells(tr).map(c => inlinesOf(c.children)); while (cs.length < align.length) cs.push([]); return cs.slice(0, align.length); };
-  return { t: 'table', align: align, head: rows.length ? toCells(rows[0]) : [], rows: rows.slice(1).map(toCells) };
+  const span = (c, k) => Math.max(1, Math.min(1000, parseInt(c.attrs[k], 10) || 1));
+  const alignOf = c => (hasClass(c, 'al-c') ? 'c' : hasClass(c, 'al-r') ? 'r' : 'l');
+  // HTML の表と同じく、上から続く結合で埋まった場所を飛ばして、行×列に置く(縦の結合は、見出し・本文の中で止める)
+  const grid = trs.map(() => []), covered = trs.map(() => []), alignAt = [];
+  let n0 = 0;
+  trs.forEach((tr, r) => {
+    let c = 0;
+    const end = r < nh ? nh : trs.length;
+    for (const td of cells(tr)) {
+      while (covered[r][c]) c++;
+      const cs = span(td, 'colspan'), rs = Math.min(span(td, 'rowspan'), end - r);
+      // セルだけの配置は data-al(md が列と違うときに付ける)。列の配置は、それの無いセルから
+      const own = ['l', 'c', 'r'].indexOf(td.attrs['data-al']) >= 0 ? td.attrs['data-al'] : '';
+      grid[r][c] = { c: inlinesOf(td.children), cs: cs, rs: rs, al: own };
+      if (alignAt[c] == null && cs === 1 && !own) alignAt[c] = alignOf(td);
+      for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) if (i || j) covered[r + i][c + j] = true;
+      c += cs;
+    }
+    n0 = Math.max(n0, c, covered[r].length);
+  });
+  // 列の数は最初の行(結合を広げて数える)。はみ出す結合は縮め、足りない場所は空のセルにする
+  const first = trs.length ? cells(trs[0]).reduce((k, td) => k + span(td, 'colspan'), 0) : 0;
+  const ncol = first || n0;
+  const rows = grid.map((row, r) => {
+    const out = [];
+    for (let c = 0; c < ncol; c++) {
+      const x = row[c];
+      if (x) out.push(Object.assign(x, { cs: Math.min(x.cs, ncol - c) }));
+      else out.push(covered[r][c] ? null : { c: [], cs: 1, rs: 1, al: '' });
+    }
+    return out;
+  });
+  const align = Array.from({ length: ncol }, (_, c) => alignAt[c] || 'l');
+  return { t: 'table', align: align, nh: nh, rows: rows, caption: caption };
 }
 function bodyTree(bodyHtml) { return blocksOf(parseMarkup(String(bodyHtml)).children); }
 
@@ -183,7 +223,7 @@ function treeImages(blocks) {
     if (Array.isArray(x)) { x.forEach(visit); return; }
     if (!x || typeof x !== 'object') return;
     if (x.t === 'img' && ids.indexOf(x.file) < 0) ids.push(x.file);
-    for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
+    for (const k of ['c', 'items', 'rows', 'caption', 'title']) if (x[k]) visit(x[k]);
   };
   visit(blocks);
   return ids;
@@ -194,7 +234,7 @@ function treeHasMath(blocks) {
     if (found || !x || typeof x !== 'object') return;
     if (Array.isArray(x)) { x.forEach(visit); return; }
     if (x.t === 'math') { found = true; return; }
-    for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
+    for (const k of ['c', 'items', 'rows', 'caption', 'title']) if (x[k]) visit(x[k]);
   };
   visit(blocks);
   return found;
@@ -312,12 +352,31 @@ function adocList(b, ctx) {
   }
   return lines.join('\n');
 }
+/* 表の行×列ごとに、そこを覆うセル { x(セル), r0, c0(左上の行・列) } */
+function tableOwners(b) {
+  const own = b.rows.map(() => new Array(b.align.length).fill(null));
+  b.rows.forEach((row, r) => row.forEach((x, c) => {
+    if (!x) return;
+    for (let i = 0; i < x.rs && r + i < own.length; i++) for (let j = 0; j < x.cs && c + j < own[r].length; j++) own[r + i][c + j] = { x: x, r0: r, c0: c };
+  }));
+  return own;
+}
+/* 表: 結合は 2+|(横)・.2+|(縦)。見出しが1行で縦の結合が無ければ見出しの行(options="header")、
+   そうでなければ見出しの行のセルを h(見出しの書式)にする(AsciiDoc の見出しの行は1行だけなので)。表題には番号を付けない(caption="") */
 function adocTable(b, ctx) {
+  if (!b.align.length) return '';
   const cctx = Object.assign({}, ctx, { inItem: true });
-  const cell = c => '|' + adocInline(c, cctx).replace(/\|/g, '\\|');
+  const simple = b.nh === 1 && b.rows[0].every(x => !x || x.rs === 1);
+  const cell = (x, h) => {
+    const sp = (x.cs > 1 ? String(x.cs) : '') + (x.rs > 1 ? '.' + x.rs : '');
+    const al = x.al ? ({ c: '^', r: '>', l: '<' })[x.al] : '';
+    return (sp ? sp + '+' : '') + al + (h ? 'h' : '') + '|' + adocInline(x.c, cctx).replace(/\|/g, '\\|');
+  };
   const cols = b.align.map(a => (a === 'c' ? '^' : a === 'r' ? '>' : '<')).join(',');
-  const rows = [b.head.map(cell).join(' '), ''].concat(b.rows.map(r => r.map(cell).join(' ')));
-  return '[cols="' + cols + '",options="header"]\n|===\n' + rows.join('\n') + '\n|===';
+  const rows = b.rows.map((row, r) => row.filter(Boolean).map(x => cell(x, !simple && r < b.nh)).join(' ')).filter(l => l);
+  if (simple) rows.splice(1, 0, '');
+  const cap = b.caption ? adocInline(b.caption, cctx).trim() : '';
+  return (cap ? '.' + cap + '\n' : '') + '[' + (cap ? 'caption="",' : '') + 'cols="' + cols + '",options="' + (simple ? 'header' : 'noheader') + '"]\n|===\n' + rows.join('\n') + '\n|===';
 }
 /* 脚注の一覧(番号 → { c, refs: 参照の数, used }) */
 function adocNotes(blocks) {
@@ -329,7 +388,7 @@ function adocNotes(blocks) {
     if (Array.isArray(x)) { x.forEach(visit); return; }
     if (!x || typeof x !== 'object' || x.t === 'footnotes') return;
     if (x.t === 'fn' && notes.has(x.n)) notes.get(x.n).refs++;
-    for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
+    for (const k of ['c', 'items', 'rows', 'caption', 'title']) if (x[k]) visit(x[k]);
   };
   visit(blocks);
   return notes;
@@ -616,24 +675,56 @@ function texTable(b, ctx, X) {
   const n = b.align.length;
   if (!n) return '';
   X.table = true;
-  const all = [b.head].concat(b.rows);
-  const longest = all.reduce((m, r) => m.map((w, j) => Math.max(w, ...inlineText(r[j] || []).split('\n').map(texWidth))), b.align.map(() => 0));
-  const wrap = all.some(r => r.some(c => c.some(x => x.t === 'br'))) || longest.reduce((a, w) => a + w + 3, 0) > 80;
+  const cells = [].concat(...b.rows).filter(Boolean);
+  // 列の幅は、結合していないセルのいちばん長い文字で決める
+  const longest = b.align.map(() => 0);
+  b.rows.forEach(row => row.forEach((x, j) => { if (x && x.cs === 1) longest[j] = Math.max(longest[j], ...inlineText(x.c).split('\n').map(texWidth)); }));
+  const wrap = cells.some(x => x.c.some(y => y.t === 'br')) || longest.reduce((a, w) => a + w + 3, 0) > 80;
   const total = longest.reduce((a, w) => a + Math.max(4, w), 0);
-  const spec = b.align.map((a, j) => {
+  const colSpec = (j, cs, own) => {
+    const a = own || b.align[j];
     if (!wrap) return a === 'c' ? 'c' : a === 'r' ? 'r' : 'l';
-    const share = (Math.max(4, longest[j]) / total).toFixed(3);
-    return '>{' + (a === 'c' ? '\\centering' : a === 'r' ? '\\raggedleft' : '\\raggedright') + '\\arraybackslash}p{\\dimexpr' + share + '\\linewidth-2\\tabcolsep\\relax}';
-  }).join('');
+    let share = 0;
+    for (let k = j; k < j + cs; k++) share += Math.max(4, longest[k]) / total;
+    return '>{' + (a === 'c' ? '\\centering' : a === 'r' ? '\\raggedleft' : '\\raggedright') + '\\arraybackslash}p{\\dimexpr' + share.toFixed(3) + '\\linewidth-2\\tabcolsep\\relax}';
+  };
+  const spec = b.align.map((a, j) => colSpec(j, 1)).join('');
   const cctx = Object.assign({}, ctx, { inArg: true, inItem: true, oneLine: !wrap });
-  const row = (r, head) => r.map(c => { const v = texInline(c, cctx, X); return head && v ? '\\textbf{' + v + '}' : v; }).join(' & ') + ' \\tabularnewline';
+  // 結合: 横は \multicolumn、縦は \multirow(覆われた行には、同じ幅の空のセルを置く)
+  const own = tableOwners(b);
+  const row = r => {
+    const out = [];
+    for (let c = 0; c < n;) {
+      const o = own[r][c];
+      if (!o) { out.push(''); c++; continue; }
+      const x = o.x;
+      let v = '';
+      if (o.r0 === r) {
+        v = texInline(x.c, cctx, X);
+        if (r < b.nh && v) v = '\\textbf{' + v + '}';
+        if (x.rs > 1) { X.multirow = true; v = '\\multirow{' + x.rs + '}{' + (wrap && x.cs === 1 ? '=' : '*') + '}{' + v + '}'; }
+      }
+      const ca = x.al && x.al !== b.align[o.c0] ? x.al : '';   // セルだけの配置
+      out.push(x.cs > 1 || ca ? '\\multicolumn{' + x.cs + '}{' + colSpec(o.c0, x.cs, ca) + '}{' + v + '}' : v);
+      c = o.c0 + x.cs;
+    }
+    return out.join(' & ') + ' \\tabularnewline';
+  };
+  // 見出しの行の間: 横に結合したセルの下に、その幅の線
+  const rule = r => b.rows[r].map((x, c) => (x && x.cs > 1 && x.rs === 1 ? '\\cmidrule(lr){' + (c + 1) + '-' + (c + x.cs) + '}' : '')).filter(Boolean).join('');
   const long = !ctx.nested;
   const env = long ? 'longtable' : 'tabular';
-  const lines = ['\\begin{' + env + '}{' + spec + '}', '\\toprule', row(b.head, true), '\\midrule'];
+  // 表題: 番号を付けない(longtable は \caption*、リストなどの中の表は太字の行)
+  const cap = b.caption ? texInline(b.caption, Object.assign({}, cctx, { oneLine: true }), X) : '';
+  const lines = ['\\begin{' + env + '}{' + spec + '}'];
+  if (cap && long) lines.push('\\caption*{' + cap + '}\\tabularnewline');
+  lines.push('\\toprule');
+  for (let r = 0; r < b.nh; r++) { lines.push(row(r)); if (r < b.nh - 1 && rule(r)) lines.push(rule(r)); }
+  lines.push('\\midrule');
   if (long) lines.push('\\endhead');
-  for (const r of b.rows) lines.push(row(r, false));
+  for (let r = b.nh; r < b.rows.length; r++) lines.push(row(r));
   lines.push('\\bottomrule', '\\end{' + env + '}');
-  return long ? lines.join('\n') : '\\begin{center}\n' + lines.join('\n') + '\n\\end{center}';
+  return long ? lines.join('\n') : '\\begin{center}\n' + (cap ? '\\textbf{' + cap + '}\\par\\smallskip\n' : '') + lines.join('\n') + '\n\\end{center}';
 }
 /* 図に、書き出す PNG のファイル名を付ける(図の順に everpad-diagram-1.png …)。名前と PNG の一覧を返す(main.js が書く) */
 function texDiagrams(blocks) {
@@ -673,7 +764,7 @@ function toLatex(blocks, o) {
         if (Array.isArray(x)) { x.forEach(visit); return; }
         if (!x || typeof x !== 'object' || x.t === 'footnotes') return;
         if (x.t === 'fn' && X.notes.has(x.n)) X.notes.get(x.n)[key]++;
-        for (const k of ['c', 'items', 'head', 'rows', 'title']) if (x[k]) visit(x[k]);
+        for (const k of ['c', 'items', 'rows', 'caption', 'title']) if (x[k]) visit(x[k]);
       };
       return visit;
     };
@@ -715,6 +806,7 @@ function toLatex(blocks, o) {
     pre.push('\\newtcolorbox{EPalert}[2]{breakable,enhanced,sharp corners,boxrule=0pt,leftrule=3pt,colframe=#1,colback=white,before upper={{\\color{#1}\\bfseries #2}\\par}}');
   }
   if (X.table) pre.push('\\usepackage{array,longtable,booktabs}');
+  if (X.multirow) pre.push('\\usepackage{multirow}');
   if (X.enumitem || X.depth > 4) pre.push('\\usepackage{enumitem}');
   if (X.depth > 4) pre.push('\\setlistdepth{9}', '\\renewlist{itemize}{itemize}{9}', '\\setlist[itemize]{label=\\textbullet}', '\\renewlist{enumerate}{enumerate}{9}', '\\setlist[enumerate]{label=\\arabic*.}');
   const macros = Object.keys(TEX_MACROS).filter(k => new RegExp('\\\\' + k + '(?![A-Za-z])').test(math));
@@ -1120,8 +1212,8 @@ function docxTable(b, ctx, X) {
   const n = b.align.length;
   if (!n) return '';
   const avail = X.textW - ctx.ind;
-  // 列の幅は、各列のいちばん長いセルの文字数で配分する(Word が開くときに内容に合わせて調整する)
-  const want = b.align.map((_, j) => Math.max(3, ...[b.head].concat(b.rows).map(r => plainLen(r[j] || []))) + 2);
+  // 列の幅は、各列のいちばん長いセル(結合していないもの)の文字数で配分する(Word が開くときに内容に合わせて調整する)
+  const want = b.align.map((_, j) => Math.max(3, ...b.rows.map(r => (r[j] && r[j].cs === 1 ? plainLen(r[j].c) : 0))) + 2);
   const total = want.reduce((p, q) => p + q, 0);
   const cols = want.map(w => Math.max(400, Math.floor(avail * Math.min(1, total * 110 / avail) * w / total)));
   const jc = { l: 'left', c: 'center', r: 'right' };
@@ -1130,12 +1222,27 @@ function docxTable(b, ctx, X) {
     + '<w:tblBorders>' + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(border).join('') + '</w:tblBorders>'
     + '<w:tblLayout w:type="autofit"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="1" w:noVBand="1"/></w:tblPr>'
     + '<w:tblGrid>' + cols.map(w => '<w:gridCol w:w="' + w + '"/>').join('') + '</w:tblGrid>';
-  const row = (cells, head) => '<w:tr>' + (head ? '<w:trPr><w:tblHeader/></w:trPr>' : '') + cells.map((c, j) =>
-    '<w:tc><w:tcPr><w:tcW w:w="' + cols[j] + '" w:type="dxa"/>' + (head ? '<w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>' : '') + '</w:tcPr>'
-    + para({ spacingAfter: 0, jc: jc[b.align[j]] }, runs(c, head ? { b: true } : {}, X, cols[j] - 216)) + '</w:tc>').join('') + '</w:tr>';
-  s += row(b.head, true);
-  for (const r of b.rows) s += row(r, false);
-  return s + '</w:tbl>';
+  // 結合: 横は gridSpan、縦は vMerge(覆われた行にも、同じ幅のセルを置く)。見出しの行は、ページをまたぐと繰り返す
+  const own = tableOwners(b);
+  const row = r => {
+    const head = r < b.nh;
+    let h = '<w:tr>' + (head ? '<w:trPr><w:tblHeader/></w:trPr>' : '');
+    for (let c = 0; c < n;) {
+      const o = own[r][c] || { x: { c: [], cs: 1, rs: 1 }, r0: r, c0: c };
+      const x = o.x;
+      let w = 0;
+      for (let k = o.c0; k < o.c0 + x.cs; k++) w += cols[k];
+      h += '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (x.cs > 1 ? '<w:gridSpan w:val="' + x.cs + '"/>' : '')
+        + (x.rs > 1 ? '<w:vMerge' + (o.r0 === r ? ' w:val="restart"' : '') + '/>' : '') + (head ? '<w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>' : '') + '</w:tcPr>'
+        + (o.r0 === r ? para({ spacingAfter: 0, jc: jc[x.al || b.align[o.c0]] }, runs(x.c, head ? { b: true } : {}, X, w - 216)) : '<w:p/>') + '</w:tc>';
+      c = o.c0 + x.cs;
+    }
+    return h + '</w:tr>';
+  };
+  for (let r = 0; r < b.rows.length; r++) s += row(r);
+  // 表題は表の上の段落(番号は付けない)
+  const cap = b.caption ? para({ style: 'Caption', left: ctx.ind }, runs(b.caption, {}, X, avail)) : '';
+  return cap + s + '</w:tbl>';
 }
 /* 目次(フロントマターの toc: true): Word の目次のフィールド(TOC \o "1-深さ")。Word は開くときにフィールドを更新するか尋ね、更新するとページ番号の付いた目次になる。
    更新する前の中身として、いちばん外側の見出しの文字を並べておく */
@@ -1167,6 +1274,7 @@ function stylesXml(lang, docLang) {
     + '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts w:ascii="游ゴシック" w:hAnsi="游ゴシック" w:eastAsia="游ゴシック"/><w:b/><w:bCs/><w:sz w:val="40"/><w:szCs w:val="40"/></w:rPr></w:style>'
     + '<w:style w:type="paragraph" w:customStyle="1" w:styleId="Author"><w:name w:val="Author"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:jc w:val="center"/></w:pPr></w:style>'
     + '<w:style w:type="paragraph" w:customStyle="1" w:styleId="Date"><w:name w:val="Date"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:after="360"/><w:jc w:val="center"/></w:pPr></w:style>'
+    + '<w:style w:type="paragraph" w:styleId="Caption"><w:name w:val="caption"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="35"/><w:unhideWhenUsed/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:after="80"/></w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:style>'
     + '<w:style w:type="paragraph" w:styleId="TOCHeading"><w:name w:val="TOC Heading"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/><w:qFormat/>'
     + '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:rFonts w:ascii="游ゴシック" w:hAnsi="游ゴシック" w:eastAsia="游ゴシック"/><w:b/><w:bCs/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>'
     + [1, 2, 3, 4, 5, 6].map(lv => '<w:style w:type="paragraph" w:styleId="TOC' + lv + '"><w:name w:val="toc ' + lv + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/>'

@@ -876,8 +876,11 @@
     show(id);
     return true;
   }
-  function show(id) {
+  /* メモを表示する。前のメモの見ていた場所とカーソルを覚え、新しいメモは前に見ていた場所に戻す(初めてなら先頭)。
+     opt.pos が false なら戻さない(読み直したときなど、呼ぶ側が戻す) */
+  function show(id, opt) {
     if (pe.box) peClose(true);
+    if (cur() && cur().id !== id) rememberPos();
     peUndo.length = 0;
     peRedo.length = 0;
     peLastCell = null;
@@ -892,6 +895,7 @@
     updateTitle();
     updateStatus();
     setMode(S.mode);
+    if (!opt || opt.pos !== false) restorePos();
     rememberActive();
     touchRecent(cur());
     if (S.frOpen) frRefresh();
@@ -1117,6 +1121,7 @@
     const loaded = await ensureLoaded(id);
     if (tok !== selTok) return;
     if (!loaded) { toast(T('loadFailed')); return; }
+    if (cur() && cur().id !== id) rememberPos();
     stop();
     emoClose();
     S.active = id;
@@ -1792,7 +1797,8 @@
       const root = t.closest('#preview, #hvBody');
       const seen = {};
       const h = [...root.querySelectorAll('h1, h2, h3, h4, h5, h6')].find(el => { const s = headingSlug(el.textContent); const k = seen[s] ? s + '-' + seen[s] : s; seen[s] = (seen[s] || 0) + 1; return k === want; });
-      if (h) h.scrollIntoView({ block: 'start' }); else toast(T('linkUnsupported', { href: target }));
+      const tb = h ? null : [...root.querySelectorAll('table[data-label]')].find(el => el.dataset.label.toLowerCase() === want);
+      if (h || tb) (h || tb).scrollIntoView({ block: 'start' }); else toast(T('linkUnsupported', { href: target }));
       return;
     }
     toast(T('linkUnsupported', { href: target }));
@@ -2045,7 +2051,12 @@
     const html = cd.getData('text/html');
     if (!html || html.length > PASTE_HTML_MAX) return null;
     let tree = null;
-    try { tree = HtmlMd.fromDom(new DOMParser().parseFromString(html, 'text/html').body); } catch (err) { tree = null; }
+    try {
+      // Excel などは、セルの太字や配置を <style> のクラスで指定するので、それも表のセルに足す
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      tree = HtmlMd.fromDom(doc.body);
+      if (tree) HtmlMd.applyClassStyles(tree, [...doc.querySelectorAll('style')].map(x => x.textContent).join('\n'));
+    } catch (err) { tree = null; }
     if (!tree || !HtmlMd.isRich(tree)) return null;
     if (cd.files && cd.files.length && !HtmlMd.hasText(tree)) return null;   // 画像だけ(Web ページの画像のコピーなど)は添付に
     const r = HtmlMd.toMarkdown(tree, { inline: inline, imageLabel: T('imageName') });
@@ -2473,7 +2484,7 @@
       return last && e.clientY > last.getBoundingClientRect().bottom ? { add: true } : null;
     }
     const cell = t.closest('td, th');
-    if (cell) { const tr = cell.closest('tr[data-line]'); return tr ? { row: +tr.dataset.line, col: [...tr.children].indexOf(cell) } : null; }
+    if (cell) { const tr = cell.closest('tr[data-line]'); return tr ? { row: +tr.dataset.line, col: cellCol(cell) } : null; }
     const el = t.closest('[data-line]');
     if (!el || el.matches('.math, .diagram, tr')) return null;
     let before = '';
@@ -2486,14 +2497,13 @@
     if (d.blank) { const el = peBlank(); if (el) peOpenBlock(el, { at: 'end', blank: true }); return; }
     if (d.add) { peOpenAdd(null); return; }
     if (d.row != null) {
-      const tr = $('preview').querySelector('tr[data-line="' + d.row + '"]');
-      const cell = tr && tr.children[Math.max(0, Math.min(tr.children.length - 1, d.col))];
+      const cell = peCellEl(d.row, d.col);
       if (cell) peOpenCell(cell, d.end);
       return;
     }
     const el = peBlockAt(d.line);
     if (!el) return;
-    if (el.tagName === 'TR') { peOpenCell(el.children[d.end === false ? 0 : el.children.length - 1] || el.children[0]); return; }
+    if (el.tagName === 'TR') { const c = el.children[d.end === false ? 0 : el.children.length - 1] || el.children[0]; if (c) peOpenCell(c); return; }
     peOpenBlock(el, d);
   }
   function peOpenBlock(el, d) {
@@ -2510,7 +2520,7 @@
     ta.value = src;
     let holder = ta;
     if (el.tagName === 'LI') { holder = document.createElement('li'); holder.className = 'pe-li'; holder.appendChild(ta); }
-    el.before(holder);
+    (el.tagName === 'CAPTION' ? el.closest('.tblwrap') || el : el).before(holder);
     el.hidden = true;
     Object.assign(pe, { box: ta, holder: holder, el: el, kind: 'block', add: null, s: s, e: e, n: e - s, start: n.text, pre: lines.slice(0, s).join('\n'), post: lines.slice(e).join('\n'), hasPost: e < lines.length });
     peFit(true);
@@ -2564,7 +2574,7 @@
   function peOpenCell(cell, atEnd) {
     const tr = cell.closest('tr[data-line]');
     if (!tr) return;
-    const row = +tr.dataset.line, col = [...tr.children].indexOf(cell);
+    const row = +tr.dataset.line, col = cellCol(cell);
     const inp = document.createElement('input');
     inp.type = 'text';
     inp.className = 'pe-cell';
@@ -2644,37 +2654,43 @@
     const list = peBlocks();
     const el = dir < 0 ? list.filter(x => +x.dataset.line < s).pop() : list.find(x => +x.dataset.line >= end);
     if (!el) return;
-    if (el.tagName === 'TR') { peOpenCell(el.children[0], dir < 0); return; }
+    if (el.tagName === 'TR') { if (el.children[0]) peOpenCell(el.children[0], dir < 0); return; }
     peOpenBlock(el, { at: dir < 0 ? 'end' : 'start' });
   }
   // セルを移る(Tab で次・Shift+Tab で前、↑↓ で上下の行)。最後のセルで Tab を押すと、下に行を足す
   function peCellMove(dx, dy) {
     const row = pe.row, col = pe.col;
     peClose();
-    const t = tableAt(cur().text, row);
-    if (!t) return;
-    const rows = [t.head].concat(t.rows);
-    let k = rows.indexOf(row), c = col;
-    if (dy) k += dy;
-    else {
-      c += dx;
-      if (c >= t.cols) { c = 0; k++; }
-      if (c < 0) { c = t.cols - 1; k--; }
-    }
-    if (k < 0) return;
-    if (k >= rows.length) {
-      if (dy || !dx) return;
-      peTable(rows[rows.length - 1], 0, 'rowBelow');
+    const to = tableNav(cur().text, row, col, dx, dy);
+    if (!to) return;
+    if (to.append) {
+      const t = tableAt(cur().text, row);
+      if (t) peTable(t.rows.length ? t.rows[t.rows.length - 1] : t.head, 0, 'rowBelow');
       return;
     }
-    peOpen({ row: rows[k], col: c, end: true });
+    peOpen({ row: to.row, col: to.col, end: true });
+  }
+  // セルの列(元の文の列。結合したセルは左上の列)
+  const cellCol = cell => (cell.dataset.col != null ? +cell.dataset.col : [...cell.parentElement.children].indexOf(cell));
+  // 元の文の row 行目・col 列目を覆うセル(結合したセルの中なら、そのセル)
+  function peCellEl(row, col) {
+    const a = tableAnchor(cur().text, row, col) || { row: row, col: col };
+    const tr = $('preview').querySelector('tr[data-line="' + a.row + '"]');
+    if (!tr) return null;
+    return [...tr.children].find(c => cellCol(c) === a.col) || tr.children[Math.max(0, Math.min(tr.children.length - 1, a.col))] || null;
+  }
+  // 表のメニューに渡す、セルの状態(見出しの行か、見出しの行を消せるか、列の数、配置、結合の操作ができるか)
+  function tableMenuState(text, t, row, col) {
+    const sp = tableSpan(text, row, col) || {};
+    const head = t.heads.indexOf(row === t.delim ? t.head : row) >= 0;
+    return { inTable: true, head: head, headDel: head && t.heads.length > 1, cols: t.cols, align: t.align[col] || '', right: !!sp.right, down: !!sp.down, merged: !!sp.merged };
   }
   /* 表の操作(行・列の挿入と削除、列の配置、表の削除)。プレビューでは作り直して、挿入したときは新しいセルを編集にする */
   function peTable(row, col, action) {
     if (!peAllowed()) return;
     const before = cur().text;
     const r = tableEdit(before, row, col, action);
-    if (!r) return;
+    if (!r) { const k = ({ mergeRight: 'tblNoMergeRight', mergeDown: 'tblNoMergeDown', unmerge: 'tblNotMerged' })[action]; if (k) toast(T(k)); return; }
     const tr = $('preview').querySelector('tr[data-line="' + row + '"]');
     const top = tr ? tr.getBoundingClientRect().top : null;
     peSetText(r.text);
@@ -2690,7 +2706,7 @@
     if (isRO(cur())) { roBlocked(); return; }
     const at = tableCaret(ed.value, ed.selectionStart);
     const r = at && tableEdit(ed.value, at.row, at.col, action);
-    if (!r) { toast(T(at ? 'tblCannot' : 'tblNotInTable')); return; }
+    if (!r) { toast(T(!at ? 'tblNotInTable' : ({ mergeRight: 'tblNoMergeRight', mergeDown: 'tblNoMergeDown', unmerge: 'tblNotMerged' })[action] || 'tblCannot')); return; }
     const op = makeOp(ed.value, r.text, 0);
     frInsert(op.p, op.p + op.d.length, op.i);
     const p = r.col >= 0 ? tableCellPos(ed.value, r.row, r.col) : Math.min(ed.value.length, op.p);
@@ -2863,13 +2879,13 @@
     const tr = cell.closest('tr[data-line]');
     if (!tr) return;
     let row = +tr.dataset.line;
-    const col = [...tr.children].indexOf(cell);
+    const col = cellCol(cell);
     if (pe.box) { const kind = pe.kind, end = pe.e, delta = peClose(); if (kind === 'block' && row >= end) row += delta; }
     const t = tableAt(cur().text, row);
     if (!t) return;
     let action = null;
-    try { action = await api.tableMenu({ inTable: true, head: row === t.head, cols: t.cols, align: t.align[col] || '' }); } catch (err) { action = null; }
-    if (action === 'insert') peInsertTable(t.rows.length ? t.rows[t.rows.length - 1] : t.delim, tr);
+    try { action = await api.tableMenu(tableMenuState(cur().text, t, row, col)); } catch (err) { action = null; }
+    if (action === 'insert') peInsertTable(t.last, tr);   // 表の後ろ(下の表題も含めて)
     else if (action) peTable(row, col, action);
     else peLastCell = { row: row, col: col };
   });
@@ -2903,14 +2919,14 @@
     if (e.target === $('editor') && S.mode === 'edit' && !isRO(cur())) {
       const ed = $('editor'), at = tableCaret(ed.value, ed.selectionStart);
       const t = at && tableAt(ed.value, at.row);
-      info = t ? { inTable: true, head: at.row === t.head || at.row === t.delim, cols: t.cols, align: t.align[at.col] || '' } : { inTable: false };
+      info = t ? tableMenuState(ed.value, t, at.row, at.col) : { inTable: false };
       math = !!mathAt(ed.value, ed.selectionStart);
       diagram = !!diagramBlock(ed.value, ed.value.slice(0, ed.selectionStart).split('\n').length - 1);
       fm = !!frontMatter(ed.value);
     } else if (pe.box && e.target === pe.box && S.mode === 'preview' && !isRO(cur())) {
       cell = pe.kind === 'cell';
       const t = cell && tableAt(cur().text, pe.row);
-      info = t ? { inTable: true, head: pe.row === t.head, cols: t.cols, align: t.align[pe.col] || '' } : { inTable: false };
+      info = t ? tableMenuState(cur().text, t, pe.row, pe.col) : { inTable: false };
       math = !!mathAt(pe.box.value, pe.box.selectionStart);
       fm = !!frontMatter(cur().text);
     }
@@ -3820,6 +3836,41 @@
     if (r && r.title !== t) { r.title = t; saveRecent(); }
   }
   function clearRecent() { recent = recent.filter(r => r.id === S.active); saveRecent(); sendRecent(); }
+  /* ---------- メモごとの、見ていた場所とカーソル ----------
+     別のメモに移るとき・EverPad を閉じるときに、今のメモの見ていた場所(元の文の行と、画面の上からの高さ。表示の切り替えと同じ syncCapture)と
+     カーソルを覚え、そのメモをまた開いたときに戻す。保存先ごとに localStorage に置き(閉じても残る)、新しい順に POS_MAX 件まで */
+  const POS_MAX = 300;
+  let posMemo = {};
+  const posKey = () => 'everpad:pos:' + S.dir;
+  function loadPos() {
+    try { const v = JSON.parse(localStorage.getItem(posKey()) || '{}'); posMemo = v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { posMemo = {}; }
+  }
+  function rememberPos() {
+    const n = cur();
+    if (!n || !S.booted) return;
+    const ed = $('editor');
+    const old = posMemo[n.id];
+    // 履歴の表示では、見ている版が違うので、見ていた場所は前のまま(カーソルだけ覚える)
+    const a = S.mode === 'history' ? (old || { line: 0, offset: 0, edge: 'top' }) : syncCapture();
+    posMemo[n.id] = { line: Math.max(0, +a.line || 0), offset: Math.round(+a.offset || 0), edge: a.edge === 'top' || a.edge === 'bottom' ? a.edge : null, s: ed.selectionStart, e: ed.selectionEnd, t: Date.now() };
+    const ids = Object.keys(posMemo);
+    if (ids.length > POS_MAX) ids.sort((x, y) => (posMemo[y].t || 0) - (posMemo[x].t || 0)).slice(POS_MAX).forEach(k => { delete posMemo[k]; });
+    try { localStorage.setItem(posKey(), JSON.stringify(posMemo)); } catch (e) { /* 覚えられなくても動く */ }
+  }
+  function restorePos() {
+    const n = cur(), p = n && posMemo[n.id], ed = $('editor'), len = ed.value.length;
+    if (!p) {
+      // 初めて開くメモは先頭から
+      ed.setSelectionRange(0, 0);
+      ed.scrollTop = 0;
+      $('preview').scrollTop = 0;
+      $('hvBody').scrollTop = 0;
+      return;
+    }
+    ed.setSelectionRange(Math.min(+p.s || 0, len), Math.min(+p.e || 0, len));
+    if (S.mode === 'history') { $('hvBody').scrollTop = 0; return; }
+    syncApply({ line: +p.line || 0, offset: +p.offset || 0, edge: p.edge || null, caretLine: -1, target: false }, true);
+  }
   /* メモを開く(最近見たメモ・リンク・戻る)。削除されていれば知らせる */
   async function openNoteById(id, missingKey) {
     if (!S.notes.some(n => n.id === id)) { toast(T(missingKey)); return; }
@@ -4303,7 +4354,7 @@
     fillNote(n, r);
     if (S.active !== id) return true;
     const ed = $('editor'), selS = ed.selectionStart, selE = ed.selectionEnd, top = ed.scrollTop, pvTop = $('preview').scrollTop;
-    show(id);
+    show(id, { pos: false });
     ed.setSelectionRange(Math.min(selS, ed.value.length), Math.min(selE, ed.value.length));
     ed.scrollTop = top;
     $('preview').scrollTop = pvTop;
@@ -4433,6 +4484,7 @@
     }, 0);
   }
   window.addEventListener('pagehide', saveView);
+  window.addEventListener('pagehide', rememberPos);   // EverPad を閉じるときも、今のメモの場所を覚える
 
   /* ---------- 起動 ---------- */
   (async function boot() {
@@ -4445,6 +4497,7 @@
     try { const st = await api.dirState(); if (st) { S.dirSt = st; S.dirRO = st.mode === 'ro'; } } catch (e) { /* 編集できるとみなす */ }
     renderDirBar();
     loadRecent();
+    loadPos();
     // 起動時は一覧用の情報だけ受け取る。履歴を含む中身は、開いたメモの分だけ読む
     S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());
@@ -4460,9 +4513,9 @@
       if (!okOpen) { toast(T('loadFailed')); return; }
     }
     const view = takeView();
-    if (view) restoreView(view);
-    else setMode('edit', true);
     S.booted = true;
+    if (view) restoreView(view);
+    else { setMode('edit', true); restorePos(); }
     api.ready();
   })();
 })();

@@ -15,7 +15,7 @@ This program was created with the help of Claude Code.
 ### Features
 
 - **Full edit history**: every edit is recorded. Drag the time slider or play the history back to see any past version, and restore it with one click.
-- **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables, plus GitHub's emoji shortcodes (`:smile:`, with suggestions as you type), alerts (`> [!NOTE]`) and footnotes. Switching between Text and Preview keeps your place, and paragraphs, lists, tables and check boxes can also be edited right in the preview. Selected text can be made bold, italic, struck through or code from the right-click menu, line by line when the selection spans several lines.
+- **Markdown preview**: headings, lists, check boxes, code, links, block quotes and tables (with merged cells and table titles, written as in MultiMarkdown), plus GitHub's emoji shortcodes (`:smile:`, with suggestions as you type), alerts (`> [!NOTE]`) and footnotes. Switching between Text and Preview keeps your place, and paragraphs, lists, tables and check boxes can also be edited right in the preview. Selected text can be made bold, italic, struck through or code from the right-click menu, line by line when the selection spans several lines.
 - **Math**: LaTeX math (and chemical formulas) is shown as formatted formulas in the preview, the history and printouts.
 - **Diagrams**: flowcharts, sequence diagrams and other diagrams written in [Mermaid](https://mermaid.js.org/) are drawn in the preview, the history and printouts.
 - **Search across all notes**: search either the latest version of each note or the entire history, including text that has since been deleted.
@@ -54,10 +54,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.45.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.46.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.45.0.exe
+EverPad 0.46.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -113,12 +113,12 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Click a paragraph, heading, list item, text in a block quote, code block or horizontal rule in the Preview view to edit it in place: that part turns into a box with its Markdown text, and the rest of the note stays formatted. Only the part you edit changes; the rest of the text stays exactly as written. Press Esc or click elsewhere to see it formatted again. ↑ on the first line and ↓ on the last line move to the previous or next part. As in the Text view, Enter continues lists, Tab indents, and Format (bold, italic and so on) works on the selected text. Formulas are edited with the formula editor, and diagrams with the diagram editor (double-click one).
 - In an empty note, click anywhere in the preview to get an empty box and start writing.
 - To add a paragraph, click the empty space below the last part of the note (a hint appears when you point there), or right-click a part, formula or diagram and choose Insert Paragraph. An empty box opens there (after the whole block quote, list or table when you are in one), so you can keep writing below a diagram or formula without switching to the Text view. What you type is added as a paragraph separated by blank lines; if you close the box without typing, nothing changes.
-- Click a table cell to change just that cell (a `|` you type is written as `\|`). Tab moves to the next cell (at the last cell, it adds a row), Shift+Tab to the previous one and ↑ ↓ to the cell above or below; Enter or Esc finishes.
+- Click a table cell to change just that cell (a `|` you type is written as `\|`). Tab moves to the next cell (at the last cell, it adds a row), Shift+Tab to the previous one and ↑ ↓ to the cell above or below (a merged cell counts as one cell); Enter or Esc finishes.
 - Click a check box to check or clear it (`[ ]` ↔ `[x]`).
 - To add a table, choose Edit → Table → Insert Table, or right-click in the preview outside a table and choose Insert Table. An empty table (a header row and 3 rows, 3 columns) is added after the part you clicked or are editing (after the whole block quote or table when you are in one, and at the end of the note when you clicked below the text), and its first header cell opens for editing. In the Text view, it is added on the line after the cursor (after the table, code block, formula or diagram when the cursor is in one), and the right-click menu has Table → Insert Table.
 - To add a formula in the preview, right-click outside a table and choose Insert Formula… (or press `Ctrl+Shift+M`). The formula is added after the part you right-clicked (at the end of the note when you right-clicked below the text, or in an empty note). While a part or table cell is being edited, its right-click menu puts the formula at the cursor, and shows Edit Formula… when the cursor is in a formula.
 - To add a diagram in the preview, right-click outside a table and choose Insert Diagram… (or press `Ctrl+Shift+D`). The diagram is added after the part you right-clicked or are editing (at the end of the note when you right-clicked below the text, or in an empty note).
-- Right-click a table cell for Insert Table (after this table), Insert Row Above, Insert Row Below, Delete Row, Insert Column Left, Insert Column Right, Delete Column, Column Alignment (Align Left, Center, Align Right) and Delete Table. The same commands are in Edit → Table, and in the right-click menu of the Text view when the cursor is in a table (keys can be assigned in Keyboard Shortcuts). Only the lines of that table are changed, and the header row cannot be deleted.
+- Right-click a table cell for Insert Table (after this table), Insert Row Above, Insert Row Below, Delete Row, Insert Column Left, Insert Column Right, Delete Column, Merge with Cell on the Right, Merge with Cell Below, Unmerge Cells, Column Alignment (Align Left, Center, Align Right) and Delete Table. The same commands are in Edit → Table, and in the right-click menu of the Text view when the cursor is in a table (keys can be assigned in Keyboard Shortcuts). Only the lines of that table are changed. Insert Row Above on a header row adds a header row; a table's only header row cannot be deleted. See "Merged cells, header rows and table titles" for how merged cells change.
 - What you type is recorded in the history just as in the Text view. After a box is closed, `Ctrl+Z` / `Ctrl+Y` in the preview undo and redo the changes made in the preview, one at a time (until another note is opened). Read-only notes and the history cannot be edited.
 
 **Views and history**
@@ -127,6 +127,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Switching between Text and Preview keeps your place, and the matching spot flashes briefly. From Text, the line with the cursor stays at the same height on the screen if the cursor is visible; otherwise the line at the top stays at the top. From Preview, if you clicked somewhere that is still visible, the cursor moves to the start of that line in Text (after a list mark or `#`), at the same height; otherwise the part at the top stays at the top and the cursor does not move. At the very top or bottom of the note, the other view also opens at the top or bottom. The same applies when switching during the history (without moving the cursor). Diagrams and images that take a moment to appear do not shift the place you were looking at.
 - Showing or leaving the history also keeps your place in the same way (the cursor line or the top line stays at the same height), without the flash and without moving the cursor. In an older version, the line with the same number is used.
 - Opening another note from the note list while the history is shown shows that note's latest version.
+- When you open another note, EverPad remembers where you were in the current note (the part shown and the cursor), and opening that note again shows the same place, in the Text view and in the preview alike. A note you have not opened before starts at the top. The places are kept for each data folder, also after EverPad is closed (up to 300 notes). Opening a note from search results or a tag shows what was found instead.
 - The status bar at the bottom shows where the edit of the version shown was made ("Changed at: Ln 12, Col 5"): just after the added text, or where text was deleted. Click the change summary at the top (such as "1 character added") to scroll to the change and briefly emphasize it; in the Preview history, this switches to the Text history to show it. When line numbers are shown, the numbers of the changed lines are highlighted.
 - Playback speed can be set to five levels, from very slow to very fast.
 - Restore this version adds the content of that version as a new edit. The existing history is never deleted.
@@ -232,6 +233,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 **Pasting formatted text**
 
 - When you paste text copied from a web page, Word, Excel, Google Docs or the EverPad preview, its formatting is turned into Markdown: headings, bold, italic, strikethrough, code, lists (with check boxes), block quotes, code blocks, tables, links and horizontal rules. Bold or italic set with styles (as Google Docs does) counts too. Pasting is one edit, which `Ctrl+Z` undoes. This works in the Text view and in the part or table cell you are editing in the preview (a table cell gets one line, without headings or lists).
+- Merged cells and the title of a pasted table are kept (see "Merged cells, header rows and table titles"). The rows of `<thead>` become header rows; without them, the rows at the top made only of header cells (`<th>`), or else the first row when all its cells are bold. Otherwise an empty header row is added (shown as a thin row), and all the copied rows stay as rows of the table. A cell merged from the header rows into the rows below becomes empty cells below the header. The alignment of a column is the one most of its cells have; a cell aligned differently keeps its alignment with spaces (see "Aligning one cell" below).
 - Numbered and nested lists copied from Word or Google Docs keep their numbers and levels. Letters and Roman numerals (a., i.) become numbers, because Markdown has no way to write them.
 - From the EverPad preview, formulas, diagrams, links to notes, attachments, emoji, alerts, footnotes and front matter come back as they were written. Formulas copied from web pages that use KaTeX or MathML come back as LaTeX when the page keeps it.
 - Attachments copied from another note, from its preview or as text from its Text view, are copied into this note together with their files. If the original note no longer has a file, the attachment syntax is kept and EverPad tells you.
@@ -304,7 +306,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **AsciiDoc, Word and LaTeX**
 
-- File → Export → AsciiDoc…, Word Document… or LaTeX… saves the current note in a form other programs can edit. While the history is shown, the version being viewed is saved. Headings, paragraphs and line breaks, bold, italic, strikethrough, code, lists, check boxes, block quotes, alerts, code blocks, tables, horizontal rules, web links, images, formulas, emoji and footnotes are converted. As in HTML files, links that only work inside EverPad become plain text.
+- File → Export → AsciiDoc…, Word Document… or LaTeX… saves the current note in a form other programs can edit. While the history is shown, the version being viewed is saved. Headings, paragraphs and line breaks, bold, italic, strikethrough, code, lists, check boxes, block quotes, alerts, code blocks, tables (with merged cells, header rows and titles), horizontal rules, web links, images, formulas, emoji and footnotes are converted. As in HTML files, links that only work inside EverPad become plain text.
 - AsciiDoc (`.adoc`) is a text format. Attached images are copied to a folder named after the file with `_images` added (for `Notes.adoc`, the folder `Notes_images` next to it), and the `.adoc` file refers to them, so move the folder together with the file. Formulas keep their LaTeX (`latexmath`), so Asciidoctor shows them as formulas. If the note starts with its only top-level heading (`#`), that heading becomes the document title; otherwise the note title is used.
 - Word (`.docx`) opens in Microsoft Word and in other programs that read Word documents. Attached images are inside the file (WebP and AVIF images are converted to PNG, because older versions of Word cannot read them), and images wider than the page are shrunk to fit. Headings use Word's Heading 1–6 styles, so the Navigation pane and tables of contents work. Formulas become Word equations that can be edited in Word; a formula with an error is put in as its LaTeX. The body text uses Yu Mincho and the headings Yu Gothic (the fonts Word uses for Japanese documents), and no fonts are put in the file. The paper size is A4 (Letter in the United States and Canada).
 - LaTeX (`.tex`) is a text file to be compiled with LuaLaTeX (for example `lualatex Notes.tex`; TeX Live and MiKTeX include it, and on Overleaf choose LuaLaTeX as the compiler). Formulas keep their LaTeX; the few commands that only KaTeX has (such as `\R`) are defined at the top of the file, and Greek letters and symbols typed directly in a formula (such as `α` and `≤`) become LaTeX commands. Attached images and diagrams are put in a folder named after the file with `_images` added, as for AsciiDoc (images LuaLaTeX cannot read, such as WebP, are converted to PNG, and diagrams become PNG pictures). A note with Japanese text uses the `ltjsarticle` class, and other notes use `article`; only the packages the note needs are loaded. Headings are not numbered (delete the line `\setcounter{secnumdepth}{0}` to number them). Footnotes become `\footnote`, alerts become boxes with a colored line, and tables become `longtable` tables that can continue on the next page (long text in a column wraps). The title is set as for AsciiDoc. Characters missing from the fonts, such as emoji, are left out of the PDF.
@@ -350,6 +352,8 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 | Horizontal rules | `---` |
 | Front matter (tags, title, author, date, table of contents, language, paper) | `---`, `title: Design notes`, `tags: [YAML, design]` and `---` as the first lines of the note |
 | Tables | `\| a \| b \|` followed by `\|:---\|---:\|` (`:---` left, `:---:` center, `---:` right) |
+| Merged cells, table title | `\| a \|\|` (merge with the cell on the right), `\| ^^ \|` (merge with the cell above), `[title]` just above the table (see "Merged cells, header rows and table titles") |
+| Aligning one cell | `\|  a  \|` (center), `\|  a \|` (right), `\| a  \|` (left): two or more spaces |
 | Footnotes | `text[^1]` and `[^1]: the note` at the start of a line |
 | Math | `$E = mc^2$` (in text), `$$` lines around a formula (on its own line), `\ce{H2O}` (chemistry) |
 | Diagrams | ```` ```mermaid ```` code block with [Mermaid](https://mermaid.js.org/) syntax |
@@ -357,6 +361,31 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 | Attachments | `![name](attach:…)` (image), `[name](attach:…)` (file), inserted automatically |
 
 Unlike some other Markdown, a line break inside a paragraph is shown as a line break, only attached images are displayed, and HTML tags are shown as plain text.
+
+**Merged cells, header rows and table titles**
+
+Tables can also be written in the MultiMarkdown way. Merging with the cell on the right, several header rows and table titles are written as in MultiMarkdown, and merging with the cell above as in markdown-it-multimd-table (used by Joplin and others):
+
+```
+[Fruit sales][sales]
+| Item   | Origin |  Period  ||
+| ^^     | ^^     | H1  | H2  |
+|:-------|:-------|----:|----:|
+| Apples | Aomori | 120 |  98 |
+| ^^     | Nagano |  60 |  75 |
+| Total          || 180 | 173 |
+```
+
+- **Merging with the cell on the right**: add `|` after a cell (`| Total || 180 |`: "Total" spans two columns; `|||` spans three). Only an empty cell without spaces (`||`) merges; `| |` is an ordinary empty cell.
+- **Merging with the cell above**: a cell containing only `^^`. It merges when the cell above has the same width (a cell spanning two columns needs `| ^^ ||`), and not across the header rows and the rows below them; otherwise `^^` is shown as it is. To show `^^` itself, write `\^^`.
+- **Aligning one cell**: spaces around the text of a cell align that cell only, as in DokuWiki: two or more spaces on both sides center it, two or more on the left only align it right, and two or more on the right only align it left. For example, in a right-aligned column (`---:`), `|  Qty  |` centers just that header. With one space on each side, as usual, a cell follows the alignment of its column. Full-width spaces are not counted. Empty cells that EverPad makes have two spaces, and text typed between them has one space on each side.
+- **More header rows**: rows starting with `|` just above the header row (with no blank line between) are header rows too.
+- **Table title**: a line containing only `[title]` just above or below the table (with no blank line between). It is shown above the table. With `[title][label]`, a link `[see the table](#label)` jumps to the table. If both lines are there, the one above is used.
+- In the preview and the Text view, right-click a cell and choose Merge with Cell on the Right, Merge with Cell Below or Unmerge Cells. The cells merge only when they have the same height (on the right) or width (below). The text of the merged cell is added after the text of the first, so nothing is lost.
+- Adding a row or column inside a merged cell makes it larger; deleting part of it makes it smaller. Deleting the row or column with its text moves the text to the next row or column.
+- Printing, PDF, HTML, MHTML, Word, LaTeX and AsciiDoc keep the merged cells, header rows and title (LaTeX uses the `multirow` package; AsciiDoc has one header row, so with several header rows their cells are marked as header cells). Titles are not numbered.
+- Other apps that do not know this way (GitHub, VS Code, EverPad 0.45 and earlier, and others) show the table without merging: `||` as an empty cell, `^^` as it is, extra header rows and the title as lines of text. Cells aligned with spaces follow the alignment of their column.
+- A note written before may change: `||` used as an empty cell, a cell containing only `^^`, a cell with two or more spaces before or after its text, or a line `[…]` just above a table. Write `| |`, `\^^` or `\[…]` to keep them as they were.
 
 ### Where notes are stored
 
@@ -453,15 +482,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.45.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.46.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.45.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.46.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.45.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.46.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -470,7 +499,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.45.0.AppImage` (x64)
+- Linux: `EverPad-0.46.0.AppImage` (x64)
 
 **macOS**
 
@@ -486,7 +515,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.45.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.46.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -572,7 +601,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 ### 特長
 
 - **すべての編集を履歴に残す**: タイムスライダーを動かすか履歴を再生すると、どの時点の版でも見られます。その版にはボタン1つで戻せます。
-- **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表に対応しています。GitHub と同じ絵文字ショートコード(`:smile:`。打つと候補が出ます)、アラート(`> [!NOTE]`)、脚注も使えます。「テキスト」とプレビューを切り替えても、見ていた場所はそのままです。段落・リスト・表・チェックボックスは、プレビューのままでも編集できます。選んだ文字は、右クリックで太字・斜体・取り消し線・コードにできます(複数行なら行ごと)。
+- **Markdown のプレビュー**: 見出し、箇条書き、チェックボックス、コード、リンク、引用、表(MultiMarkdown の書き方で、セルの結合と表題も)に対応しています。GitHub と同じ絵文字ショートコード(`:smile:`。打つと候補が出ます)、アラート(`> [!NOTE]`)、脚注も使えます。「テキスト」とプレビューを切り替えても、見ていた場所はそのままです。段落・リスト・表・チェックボックスは、プレビューのままでも編集できます。選んだ文字は、右クリックで太字・斜体・取り消し線・コードにできます(複数行なら行ごと)。
 - **数式**: LaTeX の数式(と化学式)を、プレビュー・履歴・印刷で整形した数式として表示します。
 - **図**: [Mermaid](https://mermaid.js.org/) で書いたフローチャートやシーケンス図などを、プレビュー・履歴・印刷で図として表示します。
 - **全メモの検索**: 各メモの最新の版だけでなく、消したあとの文字も含めて履歴全体から探せます。
@@ -611,10 +640,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.45.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.46.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.45.0.exe
+EverPad 0.46.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -670,12 +699,12 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - プレビューで段落・見出し・リストの項目・引用の中の文・コードブロック・区切り線をクリックすると、その場所がその部分の Markdown の文の編集欄になり、ほかの部分は整形したままです。書き換わるのは編集した部分だけで、ほかの文は書いたまま残ります。Esc を押すか、ほかの場所をクリックすると、整形した表示に戻ります。1行目で ↑、最後の行で ↓ を押すと、前・次の部分の編集に移ります。「テキスト」表示と同じく、Enter で箇条書きが続き、Tab で字下げでき、選んだ文字に「書式」(太字・斜体など)を使えます。数式と図は、ダブルクリックすると数式エディタ・図エディタで編集できます。
 - 何も書いていないメモでは、プレビューのどこをクリックしても空の編集欄が出て、書き始められます。
 - 段落を書き足すときは、メモの最後の部分より下の何もない所をクリックするか(指すと案内が出ます)、部分・数式・図を右クリックして「段落を挿入」を選びます。その次(引用・リスト・表の中なら、その全体の次)に空の編集欄が出るので、図や数式の下にも、「テキスト」表示に切り替えずに続きを書けます。書いた文は、空の行で分けた段落として入ります。何も書かずに閉じれば、元の文は変わりません。
-- 表のセルをクリックすると、そのセルだけを書き換えられます(打った `|` は `\|` として書きます)。Tab で次のセル(最後のセルでは行を足します)、Shift+Tab で前のセル、↑↓ で上下のセルに移り、Enter か Esc で終わります。
+- 表のセルをクリックすると、そのセルだけを書き換えられます(打った `|` は `\|` として書きます)。Tab で次のセル(最後のセルでは行を足します)、Shift+Tab で前のセル、↑↓ で上下のセルに移り(結合したセルは1つのセルとして数えます)、Enter か Esc で終わります。
 - チェックボックスを押すと、チェックが付く・外れます(`[ ]` ↔ `[x]`)。
 - 表を入れるときは、「編集」→「表」→「表を挿入」を選ぶか、プレビューで表の外を右クリックして「表を挿入」を選びます。編集している部分・クリックした部分の次(引用や表の中なら、その全体の次。文の無い下の方をクリックしたときはメモの最後)に、空の表(見出しの行と3行、3列)が入り、見出しの最初のセルが編集の状態になります。「テキスト」表示では、カーソルの行の次(表・コードブロック・数式・図の中なら、その後ろ)に入ります。右クリックの「表」→「表を挿入」でも入れられます。
 - プレビューで数式を入れるときは、表の外を右クリックして「数式を挿入…」を選びます(`Ctrl+Shift+M` でも開けます)。右クリックした部分の次(文の無い下の方を右クリックしたときと、何も書いていないメモではメモの最後)に入ります。部分や表のセルを編集しているときの右クリックでは、カーソルの位置に入り、カーソルが数式の中なら「数式を編集…」が出ます。
 - プレビューで図を入れるときは、表の外を右クリックして「図を挿入…」を選びます(`Ctrl+Shift+D` でも開けます)。右クリックした部分・編集している部分の次(文の無い下の方を右クリックしたときと、何も書いていないメモではメモの最後)に入ります。
-- 表のセルを右クリックすると、「表を挿入」(この表の後ろ)「上に行を挿入」「下に行を挿入」「行を削除」「左に列を挿入」「右に列を挿入」「列を削除」「列の配置」(左寄せ・中央揃え・右寄せ)「表を削除」が出ます。同じ操作は「編集」→「表」と、「テキスト」表示でカーソルが表の中にあるときの右クリックにもあります(「キーボードショートカット」でキーを割り当てられます)。書き換えるのはその表の行だけで、見出しの行は削除できません。
+- 表のセルを右クリックすると、「表を挿入」(この表の後ろ)「上に行を挿入」「下に行を挿入」「行を削除」「左に列を挿入」「右に列を挿入」「列を削除」「右のセルと結合」「下のセルと結合」「結合を解除」「列の配置」(左寄せ・中央揃え・右寄せ)「表を削除」が出ます。同じ操作は「編集」→「表」と、「テキスト」表示でカーソルが表の中にあるときの右クリックにもあります(「キーボードショートカット」でキーを割り当てられます)。書き換えるのはその表の行だけです。見出しの行で「上に行を挿入」を選ぶと、見出しの行が増えます。見出しの行が1つしか無いときは、それを削除できません。結合したセルがどう変わるかは、「セルの結合・見出しの行・表題」を見てください。
 - 打った文字は、「テキスト」表示と同じく履歴に残ります。編集欄を閉じたあと、プレビューで `Ctrl+Z` / `Ctrl+Y` を押すと、プレビューでの変更を1回ずつ元に戻す・やり直すことができます(別のメモを開くまで)。読み取り専用のメモと履歴の表示では編集できません。
 
 **表示と履歴**
@@ -684,6 +713,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 「テキスト」と「プレビュー」を切り替えると、見ていた場所が切り替えたあとも同じ高さに出て、その場所が一瞬光ります。「テキスト」からは、カーソルが見えていればカーソルの行を、見えていなければ画面の上端の行を合わせます。プレビューからは、クリックした場所が見えていれば、「テキスト」のその行の先頭(リストの記号や `#` のあと)にカーソルを移して同じ高さに出します。クリックしていなければ上端の部分を合わせ、カーソルは動かしません。メモのいちばん上・いちばん下にいるときは、切り替えたあともいちばん上・いちばん下になります。履歴の表示の中で切り替えたときも同じです(カーソルは動かしません)。図や画像があとから出ても、見ていた場所はずれません。
 - 履歴の表示を出すとき・閉じるときも、同じように見ていた場所(カーソルの行か上端の行)を同じ高さに出します。こちらは光らせず、カーソルも動かしません。古い版を表示しているときは、同じ番号の行に合わせます。
 - 履歴の表示中に左の一覧から別のメモを開くと、そのメモの最新の版を表示します。
+- 別のメモを開くと、今のメモで見ていた場所(表示していた部分とカーソル)を覚えておき、そのメモをまた開いたときに同じ場所を出します。「テキスト」表示でもプレビューでも同じです。初めて開くメモは先頭から出します。保存先ごとに、EverPad を閉じても覚えています(300件まで)。検索結果やタグから開いたときは、見つかった箇所を出します。
 - 下のステータスバーに、表示している版の編集で変更した位置(「変更位置: 12行目・5文字目」)が出ます。追加なら追加し終えた位置、削除なら削除した位置です。上の「追加 1文字」などを押すと、変更箇所まで表示を動かして一瞬強調します。プレビューの履歴では、「テキスト」の履歴に切り替えて示します。行番号を出しているときは、変更した行の番号も色で示します。
 - 再生の速さは、とてもゆっくり・ゆっくり・ふつう・速い・とても速いの5段階から選べます。
 - 「この版に戻す」を押すと、その版の内容が新しい編集として追加されます。これまでの履歴は消えません。
@@ -789,6 +819,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 **整形された文書の貼り付け**
 
 - Web ページ・Word・Excel・Google ドキュメント・EverPad のプレビューなどからコピーした文書を貼ると、整形を Markdown にして入れます。見出し・太字・斜体・取り消し線・コード・箇条書き(チェックボックスも)・引用・コードブロック・表・リンク・区切り線です。文字飾りの指定で付けた太字や斜体(Google ドキュメントなど)も読みます。1回の貼り付けは1回の編集で、`Ctrl+Z` で戻せます。「テキスト」表示と、プレビューで編集している部分・表のセルで使えます(表のセルには、見出しやリストは作らず1行で入れます)。
+- 貼り付けた表の、結合したセルと表題も引き継ぎます(「セルの結合・見出しの行・表題」を参照)。`<thead>` の行を見出しの行にします。無ければ、先頭から続く見出しのセル(`<th>`)だけの行、それも無ければ、セルがすべて太字の最初の行です。どれでもなければ、空の見出しの行(細い行で出ます)を足して、コピーした行はすべて表の中身にします。見出しの行から下の行へまたがる結合は、見出しより下の側を空のセルにします。列の配置は、その列でいちばん多いセルの配置にし、それと違う配置のセルは、空白でその配置を残します(下の「セルだけの配置」を参照)。
 - Word や Google ドキュメントからコピーした番号付きや入れ子の箇条書きは、番号と段をそのまま入れます。英字やローマ数字の番号(a.・i.)は、Markdown に無いので数字の番号になります。
 - EverPad のプレビューからのコピーでは、数式・図・メモへのリンク・添付・絵文字・アラート・脚注・フロントマターを、元の書き方に戻します。KaTeX や MathML を使った Web ページの数式も、ページが LaTeX を持っていれば LaTeX に戻します。
 - 別のメモの添付をコピーして貼ると(プレビューからでも、「テキスト」表示の書き方のままでも)、ファイルもこのメモにコピーします。元のメモにファイルが無くなっていたときは、書き方を残して知らせます。
@@ -861,7 +892,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **AsciiDoc・Word・LaTeX**
 
-- 「ファイル」→「エクスポート」→「AsciiDoc…」「Word 文書…」「LaTeX…」で、今のメモを、ほかのソフトで編集できる形で保存します。履歴の表示中は、見ている版を保存します。見出し、段落と改行、太字・斜体・取り消し線・コード、リスト、チェックボックス、引用、アラート、コードブロック、表、区切り線、Web のリンク、画像、数式、絵文字、脚注を変換します。HTML と同じく、EverPad の中でしか開けないリンクは、ただの文字になります。
+- 「ファイル」→「エクスポート」→「AsciiDoc…」「Word 文書…」「LaTeX…」で、今のメモを、ほかのソフトで編集できる形で保存します。履歴の表示中は、見ている版を保存します。見出し、段落と改行、太字・斜体・取り消し線・コード、リスト、チェックボックス、引用、アラート、コードブロック、表(セルの結合・見出しの行・表題も)、区切り線、Web のリンク、画像、数式、絵文字、脚注を変換します。HTML と同じく、EverPad の中でしか開けないリンクは、ただの文字になります。
 - AsciiDoc(`.adoc`)はテキストの形式です。添付の画像は、ファイル名に `_images` を付けたフォルダー(`メモ.adoc` なら、隣の `メモ_images`)に写して、`.adoc` から参照します。ファイルを移すときは、フォルダーも一緒に移してください。数式は LaTeX のまま(`latexmath`)入るので、Asciidoctor で数式として表示されます。メモの先頭が、ただ1つの大見出し(`#`)なら、それを文書の題名にします。そうでなければ、メモの題名を題名にします。
 - Word(`.docx`)は、Microsoft Word や、Word の文書を読めるほかのソフトで開けます。添付の画像はファイルの中に入れます(WebP と AVIF の画像は、古い Word では読めないので PNG にします)。ページの幅より大きい画像は、幅に収まるよう縮めます。見出しは Word の「見出し 1〜6」のスタイルにするので、ナビゲーションウィンドウや目次がそのまま使えます。数式は Word の数式になり、Word で編集できます。誤りのある数式は、LaTeX の文字のまま入れます。本文は游明朝、見出しは游ゴシック(Word で日本語の文書を作るときと同じフォント)にし、フォントはファイルに入れません。用紙は A4 です(米国とカナダでは Letter)。
 - LaTeX(`.tex`)は、LuaLaTeX でコンパイルするテキストのファイルです(例: `lualatex メモ.tex`。TeX Live や MiKTeX に入っています。Overleaf ではコンパイラーに LuaLaTeX を選んでください)。数式は LaTeX のまま入ります。KaTeX にだけある少しの命令(`\R` など)はファイルの先頭で定義し、数式に直接書いたギリシャ文字や記号(`α`、`≤` など)は LaTeX の命令にします。添付の画像と図は、AsciiDoc と同じく、ファイル名に `_images` を付けたフォルダーに置きます(WebP など LuaLaTeX が読めない画像は PNG にし、図は PNG の画像にします)。日本語を含むメモは `ltjsarticle`、そうでないメモは `article` のクラスにし、パッケージはメモで使う分だけ読み込みます。見出しに番号は付けません(付けるときは `\setcounter{secnumdepth}{0}` の行を消してください)。脚注は `\footnote` に、アラートは色の付いた線の枠に、表はページをまたげる `longtable` の表(長い文の列は折り返します)になります。題名の決め方は AsciiDoc と同じです。絵文字など、フォントに無い文字は PDF には出ません。
@@ -907,6 +938,8 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 | 区切り線 | `---` |
 | フロントマター(タグ・題名・著者・日付・目次・言語・用紙) | メモの先頭の `---`、`title: 設計メモ`、`tags: [YAML, 設計]`、`---` の行 |
 | 表 | `\| a \| b \|` の次に `\|:---\|---:\|`(`:---` 左寄せ、`:---:` 中央、`---:` 右寄せ) |
+| セルの結合・表題 | `\| a \|\|`(右のセルと結合)、`\| ^^ \|`(上のセルと結合)、表のすぐ上の `[表題]`(「セルの結合・見出しの行・表題」を参照) |
+| セルだけの配置 | `\|  a  \|`(中央)、`\|  a \|`(右寄せ)、`\| a  \|`(左寄せ)。空白2つ以上 |
 | 脚注 | `本文[^1]` と、行の先頭に `[^1]: 注の文` |
 | 数式 | `$E = mc^2$`(文中)、`$$` だけの行で前後を囲む(独立した行)、`\ce{H2O}`(化学式) |
 | 図 | ```` ```mermaid ```` のコードブロックに [Mermaid](https://mermaid.js.org/) の書き方で書く |
@@ -914,6 +947,31 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 | 添付 | `![名前](attach:…)`(画像)、`[名前](attach:…)`(ファイル)。添付すると自動で書かれます |
 
 一般的な Markdown と違い、段落の中の改行はそのまま改行になり、画像は添付したものだけが表示され、HTML のタグはそのまま文字として表示されます。
+
+**セルの結合・見出しの行・表題**
+
+表は、MultiMarkdown の書き方でも書けます。右のセルとの結合・見出しの行を増やす・表題は MultiMarkdown と、上のセルとの結合は markdown-it-multimd-table(Joplin などが使っています)と同じ書き方です。
+
+```
+[果物の売上][uriage]
+| 品目   | 産地 |  期間  ||
+| ^^     | ^^   | 上期 | 下期 |
+|:-------|:-----|-----:|-----:|
+| りんご | 青森 |  120 |   98 |
+| ^^     | 長野 |   60 |   75 |
+| 合計          || 180 |  173 |
+```
+
+- **右のセルと結合**: セルの後ろに `|` を足します(`| 合計 || 180 |` の「合計」は2列、`|||` なら3列)。結合するのは空白の無い空のセル(`||`)だけで、`| |` はふつうの空のセルです。
+- **上のセルと結合**: `^^` だけのセルです。上のセルと幅が同じときに結合します(2列のセルの下なら `| ^^ ||`)。見出しの行とその下の行をまたいでは結合しません。結合しないときは `^^` をそのまま出します。`^^` という文字を出したいときは `\^^` と書きます。
+- **セルだけの配置**: セルの中身の前後の空白で、そのセルだけの配置を決めます(DokuWiki と同じ書き方です)。両側に空白が2つ以上なら中央、左だけなら右寄せ、右だけなら左寄せです。たとえば右寄せの列(`---:`)で `|  数量  |` と書くと、その見出しだけが中央になります。ふつうの、両側に1つずつの空白なら、列の配置です。全角の空白は数えません。EverPad が作る空のセルは空白2つで、その間に打てば、両側に1つずつになります。
+- **見出しの行を増やす**: 見出しの行のすぐ上に(空の行をはさまずに)続く、`|` で始まる行も見出しの行です。
+- **表題**: 表のすぐ上か下の(空の行をはさまない)、`[表題]` だけの行です。表の上に出します。`[表題][ラベル]` と書くと、`[表を見る](#ラベル)` のリンクでその表に飛べます。上と下の両方にあれば、上を使います。
+- プレビューと「テキスト」表示で、セルを右クリックして「右のセルと結合」「下のセルと結合」「結合を解除」を選んでも結合できます。結合するのは、高さ(右)か幅(下)が同じセルだけです。結合されたセルの文字は、最初のセルの文字の後ろに足すので、消えません。
+- 結合したセルの内側に行や列を足すと、結合が広がります。一部を削除すると縮みます。文字のある行や列を削除すると、文字は次の行や列に移ります。
+- 印刷・PDF・HTML・MHTML・Word・LaTeX・AsciiDoc でも、結合・見出しの行・表題を保ちます(LaTeX は `multirow` パッケージを使います。AsciiDoc の見出しの行は1行だけなので、見出しの行が複数あるときは、そのセルを見出しのセルにします)。表題に番号は付けません。
+- この書き方を知らないほかのアプリ(GitHub、VS Code、0.45 までの EverPad など)では、結合しない表として見えます。`||` は空のセル、`^^` はそのまま、足した見出しの行と表題は文字の行です。空白で配置を決めたセルは、列の配置になります。
+- 今までのメモの見え方が変わることがあります。空のセルのつもりの `||`、`^^` だけのセル、中身の前か後ろに空白が2つ以上あるセル、表のすぐ上の `[…]` だけの行です。今までどおりにするには、`| |`、`\^^`、`\[…]` と書きます。
 
 ### メモの保存先と形式
 
@@ -1010,15 +1068,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.45.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.46.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.45.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.46.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.45.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.46.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -1027,7 +1085,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.45.0.AppImage`(x64)
+- Linux: `EverPad-0.46.0.AppImage`(x64)
 
 **macOS**
 
@@ -1043,7 +1101,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.45.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.46.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。

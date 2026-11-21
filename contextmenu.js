@@ -92,7 +92,8 @@ function inlineItems(T, onFormat, platform, keys) {
 }
 
 /* 表の操作(行・列の挿入と削除、列の配置、表の削除)。プレビューのセルの右クリック、「テキスト」表示の右クリック(カーソルが表の中のとき)、
-   「編集」→「表」で同じ項目を使う。st はカーソルのあるセル { inTable, head: 見出しの行か, cols: 列の数, align: 'l'|'c'|'r'|'' }(inTable が false なら表の外で、「表を挿入」だけ)。
+   「編集」→「表」で同じ項目を使う。st はカーソルのあるセル { inTable, head: 見出しの行か, headDel: 見出しの行を消せるか(見出しの行が2つ以上), cols: 列の数,
+   align: 'l'|'c'|'r'|'', right / down: 右・下のセルと結合できるか, merged: 結合したセルか }(inTable が false なら表の外で、「表を挿入」だけ)。
    st が無いとき(メニューバー)は、押せない項目を作らない(表の外で選んだときは画面側が知らせる) */
 function tableItems(T, onTable, st, keys, platform) {
   const K = id => (keys || keymap.defaults(platform || process.platform))['tbl:' + id] || undefined;
@@ -104,13 +105,17 @@ function tableItems(T, onTable, st, keys, platform) {
   return [
     item('insert', 'mTblInsert'),
     { type: 'separator' },
-    item('rowAbove', 'mTblRowAbove', !st || !st.head),
+    item('rowAbove', 'mTblRowAbove'),
     item('rowBelow', 'mTblRowBelow'),
-    item('rowDelete', 'mTblRowDelete', !st || !st.head),
+    item('rowDelete', 'mTblRowDelete', !st || !st.head || !!st.headDel),
     { type: 'separator' },
     item('colLeft', 'mTblColLeft'),
     item('colRight', 'mTblColRight'),
     item('colDelete', 'mTblColDelete', !st || st.cols > 1),
+    { type: 'separator' },
+    item('mergeRight', 'mTblMergeRight', !st || !!st.right),
+    item('mergeDown', 'mTblMergeDown', !st || !!st.down),
+    item('unmerge', 'mTblUnmerge', !st || !!st.merged),
     { type: 'separator' },
     { label: T('mTblAlign'), submenu: [radio('alignLeft', 'mTblAlignLeft', 'l'), radio('alignCenter', 'mTblAlignCenter', 'c'), radio('alignRight', 'mTblAlignRight', 'r')] },
     { type: 'separator' },

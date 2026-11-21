@@ -306,31 +306,124 @@
     return out.concat(nested).join('\n');
   }
 
+  /* 表: 結合したセルは MultiMarkdown の書き方にする(横は「||」、縦は「^^」)。見出しの行は <thead> の行、無ければ先頭から続く
+     すべて <th> の行、それも無ければ、1行目のセルがすべて太字(空のセルは除く)なら1行目。どれでもなければ空の見出しの行を足し、
+     コピーした行はすべて本文にする。見出しと本文をまたぐ縦の結合は、本文の側を空のセルにする。表題(<caption>)は表のすぐ上の「[表題]」の行。
+     列の配置は、その列の本文のセルでいちばん多い配置。それと違うセルは、空白でセルだけの配置にする(両側に2つで中央、左に2つで右寄せ、右に2つで左寄せ) */
   function table(n, ctx) {
-    const rows = [];
+    const head = [], body = [], foot = [];
     let caption = '';
-    const walk = x => { for (const c of kids(x)) { if (c.tag === 'tr') rows.push(c); else if (c.tag === 'thead' || c.tag === 'tbody' || c.tag === 'tfoot') walk(c); else if (c.tag === 'caption') caption = emit(runs(c, {}, ctx), ctx).trim(); } };
-    walk(n);
-    const tctx = Object.assign({}, ctx, { inline: true, table: true });
-    const cells = [], aligns = [];
-    for (const r of rows) {
-      const line = [], al = [];
-      for (const c of kids(r)) {
-        if (c.tag !== 'td' && c.tag !== 'th') continue;
-        line.push(emit(runs(c, {}, tctx), tctx).trim());
-        const cl = attr(c, 'class').match(/\bal-([lcr])\b/), a = (cl && cl[1]) || ({ left: 'l', center: 'c', right: 'r' })[(attr(c, 'align') || (styleOf(c).match(/text-align:(left|center|right)/) || [])[1] || '').toLowerCase()] || '';
-        al.push(a);
-        // 結合したセルは、結合を外して空のセルを足す
-        const span = Math.min(50, parseInt(attr(c, 'colspan'), 10) || 1);
-        for (let k = 1; k < span; k++) { line.push(''); al.push(a); }
+    const walk = (x, sec) => {
+      for (const c of kids(x)) {
+        if (c.tag === 'tr') (sec === 'h' ? head : sec === 'f' ? foot : body).push(c);
+        else if (c.tag === 'thead' || c.tag === 'tbody' || c.tag === 'tfoot') walk(c, c.tag[1]);
+        else if (c.tag === 'caption') caption = emit(runs(c, {}, ctx), ctx).trim();
       }
-      if (line.length) { cells.push(line); aligns.push(al); }
+    };
+    walk(n, 'b');
+    const tctx = Object.assign({}, ctx, { inline: true, table: true });
+    const cellsOf = r => kids(r).filter(c => c.tag === 'td' || c.tag === 'th');
+    const trs = head.concat(body, foot).filter(r => cellsOf(r).length);
+    if (!trs.length) return '';
+    // セルの中身。セル自体の文字飾り(Google スプレッドシートの style、Excel のクラス)も中身に付ける
+    const textOf = c => emit(runs(c, { b: boldOf(c, false), i: italicOf(c, false), s: strikeOf(c, false) }, tctx), tctx).trim();
+    const BOLD_RE = /^\*\*(?!\*)([\s\S]*?[^*])\*\*$/;
+    let nh = head.filter(r => cellsOf(r).length).length, boldHead = false;
+    if (!nh) {
+      while (nh < trs.length - 1 && cellsOf(trs[nh]).every(c => c.tag === 'th')) nh++;
+      // 1行目のセルがすべて太字(セルの文字飾りか、中身全体が **…**)なら、見出しの行
+      if (!nh && trs.length > 1) {
+        const first = cellsOf(trs[0]).map(c => ({ c: c, t: textOf(c) })).filter(x => x.t);
+        if (first.length && first.every(x => boldOf(x.c, false) || (BOLD_RE.test(x.t) && x.t.slice(2, -2).indexOf('**') < 0))) { nh = 1; boldHead = true; }
+      }
     }
-    if (!cells.length) return '';
-    const cols = Math.max(...cells.map(r => r.length));
-    const row = r => '| ' + Array.from({ length: cols }, (_, k) => r[k] || ' ').join(' | ') + ' |';
-    const delim = '| ' + Array.from({ length: cols }, (_, k) => ({ c: ':---:', r: '---:' })[aligns[0][k]] || '---').join(' | ') + ' |';
-    return (caption ? para(caption) + '\n\n' : '') + [row(cells[0]), delim].concat(cells.slice(1).map(row)).join('\n');
+    // HTML の表と同じく、上から続く結合で埋まった場所を飛ばして、行×列に置く
+    const own = trs.map(() => []);
+    trs.forEach((r, ri) => {
+      let col = 0;
+      const end = ri < nh ? nh : trs.length;
+      for (const c of cellsOf(r)) {
+        while (own[ri][col]) col++;
+        const cs = Math.max(1, Math.min(50, parseInt(attr(c, 'colspan'), 10) || 1));
+        const rv = parseInt(attr(c, 'rowspan'), 10);
+        const rs = Math.max(1, Math.min(trs.length - ri, rv === 0 ? end - ri : rv || 1));
+        const cl = attr(c, 'class').match(/\bal-([lcr])\b/), al = (cl && cl[1]) || ({ left: 'l', center: 'c', right: 'r' })[(attr(c, 'align') || (styleOf(c).match(/text-align:(left|center|right)/) || [])[1] || '').toLowerCase()] || '';
+        let text = textOf(c);
+        if (boldHead && ri === 0 && BOLD_RE.test(text)) text = text.slice(2, -2);   // 見出しの行は太字で出るので、** は外す
+        const x = { r: ri, c: col, cs: cs, text: text, al: al, mark: !!attr(c, 'data-al') };
+        for (let i = 0; i < rs; i++) for (let j = 0; j < cs; j++) own[ri + i][col + j] = x;
+        col += cs;
+      }
+    });
+    const cols = Math.max(...own.map(r => r.length));
+    // 列の配置: その列の本文の、結合していないセルでいちばん多い配置(本文が無ければ見出し)。EverPad の data-al(セルだけの配置)は数えない
+    const colAlign = Array.from({ length: cols }, (_, k) => {
+      const count = {};
+      let best = '', most = 0;
+      for (const part of [[nh, trs.length], [0, nh]]) {
+        for (let ri = part[0]; ri < part[1]; ri++) {
+          const x = own[ri][k];
+          if (!x || x.r !== ri || x.c !== k || x.cs !== 1 || x.mark || !x.text) continue;
+          count[x.al] = (count[x.al] || 0) + 1;
+          if (count[x.al] > most) { most = count[x.al]; best = x.al; }
+        }
+        if (most) break;
+      }
+      return best;
+    });
+    // セルの書き方: 結合の左上は中身(「^^」だけなら \^^)、横の続きは null(「||」)、上からの続きは「^^」(見出しと本文をまたぐときは空のセル)。
+    // 列と違う配置を指定したセルは空白で配置を書く。空のセルは空白2つ
+    const seg = (x, v) => {
+      if (!v) return '  ';
+      // 配置の指定が無いセル(見出しのセルなど)は、列の配置に従う
+      const al = x.al, col = colAlign[x.c] || 'l';
+      if (!al || al === col) return ' ' + v + ' ';
+      return al === 'c' ? '  ' + v + '  ' : al === 'r' ? '  ' + v + ' ' : ' ' + v + '  ';
+    };
+    const row = ri => {
+      let line = '|';
+      for (let k = 0; k < cols; k++) {
+        const x = own[ri][k];
+        let v;
+        if (!x) v = '  ';
+        else if (x.r === ri && x.c === k) v = seg(x, x.text === '^^' ? '\\^^' : x.text);
+        else if (x.r === ri) v = null;
+        else if ((x.r < nh) !== (ri < nh)) v = '  ';
+        else v = k === x.c ? ' ^^ ' : null;
+        line += v === null ? '|' : v + '|';
+      }
+      return line;
+    };
+    const delim = '| ' + Array.from({ length: cols }, (_, k) => ({ c: ':---:', r: '---:' })[colAlign[k]] || '---').join(' | ') + ' |';
+    const lines = [];
+    // 見出しの行が無い表: 空の見出しの行を足す(EverPad と GitHub は細い行で出す)
+    if (!nh) lines.push('|' + '  |'.repeat(cols), delim);
+    for (let ri = 0; ri < trs.length; ri++) { lines.push(row(ri)); if (ri === nh - 1) lines.push(delim); }
+    const cap = caption.replace(/\s*\n\s*/g, ' ');
+    return (cap ? '[' + (cap[0] === '^' ? '\\' : '') + cap + ']\n' : '') + lines.join('\n');
+  }
+  /* <style> の中の、クラスの文字飾り(Excel は太字・配置などを、セルのクラスで指定する)を、表のセルの style に足す。
+     tree は fromDom・parseMarkup の木、css は <style> の中身。セル(td・th)のほかは変えない */
+  function applyClassStyles(tree, css) {
+    const rules = {};
+    String(css || '').replace(/<!--|-->/g, '').replace(/([^{}]+)\{([^}]*)\}/g, (m, sel, decl) => {
+      for (const one of sel.split(',')) {
+        const k = /^\s*(?:td|th)?\.([\w-]+)\s*$/.exec(one);
+        if (k) rules[k[1]] = (rules[k[1]] || '') + decl.replace(/\s+/g, ' ').trim() + ';';
+      }
+      return m;
+    });
+    if (!Object.keys(rules).length) return tree;
+    const walk = x => {
+      if (!x || !x.tag) return;
+      if ((x.tag === 'td' || x.tag === 'th') && x.attrs && x.attrs.class) {
+        const add = x.attrs.class.split(/\s+/).map(c => rules[c] || '').join('');
+        if (add) x.attrs.style = add + (x.attrs.style || '');
+      }
+      for (const c of x.children || []) walk(c);
+    };
+    walk(tree);
+    return tree;
   }
 
   // EverPad のプレビューのフロントマター(キーと値の並び。tags は札のボタンの data-tag)
@@ -447,7 +540,7 @@
     return '[' + escapeText(t, ctx).replace(/(?<!\\)\\\[/g, '[').replace(/(?<!\\)\]/g, '\\]') + '](' + urlPart(url) + ')';
   }
 
-  const api = { toMarkdown, isRich, hasText, fromDom, escapeText, escLineStart, dropUrl, anchorTitle, shortcutUrl, linkMd };
+  const api = { toMarkdown, isRich, hasText, fromDom, applyClassStyles, escapeText, escLineStart, dropUrl, anchorTitle, shortcutUrl, linkMd };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HtmlMd = api;
 })(typeof window !== 'undefined' ? window : this);
