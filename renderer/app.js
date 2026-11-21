@@ -1121,11 +1121,18 @@
     const loaded = await ensureLoaded(id);
     if (tok !== selTok) return;
     if (!loaded) { toast(T('loadFailed')); return; }
+    // プレビュー(と、プレビューから入った履歴の表示)で開いたときは、プレビューのまま見せる(一覧から開いたときと同じ)
+    const inPv = S.mode === 'preview' || (S.mode === 'history' && S.hbase === 'preview');
+    if (pe.box) peClose(true);
     if (cur() && cur().id !== id) rememberPos();
+    peUndo.length = 0;
+    peRedo.length = 0;
+    peLastCell = null;
     stop();
     emoClose();
     S.active = id;
     $('editor').value = loaded.text;
+    applyRO();
     renderList();
     updateTitle();
     updateStatus();
@@ -1140,14 +1147,19 @@
       renderHist();
       // 同じ検索語で検索のバーを開き、タイムスライダーに、その語がある版の範囲を示す
       if (S.qText) { $('frFind').value = S.qText; S.frOpen = true; frShow(); frRefresh(); }
+    } else if (opt.tag) {
+      // タグで見つけたメモは、一覧から開いたときと同じく、今の表示のまま前に見ていた場所とカーソルから(初めてなら先頭)。
+      // タグはメモの先頭にあるので、選んで見せない
+      setMode(inPv ? 'preview' : 'edit');
+      restorePos();
+    } else if (inPv) {
+      setMode('preview');
+      // 見つかった箇所: 「テキスト」表示に切り替えたときのためにカーソルを置き、プレビューではその箇所へスクロールする
+      $('editor').setSelectionRange(opt.s, opt.e);
+      pvShowFound(opt.s, opt.find);
     } else {
       setMode('edit');
       const ed = $('editor');
-      // タグで見つけたメモは、フロントマターの、そのタグを選んで見せる
-      if (opt.tag) {
-        const fm = frontMatter(loaded.text), t = fm && fm.tags.find(x => tagHit(x.name, opt.tag));
-        opt = t ? { s: t.s, e: t.e } : { s: 0, e: 0 };
-      }
       ed.focus({ preventScroll: true });
       ed.setSelectionRange(opt.s, opt.e);
       scrollTextareaTo(ed, opt.s);
@@ -1493,12 +1505,49 @@
       for (let i = n - 1; i >= 0; i--) if (pv.hits[i].getBoundingClientRect().bottom <= rr.bottom) { k = i; break; }
       if (k < 0) { k = n - 1; wrapped = true; }
     }
+    return pvPick(k, wrapped);
+  }
+  // k 番目の一致を今の箇所にして、見えていなければ上から 1/3 の高さに出す
+  function pvPick(k, wrapped) {
+    const root = pvRoot(), rr = root.getBoundingClientRect(), n = pv.hits.length;
     pv.cur = k;
     if (window.CSS && CSS.highlights) { const h = new Highlight(pv.hits[k]); h.priority = 1; CSS.highlights.set('fr-cur', h); }
     const r = pv.hits[k].getBoundingClientRect();
     if (r.top < rr.top || r.bottom > rr.bottom) root.scrollTop += r.top - rr.top - root.clientHeight / 3;
     frLabel(T('matchAt', { at: k + 1, n }) + (wrapped ? T('wrapped') : ''));
     return k;
+  }
+  /* 検索結果をプレビューで開いたとき: 元の文の位置 s の箇所へスクロールする。
+     find なら同じ検索語で検索のバーを開き、その行のかたまりの中の一致を今の箇所にする(Enter / F3 で次へ)。
+     プレビューで見える一致が無ければ(リンクの URL の中など)、その行のかたまりを出して光らせる。
+     図や画像があとから描かれて高さが変わっても、同じ箇所を見せ続ける(keepAnchor) */
+  function pvShowFound(s, find) {
+    const sc = $('preview'), text = $('editor').value;
+    let line = 0;
+    for (let p = text.indexOf('\n'); p >= 0 && p < s; p = text.indexOf('\n', p + 1)) line++;
+    sc.scrollTop = 0;
+    lastClick = null;
+    if (find && S.qText) { $('frFind').value = S.qText; S.frOpen = true; frShow(); frRefresh(); }
+    if (pv && pv.hits.length) {
+      const blockOf = r => { const nd = r.startContainer; return (nd.nodeType === 1 ? nd : nd.parentElement).closest('[data-line]'); };
+      const span = b => { const a = +b.dataset.line; return { a, z: Math.max(a + 1, +b.dataset.end || 0) }; };
+      // その行を含むかたまりの一致(入れ子なら、いちばん内側のかたまり)。無ければ、その行より後の最初の一致
+      let k = -1, best = Infinity;
+      pv.hits.forEach((r, i) => { const b = blockOf(r); if (!b) return; const { a, z } = span(b); if (line >= a && line < z && z - a < best) { best = z - a; k = i; } });
+      if (k < 0) k = pv.hits.findIndex(r => { const b = blockOf(r); return b && +b.dataset.line >= line; });
+      if (k >= 0) {
+        pvPick(k, false);
+        const b = blockOf(pv.hits[k]);
+        if (b) {
+          const br = b.getBoundingClientRect(), hr = pv.hits[k].getBoundingClientRect();
+          lastClick = { el: b, frac: br.height > 0 ? Math.min(1, Math.max(0, (hr.top - br.top) / br.height)) : 0 };
+          const a = syncCapture();
+          if (a.target) keepAnchor(a, sc, domAnchors(sc));
+        }
+        return;
+      }
+    }
+    syncApply({ line, offset: sc.clientHeight / 3, edge: null, caretLine: -1, target: false }, false);
   }
 
   /* 履歴の表示: タイムスライダーの下に、検索語がある版の範囲を帯で示す(数えるのは core.js の historyCounter。
