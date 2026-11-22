@@ -74,7 +74,8 @@
             ['toc-depth', '目次に入れる見出しの深さ。1〜6 で、既定は 3(### まで)です。'],
             ['lang', '文書の言語(ja・en・en-US など)。プレビュー・印刷・PDF・HTML では、漢字の字形などがその言語のものになります。Word・LaTeX・AsciiDoc・HTML の言語の情報にも入ります。ja なら、LaTeX は日本語用の文書クラスになります。'],
             ['papersize', '用紙の大きさ。a4・a5・b5・letter・legal のどれかです(b5 は JIS の B5)。印刷・PDF・Word・LaTeX と、HTML をブラウザで印刷するときに使います。書かなければ、今までどおりです。'],
-            ['orientation', 'landscape と書くと、用紙を横向きにします。EverPad だけのキーです(ほかのアプリでは使われません)。']
+            ['orientation', 'landscape と書くと、用紙を横向きにします。EverPad だけのキーです(ほかのアプリでは使われません)。'],
+            ['marp', 'true と書くと、プレビューと履歴の表示で、本文を --- の区切り線で分けたスライド(16:9)にします。Marp と同じ書き方です。スライドショー(「表示」→「スライドショー」)と、スライドの書き出し(「エクスポート」→「スライド (HTML)…」「スライド (PDF)…」「スライド (PowerPoint)…」)は、このキーが無くても使えます。']
           ] }
       ]
     },
@@ -148,7 +149,8 @@
             ['toc-depth', 'How deep the table of contents goes, from 1 to 6. The default is 3 (down to ###).'],
             ['lang', 'The language of the document (ja, en, en-US and so on). The preview, printouts, PDF and HTML use the character shapes of that language (for kanji, for example). Word, LaTeX, AsciiDoc and HTML also record the language. With ja, LaTeX uses the Japanese document class.'],
             ['papersize', 'The paper size: a4, a5, b5, letter or legal (b5 is the Japanese JIS B5). Used for printing, PDF, Word, LaTeX, and when the HTML file is printed from a browser. Without it, nothing changes.'],
-            ['orientation', 'Write landscape to turn the paper sideways. This key is EverPad\'s own (other apps do not use it).']
+            ['orientation', 'Write landscape to turn the paper sideways. This key is EverPad\'s own (other apps do not use it).'],
+            ['marp', 'Write true to show the note as slides (16:9) in the preview and the history, split at the --- horizontal rules. This is how Marp marks slides. The slideshow (View → Slideshow) and the slide exports (Export → Slides (HTML)…, Slides (PDF)… and Slides (PowerPoint)…) work without this key too.']
           ] }
       ]
     }

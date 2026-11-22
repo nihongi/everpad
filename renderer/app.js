@@ -947,9 +947,19 @@
     if (!text && !(op && op.d)) {
       body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
-      body.innerHTML = '<div class="md">' + md(text, { lines: true, fm: true }) + '</div>';
+      const slides = slidesOn(text);
+      body.innerHTML = '<div class="md">' + md(text, { lines: true, fm: true, slides: slides }) + '</div>';
       applyDocOpts(body.firstChild, docOpts(text), 'hv-h-');
       lastHydrate = hydrate(body, cur().id);
+      if (slides) {
+        markSlides(body, lastHydrate);
+        // この版で変えたスライドに枠を付ける(区切り線そのものを変えたときは、その次のスライド)。再生中は、そのスライドが見えるようにする
+        if (op) {
+          const line = text.slice(0, Math.min(op.p, text.length)).split('\n').length - 1;
+          const s = [...body.querySelectorAll('.slide[data-from]')].find(x => line >= +x.dataset.from - 1 && line < +x.dataset.to);
+          if (s) { s.classList.add('slide-chg'); if (S.playing) s.scrollIntoView({ block: 'nearest' }); }
+        }
+      }
       highlight(body, S.qText);
     } else {
       const ranges = S.qText ? searchRanges(text, S.qText) : [];
@@ -2492,9 +2502,12 @@
     // 見えているプレビューのまま、同じメモを作り直すときだけ、今の高さを保つ(「テキスト」から切り替えたときや、別のメモを開いたときは保たない)
     const oldH = inPlace && pv.clientHeight && pvShownId === cur().id ? pv.scrollHeight : 0;
     pvShownId = cur().id;
-    pv.innerHTML = md(cur().text, { lines: true, fm: true }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
+    // フロントマターに marp: true と書いたメモは、スライドの形(16:9 の枠を縦に並べる)で見せる
+    const slides = slidesOn(cur().text);
+    pv.innerHTML = md(cur().text, { lines: true, fm: true, slides: slides }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
     applyDocOpts(pv, docOpts(cur().text), 'pv-h-');
     lastHydrate = hydrate(pv, cur().id);
+    if (slides) markSlides(pv, lastHydrate);
     highlight(pv, S.qText);
     peApplyRO();
     pvHold(pv, oldH, lastHydrate);
@@ -2515,6 +2528,80 @@
     const loaded = imgs.map(i => new Promise(r => { i.addEventListener('load', r, { once: true }); i.addEventListener('error', r, { once: true }); }));
     Promise.race([Promise.all(loaded.concat([Promise.resolve(drawn)])), new Promise(r => setTimeout(r, 4000))])
       .then(() => requestAnimationFrame(() => requestAnimationFrame(() => sp.remove())));
+  }
+  /* 16:9 の枠に入りきらないスライドは、文字を縮めて入れる(PowerPoint の「はみ出す場合だけ自動調整する」と同じ)。
+     縮める割合は --fit(styles.css の .slide-in の font-size に掛ける)。文字の大きさは枠の幅に比例するので、割合は枠の大きさによらない。
+     半分(FIT_MIN)まで縮めても入りきらないものには、mark が偽でなければ印(.over。下の縁が赤くなる)と説明を付ける(プレビューと履歴の表示)。
+     見えていない(display: none の)スライドは測らない */
+  const FIT_MIN = 0.5;
+  function fitSlide(s, mark) {
+    if (!s.clientHeight || s.querySelector('.pe-edit, .pe-cell')) return;   // 編集している間は伸ばしているので測らない
+    s.style.removeProperty('--fit');
+    let fit = 1;
+    for (let k = 0; k < 8 && fit > FIT_MIN && s.scrollHeight > s.clientHeight + 1; k++) {
+      // 中身の高さは、ほぼ文字の大きさに比例する。折り返しで合わないことがあるので、少し余分に縮めて測り直す
+      fit = Math.max(FIT_MIN, Math.floor(fit * s.clientHeight / s.scrollHeight * 100) / 100 - (k ? 0.02 : 0));
+      s.style.setProperty('--fit', String(fit));
+    }
+    if (mark === false) return;
+    const over = s.scrollHeight > s.clientHeight + 1;
+    s.classList.toggle('over', over);
+    if (over) s.title = T('slideOver'); else s.removeAttribute('title');
+  }
+  const fitSlides = (root, mark) => root.querySelectorAll('.slide').forEach(s => fitSlide(s, mark));
+  /* 書き出し(PDF・HTML)の前に、画面の外に幅 1280px で並べて測り、縮める割合をスライドに書いておく(書き出したものでも同じに見える)。
+     印(.over)と説明は付けない */
+  function fitForExport(md0, measure) {
+    const host = md0.parentElement, next = md0.nextSibling, cls = md0.classList.contains('md');
+    if (!cls) md0.classList.add('md');   // 書き出しの本文の入れ物(.md の規則が当たるように)
+    const box = document.createElement('div');
+    box.className = 'slide-measure';
+    document.body.appendChild(box);
+    box.appendChild(md0);
+    fitSlides(md0, false);
+    if (measure) measure(md0);
+    if (!cls) md0.classList.remove('md');
+    if (host) host.insertBefore(md0, next); else md0.remove();
+    box.remove();
+  }
+  /* PowerPoint の書き出し(pptxexport.js)のために、スライドの中のいちばん外側のかたまりと画像の場所を測って書いておく
+     (幅 1280px のスライドの左上からの px。data-box="x,y,幅,高さ")。表は行の範囲と、列の幅(data-cols)・行の高さ(data-rows)・表題の場所(data-cap)、
+     図は描いた図そのものの場所。スライドには、文字を縮めた割合(data-fit) */
+  function pptxLayout(md0) {
+    const r1 = v => Math.round(v * 10) / 10;
+    md0.querySelectorAll('.slide').forEach(s => {
+      const sr = s.getBoundingClientRect(), k = 1280 / (s.clientWidth || 1280), ox = sr.left + s.clientLeft, oy = sr.top + s.clientTop;
+      const box = r => [r.left - ox, r.top - oy, r.width, r.height].map(v => r1(v * k)).join(',');
+      s.dataset.fit = s.style.getPropertyValue('--fit') || '1';
+      const inner = s.querySelector('.slide-in');
+      for (const c of inner ? inner.children : []) {
+        const tb = c.classList.contains('tblwrap') && c.querySelector('table');
+        const trs = tb ? [...tb.rows] : [];
+        if (trs.length) {
+          const a = trs[0].getBoundingClientRect(), b = trs[trs.length - 1].getBoundingClientRect();
+          c.dataset.box = box({ left: a.left, top: a.top, width: a.width, height: b.bottom - a.top });
+          c.dataset.rows = trs.map(tr => r1(tr.getBoundingClientRect().height * k)).join(',');
+          // 列の幅: セルの左右の端の位置(近いものは1つにまとめる)の間
+          const xs = [];
+          for (const td of tb.querySelectorAll('th, td')) { const r = td.getBoundingClientRect(); for (const x of [r.left, r.right]) if (!xs.some(v => Math.abs(v - x) < 1.5)) xs.push(x); }
+          xs.sort((p, q) => p - q);
+          c.dataset.cols = xs.slice(1).map((x, i) => r1((x - xs[i]) * k)).join(',');
+          const cap = tb.querySelector('caption');
+          if (cap) c.dataset.cap = box(cap.getBoundingClientRect());
+          continue;
+        }
+        const svg = c.classList.contains('diagram') && c.querySelector('svg');
+        c.dataset.box = box((svg || c).getBoundingClientRect());
+      }
+      s.querySelectorAll('img').forEach(img => { img.dataset.box = box(img.getBoundingClientRect()); });
+    });
+  }
+  /* プレビューと履歴の表示のスライドを、入りきるように縮める。画像の読み込みと図の描画(drawn)が終わったときにも測り直す */
+  function markSlides(root, drawn) {
+    const check = () => fitSlides(root);
+    check();
+    root.querySelectorAll('.slide img').forEach(img => { if (!img.complete) img.addEventListener('load', check, { once: true }); });
+    Promise.resolve(drawn).then(() => requestAnimationFrame(check));
   }
   /* プレビューの、編集できるかどうかで変わる所を、今のメモの「読み取り専用」に合わせる(作り直さずに。読み取り専用を付け外ししたときにも使う) */
   function peApplyRO() {
@@ -2664,11 +2751,12 @@
     requestAnimationFrame(() => { if (pe.box === ta) peFit(true); });
     sendUiState();
   }
-  // かたまり el を含む、プレビューのいちばん外側のかたまり(引用・リスト・表の全体)
+  // かたまり el を含む、プレビューのいちばん外側のかたまり(引用・リスト・表の全体)。スライドの形のときは、スライドの中のいちばん外側
   function peTop(el) {
+    const root = x => x === $('preview') || x.classList.contains('slide-in');
     let top = el;
-    while (top && top.parentElement && top.parentElement !== $('preview')) top = top.parentElement;
-    return top && top.parentElement === $('preview') ? top : null;
+    while (top && top.parentElement && !root(top.parentElement)) top = top.parentElement;
+    return top && top.parentElement && root(top.parentElement) ? top : null;
   }
   /* 新しい段落を書き足す、空の編集欄を開く(「段落を挿入」・最後のかたまりの下を押したとき)。
      ref(図・数式・かたまり)があれば、それを含むいちばん外側のかたまりの次に、無ければメモの最後に入れる。
@@ -3663,7 +3751,10 @@
   }
 
   api.onMenu(name => {
-    if (name === 'new') createNote();
+    // スライドショーの間にメニュー(キー)の操作が来たら、スライドショーを終えてから行う(設定が変わった知らせなどは除く)
+    if (slideShow && !/^(?:show$|prefs:|keys:|updCanceled$)/.test(name)) endShow();
+    if (name === 'show') startShow();
+    else if (name === 'new') createNote();
     else if (name === 'frontmatter') frontMatterCommand();
     else if (name === 'pastePlain') { plainPasteAt = Date.now(); api.pastePlain(); }   // 次の貼り付けは文字のまま(Chromium の書式なしの貼り付け)
     else if (name === 'selectall') selectAllScoped();
@@ -3692,8 +3783,8 @@
     else if (name === 'export') exportNote();
     else if (name === 'archive') exportArchive();
     else if (name === 'print') printNote('print');
-    else if (name === 'pdf') printNote('pdf');
-    else if (name === 'html' || name === 'mhtml' || name === 'adoc' || name === 'docx' || name === 'tex') exportPage(name);
+    else if (name === 'pdf' || name === 'slidespdf') printNote(name);
+    else if (name === 'html' || name === 'mhtml' || name === 'adoc' || name === 'docx' || name === 'tex' || name === 'slides' || name === 'pptx') exportPage(name);
     else if (name.indexOf('mode:') === 0) switchBase(name.slice(5));
   });
   /* ---------- 印刷・PDF ----------
@@ -3713,15 +3804,19 @@
     const meta = docMeta(text), winTitle = document.title;
     // フロントマターの目次・言語・用紙の大きさと向き
     const opts = docOpts(text), size = pageSizeCss(opts);
+    // スライドの PDF(kind が 'slidespdf'): 区切り線で分けたスライドを、1枚ずつ 16:9 のページにする。題名・日時・ページ番号は入れない
+    const slides = kind === 'slidespdf', pdf = kind === 'pdf' || slides;
     const area = $('printArea');
-    area.innerHTML = '<div class="md">' + titleBlockHtml(meta, T('authorSep')) + md(text) + '</div>';
-    applyDocOpts(area.firstChild, opts, 'ep-h-');
+    area.classList.toggle('slides-print', slides);
+    area.innerHTML = '<div class="md">' + (slides ? md(text, { slides: true }) : titleBlockHtml(meta, T('authorSep')) + md(text)) + '</div>';
+    applyDocOpts(area.firstChild, slides ? Object.assign({}, opts, { toc: false }) : opts, 'ep-h-');
     document.title = meta.title || title;
     await hydrate(area, n.id, { light: true });
     const edited = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
-    const stampText = T(kind === 'pdf' ? 'printCreated' : 'printPrinted', { when: fmtFull(Date.now()) });
+    const stampText = T(pdf ? 'printCreated' : 'printPrinted', { when: fmtFull(Date.now()) });
     const box = 'font-family: ' + getComputedStyle(document.body).fontFamily.replace(/[;{}]/g, '') + '; font-size: 8.5pt; color: #4A5468;';
-    $('printPage').textContent = '@page { margin: 18mm 16mm; background: #fff;' + (size ? ' size: ' + size + ';' : '')
+    $('printPage').textContent = slides ? '@page { size: 254mm 142.875mm; margin: 0; background: #fff; }'
+      : '@page { margin: 18mm 16mm; background: #fff;' + (size ? ' size: ' + size + ';' : '')
       + ' @top-left { content: ' + cssStr(title) + '; ' + box + ' }'
       + ' @top-right { content: ' + cssStr(edited) + '; ' + box + ' }'
       + ' @bottom-left { content: ' + cssStr(stampText) + '; ' + box + ' }'
@@ -3731,9 +3826,10 @@
       Promise.all([...area.querySelectorAll('img')].map(img => (img.complete ? null : new Promise(r => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); })))),
       new Promise(r => setTimeout(r, 3000))
     ]);
+    if (slides) fitForExport(area.firstChild);
     try {
-      if (kind === 'pdf') {
-        const r = await api.savePdf(title, { paper: opts.paper, landscape: opts.landscape });
+      if (pdf) {
+        const r = await api.savePdf(title, slides ? {} : { paper: opts.paper, landscape: opts.landscape });
         if (r && r.status === 'saved') toast(T('pdfSaved', { path: r.path }));
         else if (r && r.status === 'failed') toast(T('pdfFailed'));
       } else {
@@ -3741,8 +3837,9 @@
         if (r === 'failed') toast(T('printFailed'));
       }
     } catch (e) {
-      toast(T(kind === 'pdf' ? 'pdfFailed' : 'printFailed'));
+      toast(T(pdf ? 'pdfFailed' : 'printFailed'));
     } finally {
+      area.classList.remove('slides-print');
       area.innerHTML = '';
       $('printPage').textContent = '';
       document.title = winTitle;
@@ -3768,18 +3865,20 @@
       const op = k > 0 ? n.ops[k - 1] : null;
       const box = document.createElement('div');
       const meta = docMeta(text), opts = docOpts(text);
-      // HTML・MHTML: フロントマターの題名・著者・日付と目次を本文の先頭に出す(AsciiDoc・Word・LaTeX は、meta と opts からそれぞれの形で書く)
-      const web = kind === 'html' || kind === 'mhtml';
-      box.innerHTML = (web ? titleBlockHtml(meta, T('authorSep')) : '') + md(text);
-      if (web) applyDocOpts(box, opts, 'ep-h-');   // 言語は、main.js が <html lang> に書く
+      // HTML・MHTML: フロントマターの題名・著者・日付と目次を本文の先頭に出す(AsciiDoc・Word・LaTeX は、meta と opts からそれぞれの形で書く)。
+      // スライド(kind が 'slides'): 区切り線で分けたスライドだけを出す(画像・数式・図の扱いは HTML と同じ)
+      // PowerPoint(kind が 'pptx')も、スライドに分けて、測った場所に置く(pptxexport.js)
+      const pptx = kind === 'pptx', slides = kind === 'slides' || pptx, web = kind === 'html' || kind === 'mhtml' || kind === 'slides';
+      box.innerHTML = slides ? md(text, { slides: true }) : (web ? titleBlockHtml(meta, T('authorSep')) : '') + md(text);
+      if (web && kind !== 'slides') applyDocOpts(box, opts, 'ep-h-');   // 言語は、main.js が <html lang> に書く
       await Diagrams.render(box, { light: true });
       for (const el of box.querySelectorAll('.diagram[data-src]')) {
         el.removeAttribute('data-theme');
-        if (!(kind === 'adoc' || kind === 'docx' || kind === 'tex')) continue;
+        if (!(kind === 'adoc' || kind === 'docx' || kind === 'tex' || pptx)) continue;
         const svg = el.querySelector('svg');
-        const p = (kind === 'docx' || kind === 'tex') && svg ? await Diagrams.toPng(svg) : null;
+        const p = (kind === 'docx' || kind === 'tex' || pptx) && svg ? await Diagrams.toPng(svg) : null;
         if (p) { el.dataset.png = p.png; el.dataset.w = p.w; el.dataset.h = p.h; }
-        el.textContent = '';
+        if (!pptx) el.textContent = '';   // PowerPoint は、図の場所を測ってから消す
       }
       const plain = (el, prefix) => { const s = document.createElement('span'); s.className = el.classList.contains('att-file') ? 'att-file' : ''; s.textContent = (prefix || '') + el.textContent; el.replaceWith(s); };
       box.querySelectorAll('a.note-link, .link-other').forEach(el => plain(el));
@@ -3795,7 +3894,9 @@
         }))),
         new Promise(r => setTimeout(r, 3000))
       ]);
-      const doc = kind === 'adoc' || kind === 'docx' || kind === 'tex';
+      if (slides) fitForExport(box, pptx ? pptxLayout : null);
+      if (pptx) box.querySelectorAll('.diagram[data-src]').forEach(el => { el.textContent = ''; });
+      const doc = kind === 'adoc' || kind === 'docx' || kind === 'tex' || pptx;
       box.querySelectorAll('img[data-att]').forEach(img => {
         if (!img.complete || !img.naturalWidth) { img.replaceWith(missingEl(img.alt)); return; }
         if (doc) { img.dataset.w = img.naturalWidth; img.dataset.h = img.naturalHeight; img.removeAttribute('src'); return; }
@@ -3804,7 +3905,7 @@
       });
       if (doc) {
         box.querySelectorAll('.math[data-tex]').forEach(el => {
-          if (kind === 'docx' && !el.classList.contains('math-error') && typeof katex !== 'undefined') {
+          if ((kind === 'docx' || pptx) && !el.classList.contains('math-error') && typeof katex !== 'undefined') {
             const display = el.classList.contains('math-display');
             try { el.dataset.mml = katex.renderToString(el.dataset.tex, Object.assign({}, MATH_OPTS, { output: 'mathml', displayMode: display })); } catch (err) { el.classList.add('math-error'); }
           }
@@ -3812,7 +3913,9 @@
         });
       }
       const head = (op ? T('printEdited', { when: fmtFull(op.t) }) : '') + (k !== N ? T('sep') + T('revNo', { k: baseOf(n) + k, n: baseOf(n) + N }) : '');
-      const r = await api.exportPage(n.id, { title: shownTitle(titleOf(text)), head: head, foot: T('printCreated', { when: fmtFull(Date.now()) }), bodyHtml: box.innerHTML, meta: meta, opts: Object.assign({ tocTitle: tocLabel(opts.lang) }, opts) }, kind);
+      const r = await api.exportPage(n.id, { title: shownTitle(titleOf(text)), head: head, foot: T('printCreated', { when: fmtFull(Date.now()) }), bodyHtml: box.innerHTML, meta: meta, opts: Object.assign({ tocTitle: tocLabel(opts.lang) }, opts),
+        // PowerPoint の文字のフォント: 画面で測ったときのフォント(本文のフォントの最初の名前)
+        font: (getComputedStyle(document.body).fontFamily.split(',')[0] || '').replace(/["']/g, '').trim() }, kind);
       if (r && r.status === 'saved') toast(T(kind + 'Saved', { path: r.path }));
       else if (r && r.status === 'failed') toast(T(kind + 'Failed'));
     } catch (e) {
@@ -3820,6 +3923,102 @@
     } finally {
       pageBusy = false;
     }
+  }
+  /* ---------- スライドショー(「表示」→「スライドショー」) ----------
+     本文(履歴の表示中は見ている版)を区切り線で分けたスライドを、全画面にして1枚ずつ出す(marp: true が無いメモでも使える)。
+     今見ている所(「テキスト」ではカーソルの行)のスライドから始める。色はプレビューと同じ(メモの色の設定も使う)。
+     → ↓ PageDown Space Enter・クリック・ホイールを下で次、← ↑ PageUp Backspace・ホイールを上で前、Home・End で最初・最後、Esc で終わる。
+     2秒ほどマウスを動かさないと、マウスの矢印とスライドの番号を隠す */
+  let slideShow = null;
+  // 今見ている所の、元の文の行
+  function viewLine() {
+    if (S.mode === 'edit') { const ed = $('editor'); return ed.value.slice(0, ed.selectionStart).split('\n').length - 1; }
+    const sc = viewEl();
+    return yToLine(domAnchors(sc), sc.scrollTop + 1);
+  }
+  function startShow() {
+    const n = cur();
+    if (!n || slideShow || !$('modal').hidden || printing) return;
+    if (pe.box) peClose();
+    stop();
+    const N = n.ops.length, k = S.mode === 'history' ? Math.max(0, Math.min(N, S.rev)) : N;
+    const text = k === N ? n.text : textAt(n, k);
+    const html = md(text, { slides: true, lines: true });
+    if (!html) { toast(T('showEmpty')); return; }
+    const box = document.createElement('div');
+    box.className = 'show';
+    box.tabIndex = -1;
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', T('mShow'));
+    box.innerHTML = '<div class="md">' + html + '</div><div class="show-no" aria-live="polite"></div>';
+    for (const v of ['--surface', '--fg', '--fg-2', '--surface-2', '--line']) { const x = $('preview').style.getPropertyValue(v); if (x) box.style.setProperty(v, x); }
+    applyDocOpts(box.firstChild, Object.assign({}, docOpts(text), { toc: false }), 'show-h-');
+    const slides = [...box.firstChild.children].filter(x => x.classList.contains('slide'));
+    const line = viewLine();
+    let i = 0;
+    slides.forEach((s, j) => { if (+s.dataset.from <= line) i = j; });
+    slideShow = { box: box, slides: slides, i: -1, back: document.activeElement, idle: null, wheelAt: 0 };
+    document.body.appendChild(box);
+    const drawn = hydrate(box, n.id);
+    showGo(i);
+    box.querySelectorAll('img').forEach(img => img.addEventListener('load', () => { if (slideShow && slideShow.box === box) fitSlide(slideShow.slides[slideShow.i], false); }));
+    Promise.resolve(drawn).then(() => { if (slideShow && slideShow.box === box) fitSlide(slideShow.slides[slideShow.i], false); });
+    showActive();
+    box.focus();
+    window.addEventListener('keydown', showKey, true);
+    box.addEventListener('mousemove', showActive);
+    box.addEventListener('click', e => { e.preventDefault(); showGo(slideShow.i + 1); });
+    box.addEventListener('contextmenu', e => { e.preventDefault(); showGo(slideShow.i - 1); });
+    box.addEventListener('wheel', e => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - slideShow.wheelAt < 350 || !e.deltaY) return;
+      slideShow.wheelAt = now;
+      showGo(slideShow.i + (e.deltaY > 0 ? 1 : -1));
+    }, { passive: false });
+    api.showFullScreen(true).catch(() => {});
+  }
+  function showGo(k) {
+    if (!slideShow) return;
+    const i = Math.max(0, Math.min(slideShow.slides.length - 1, k));
+    if (i === slideShow.i) return;
+    slideShow.i = i;
+    slideShow.slides.forEach((s, j) => s.classList.toggle('cur', j === i));
+    fitSlide(slideShow.slides[i], false);
+    slideShow.box.querySelector('.show-no').textContent = (i + 1) + ' / ' + slideShow.slides.length;
+  }
+  // マウスを動かしたら、矢印と番号を出して、2秒後にまた隠す
+  function showActive() {
+    if (!slideShow) return;
+    slideShow.box.classList.remove('idle');
+    clearTimeout(slideShow.idle);
+    slideShow.idle = setTimeout(() => { if (slideShow) slideShow.box.classList.add('idle'); }, 2000);
+  }
+  function showKey(e) {
+    if (!slideShow) return;
+    const k = e.key;
+    if (e.ctrlKey || e.metaKey || e.altKey || /^F\d+$/.test(k)) return;   // メニューのキー(F5・F11 など)はそのまま通す
+    if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter') showGo(slideShow.i + 1);
+    else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') showGo(slideShow.i - 1);
+    else if (k === 'Home') showGo(0);
+    else if (k === 'End') showGo(slideShow.slides.length - 1);
+    else if (k === 'Escape') endShow();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+  function endShow() {
+    if (!slideShow) return;
+    const s = slideShow;
+    slideShow = null;
+    clearTimeout(s.idle);
+    window.removeEventListener('keydown', showKey, true);
+    s.box.remove();
+    api.showFullScreen(false).catch(() => {});
+    // スライドの形のプレビューなら、終えたスライドが見えるようにする
+    const from = s.slides[s.i] && s.slides[s.i].dataset.from;
+    const card = S.mode === 'preview' && from != null && $('preview').querySelector('.slide[data-from="' + from + '"]');
+    if (card) card.scrollIntoView({ block: 'nearest' });
+    if (s.back && s.back.isConnected && s.back.focus) s.back.focus({ preventScroll: true });
   }
   /* ---------- 画面の上に出す小さな窓 ---------- */
   let modalBack = null;
@@ -3946,6 +4145,9 @@
     else if (action === 'exportAdoc') exportPage('adoc', n);
     else if (action === 'exportDocx') exportPage('docx', n);
     else if (action === 'exportTex') exportPage('tex', n);
+    else if (action === 'exportSlides') exportPage('slides', n);
+    else if (action === 'exportSlidesPdf') printNote('slidespdf', n);
+    else if (action === 'exportPptx') exportPage('pptx', n);
     else if (action === 'exportArchive') exportArchive(n);
   }
 

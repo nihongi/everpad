@@ -1213,7 +1213,8 @@ function tableGrid(rows, nh, n) {
    (行は 0 から数える)。編集とプレビューを切り替えたときに、同じ場所を見せるために使う(syncAnchors)。
    付けるのは、段落・見出し・コード・数式・図・区切り線・リストの項目・表の行だけで、これらの行の範囲は重ならない。
    書き出しや印刷では付けない。
-   先頭のフロントマターは、opts.fm が真なら(プレビューと履歴の表示)キーと値の並びにして出し、そうでなければ(印刷・書き出し)出さない */
+   先頭のフロントマターは、opts.fm が真なら(プレビューと履歴の表示)キーと値の並びにして出し、そうでなければ(印刷・書き出し)出さない。
+   opts.slides が真なら、いちばん外側の区切り線(---・***・___)で本文をスライドに分ける(slidesHtml) */
 function md(text, opts) {
   const all = String(text).replace(/\r\n?/g, '\n').split('\n');
   const skip = frontMatterLines(all);
@@ -1223,14 +1224,46 @@ function md(text, opts) {
   const prev = FN;
   FN = footnoteDefs(lines);
   try {
-    const html = mdBlocks(lines, base < 0 ? -1 : skip);
-    const body = FN.order.length ? html + footnotesHtml() : html;
+    let body;
+    if (opts && opts.slides) body = slidesHtml(lines, base < 0 ? -1 : skip);
+    else {
+      const html = mdBlocks(lines, base < 0 ? -1 : skip);
+      body = FN.order.length ? html + footnotesHtml() : html;
+    }
     return head ? head + (body ? '\n' + body : '') : body;
   } finally { FN = prev; }
 }
+/* ---------- スライド ----------
+   本文を、いちばん外側の区切り線で分けて、1枚ずつ <section class="slide"><div class="slide-in">…</div></section> にする
+   (引用・リスト・コードの中の区切り線では分けない)。中身の無いスライドは出さない。脚注は最後のスライドに入れる。
+   base が 0 以上なら、スライドに元の文の行の範囲を data-from(最初の行)・data-to(区切り線の行か、本文の終わり)で付ける
+   (data-line とは別の名前にして、中のかたまりの行の範囲と重ねない) */
+function slidesHtml(lines, base) {
+  const cuts = [];
+  const out = mdBlocks(lines, base, null, cuts);
+  const bounds = [{ n: 0, line: -1 }].concat(cuts, [{ n: out.length, line: lines.length }]);
+  const slides = [];
+  for (let k = 0; k + 1 < bounds.length; k++) {
+    const html = out.slice(bounds[k].n, bounds[k + 1].n).join('\n');
+    if (html) slides.push({ html: html, from: bounds[k].line + 1, to: bounds[k + 1].line });
+  }
+  if (FN.order.length) {
+    if (!slides.length) slides.push({ html: '', from: 0, to: lines.length });
+    slides[slides.length - 1].html += footnotesHtml();
+  }
+  return slides.map(s => '<section class="slide"' + (base < 0 ? '' : ' data-from="' + (base + s.from) + '" data-to="' + (base + s.to) + '"') + '><div class="slide-in">' + s.html + '</div></section>').join('\n');
+}
+/* プレビューをスライドの形にするメモか: フロントマターに marp: true(Marp と同じ書き方。yes・on も) */
+function slidesOn(text) {
+  const fm = frontMatter(text);
+  const en = fm && fmGet(fm, 'marp');
+  return !!en && /^(?:true|yes|on)$/i.test(fmText(en));
+}
 const lineAttr = (base, s, e) => (base < 0 ? '' : ' data-line="' + (base + s) + '" data-end="' + (base + e) + '"');
-/* base: lines[0] が元の文の何行目か。負なら行の範囲を付けない。sep: かたまりの間に入れる文字(既定は改行。リストの項目の中は空) */
-function mdBlocks(lines, base, sep) {
+/* base: lines[0] が元の文の何行目か。負なら行の範囲を付けない。sep: かたまりの間に入れる文字(既定は改行。リストの項目の中は空)。
+   cuts(配列)を渡すと、区切り線をスライドの切れ目として cuts に { n: その前までのかたまりの数, line: lines の中の行 } で入れ、
+   つないだ文字ではなく、かたまりの HTML の配列を返す */
+function mdBlocks(lines, base, sep, cuts) {
   const out = [];
   let para = [], paraAt = 0;
   let i = 0;
@@ -1271,8 +1304,21 @@ function mdBlocks(lines, base, sep) {
       continue;
     }
     if (/^\s*$/.test(ln)) { flush(); i++; continue; }
+    // スライドに分けるとき(いちばん外側)は、HTML のコメント(<!-- … -->。Marp の指定や発表者のメモ)の行を出さない
+    if (cuts && /^ {0,3}<!--/.test(ln)) {
+      flush();
+      const from = ln.indexOf('<!--') + 4;
+      if (ln.indexOf('-->', from) < 0) { i++; while (i < lines.length && lines[i].indexOf('-->') < 0) i++; }
+      i++;
+      continue;
+    }
     if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) { flush(); i++; put('<h' + m[1].length + '>' + inline(m[2]) + '</h' + m[1].length + '>', at); continue; }
-    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(ln)) { flush(); i++; put('<hr>', at); continue; }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(ln)) {
+      flush(); i++;
+      // スライドに分けるとき(cuts を渡したとき。いちばん外側だけ)は、区切り線を出さずに、スライドの切れ目として覚える
+      if (cuts) cuts.push({ n: out.length, line: at }); else put('<hr>', at);
+      continue;
+    }
     if (/^>\s?/.test(ln)) {
       flush();
       const buf = [];
@@ -1325,6 +1371,7 @@ function mdBlocks(lines, base, sep) {
     i++;
   }
   flush();
+  if (cuts) return out;
   return out.join(sep == null ? '\n' : sep);
 }
 
@@ -2220,5 +2267,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, slidesOn, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

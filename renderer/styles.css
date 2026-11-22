@@ -303,6 +303,31 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 .md .diagram svg { max-width: 100%; height: auto; }
 .md .diagram-src { text-align: left; }
 .md .diagram-error .diagram-src { color: var(--del-fg); background: var(--del); cursor: help; }
+/* スライド(フロントマターに marp: true と書いたメモのプレビューと履歴の表示、スライドの書き出し、スライドショー。core.js の slidesHtml)。
+   16:9 の枠に、文字の大きさを枠の幅に合わせて入れる(幅 1280px で 35px。Marp と同じ)。中身は上下の中央に置く。
+   入りきらないスライドは、文字を --fit の割合で縮める(半分まで。app.js の fitSlide)。それでも入りきらない所は切る。
+   余白は em で決める(枠の大きさが変わっても、文字との釣り合いが変わらないように)。
+   1行に1つの規則で書く(書き出しの HTML は、.md で始まる行を styles.css から集める。pageexport.js の exportCss) */
+.md .slide { position: relative; container-type: inline-size; aspect-ratio: 16 / 9; overflow: hidden; margin: 0 0 20px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 1px 4px rgba(0, 0, 0, .08); break-inside: avoid; }
+.md .slide-in { box-sizing: border-box; min-height: 100%; display: flex; flex-direction: column; justify-content: safe center; padding: 4.4cqw 6.25cqw; font-size: calc(2.734cqw * var(--fit, 1)); line-height: 1.45; }
+.md .slide-in > * { flex: none; margin: 0 0 .55em; }
+.md .slide-in > :last-child { margin-bottom: 0; }
+.md .slide-in h1, .md .slide-in h2, .md .slide-in h3, .md .slide-in h4, .md .slide-in h5, .md .slide-in h6 { margin: 0 0 .45em; }
+.md .slide-in h1 { font-size: 1.8em; }
+.md .slide-in h2 { font-size: 1.45em; }
+.md .slide-in h3 { font-size: 1.2em; }
+.md .slide-in ul, .md .slide-in ol { padding-left: 1.3em; }
+.md .slide-in li + li { margin-top: .15em; }
+.md .slide-in li > p { margin: .4em 0 0; }
+.md .slide-in li > ul, .md .slide-in li > ol { margin: 0; }
+.md .slide-in blockquote > *, .md .slide-in .alert > * { margin: 0 0 .4em; }
+.md .slide-in blockquote > :last-child { margin-bottom: 0; }
+.md .slide-in pre { padding: .6em .8em; }
+.md .slide-in th, .md .slide-in td { padding: .3em .6em; }
+.md .slide-in img.att-img { max-height: 40cqw; }
+.md .slide-in .diagram svg { max-height: 42cqw; }
+.md .slide-in .footnotes { margin-top: .6em; padding-top: .3em; font-size: .7em; }
+.md .slide-in .footnotes li > p { margin: 0; }
 /* 他のメモへのリンク。参照先が削除されていれば、灰色の取り消し線 */
 .md a.note-link { color: var(--accent); text-underline-offset: 3px; text-decoration-style: dotted; }
 .md a.note-link.missing { color: var(--fg-2); text-decoration: line-through; }
@@ -357,6 +382,15 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 /* プレビューと、プレビューから入った履歴の表示も、段落・リスト・表などのかたまりごとに、画面の外は描画を省く
    (かたまりが数千あると、読み上げの仕組みが動いているときに数秒止まることがあった)。高さの見積もりは1行分で、一度描いたら覚える */
 #preview > *, #hvBody > .md > * { content-visibility: auto; contain-intrinsic-size: auto 1.6em; }
+/* スライドは省かない(入りきらないかを測るため。スライドの数は多くない)。右下にスライドの番号を出す。
+   入りきらないスライドは、下の縁を赤くする(.over。app.js の markSlides)。履歴の表示では、その版で変えたスライドに枠を付ける(.slide-chg) */
+#preview > .slide, #hvBody > .md > .slide { content-visibility: visible; contain-intrinsic-size: none; counter-increment: slide; }
+#preview, #hvBody > .md { counter-reset: slide; }
+#preview > .slide::before, #hvBody > .md > .slide::before { content: counter(slide); position: absolute; right: 8px; bottom: 4px; font: 12px/1 var(--ui); color: var(--fg-2); opacity: .8; pointer-events: none; }
+#preview > .slide.over::after, #hvBody > .md > .slide.over::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--del-fg); pointer-events: none; }
+#hvBody > .md > .slide.slide-chg { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* プレビューで編集している間は、スライドを切らずに伸ばす(編集欄が入りきるように) */
+#preview > .slide:has(.pe-edit, .pe-cell) { overflow: clip; }
 /* プレビューでの編集: クリックしたかたまりは、その場で元の文の編集欄に、表のセルは1行の入力欄になる */
 #preview.pe-on [data-line]:not(.math):not(.diagram) { cursor: text; }
 #preview.pe-on li > input[type=checkbox] { cursor: pointer; }
@@ -553,6 +587,16 @@ li.pe-li { list-style: none; }
    ダークモードでも白い紙に黒い文字になるよう、色は明るい配色に固定する。
    ページ上下の題名・日時・ページ番号は、印刷の直前に #printPage に書く @page の余白で出す。 */
 .print-area { display: none; }
+/* スライドの PDF・HTML を書き出す前に、入りきらないスライドの文字を縮める大きさを測る所(画面の外。幅 1280px のスライド) */
+.print-area.slide-measure, .slide-measure { display: block; position: fixed; left: -30000px; top: 0; width: 1280px; visibility: hidden; pointer-events: none; }
+/* スライドショー(「表示」→「スライドショー」): 窓いっぱいの黒い背景に、1枚ずつ 16:9 で出す。右下に「3 / 12」 */
+.show { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: #000; outline: none; cursor: default; user-select: none; }
+.show.idle { cursor: none; }
+.show > .md { width: min(100vw, 177.78vh); }
+.show > .md > .slide { display: none; margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+.show > .md > .slide.cur { display: block; }
+.show .show-no { position: fixed; right: 14px; bottom: 10px; font: 13px/1 var(--ui); color: #9aa3b5; opacity: 0; transition: opacity .3s; pointer-events: none; }
+.show:not(.idle) .show-no { opacity: 1; }
 @media print {
   html, body { height: auto; overflow: visible; background: #fff; }
   .app, .toast, .updbar { display: none !important; }
@@ -570,6 +614,10 @@ li.pe-li { list-style: none; }
   .print-area .md .tblwrap { overflow: visible; }
   .print-area .md img { max-width: 100%; height: auto; }
   .print-area .md a { color: var(--accent); text-decoration: underline; }
+  /* スライドの PDF: 1枚を1ページ(16:9 の用紙。余白なし。用紙の大きさは app.js が #printPage に書く) */
+  .print-area.slides-print .md .slide { width: 100vw; height: 100vh; aspect-ratio: auto; margin: 0; border: 0; border-radius: 0; box-shadow: none; break-after: page; }
+  .print-area.slides-print .md .slide:last-child { break-after: auto; }
+  .show { display: none !important; }
 }
 
 /* メモへのリンクを挿入する窓: 題名で絞り込む一覧 */

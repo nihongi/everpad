@@ -152,18 +152,18 @@ test('HTML・MHTML: メニュー・画面・main.js へのつなぎ込み', () =
     assert.match(main, new RegExp("T\\('" + label + "'\\), accelerator: A\\('" + kind + "'\\), click: \\(\\) => send\\('" + kind + "'\\)"));
     assert.match(main, new RegExp("T\\('" + label + "'\\), click: pick\\('export" + kind[0].toUpperCase() + kind.slice(1) + "'\\)"));
   }
-  assert.match(app, /name === 'html' \|\| name === 'mhtml' \|\| name === 'adoc' \|\| name === 'docx' \|\| name === 'tex'\) exportPage\(name\)/);
+  assert.match(app, /name === 'html' \|\| name === 'mhtml' \|\| name === 'adoc' \|\| name === 'docx' \|\| name === 'tex' \|\| name === 'slides' \|\| name === 'pptx'\) exportPage\(name\)/);
   assert.match(app, /action === 'exportHtml'\) exportPage\('html', n\)/);
   assert.match(app, /action === 'exportMhtml'\) exportPage\('mhtml', n\)/);
   assert.match(preload, /exportPage: \(id, p, kind\) => ipcRenderer\.invoke\('export:page', id, p, kind\)/);
   // 形式は決まった5つだけ(AsciiDoc・Word・LaTeX は docexport.test.js で調べる)。画像は、そのメモの添付からだけ読む(ID を確かめる store.attachmentPath を通す)
-  assert.match(main, /const PAGE_KINDS = \{\n  html: \{ ext: 'html'[^\n]*\n  mhtml: \{ ext: 'mhtml'[^\n]*\n  adoc: \{ ext: 'adoc'[^\n]*\n  docx: \{ ext: 'docx'[^\n]*\n  tex: \{ ext: 'tex'[^\n]*\n\};/);
+  assert.match(main, /const PAGE_KINDS = \{\n  html: \{ ext: 'html'[^\n]*\n  mhtml: \{ ext: 'mhtml'[^\n]*\n  adoc: \{ ext: 'adoc'[^\n]*\n  docx: \{ ext: 'docx'[^\n]*\n  tex: \{ ext: 'tex'[^\n]*\n  slides: \{ ext: 'html'[^\n]*\n  pptx: \{ ext: 'pptx'[^\n]*\n\};/);
   const h = main.slice(main.indexOf("ipcMain.handle('export:page'"));
   const body = h.slice(0, h.indexOf('\n});'));
   assert.match(body, /hasOwnProperty\.call\(PAGE_KINDS, kind\)/);
   assert.match(body, /fromOurWindow\(e\) \|\| !k \|\| !validId\(id\)/);
   assert.match(body, /store\.attachmentPath\(id, f\)/);
-  assert.match(body, /kind === 'html' \? pageexport\.buildHtml/);
+  assert.match(body, /kind === 'mhtml' \? pageexport\.buildMhtml\([^)]*\) : pageexport\.buildHtml/);
   assert.ok(!/readFileSync\(p\./.test(body), '画面から来たパスは読まない');
   // EverPad の外では開けないリンクは文字にし、画像は cid: で参照する
   const fn = app.slice(app.indexOf('async function exportPage'), app.indexOf('/* ---------- 画面の上に出す小さな窓'));

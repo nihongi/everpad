@@ -18,6 +18,9 @@ const COMMANDS = [
   { id: 'adoc', group: 'mFile>mExportMenu', label: 'mExportAdoc', def: '' },
   { id: 'docx', group: 'mFile>mExportMenu', label: 'mExportDocx', def: '' },
   { id: 'tex', group: 'mFile>mExportMenu', label: 'mExportTex', def: '' },
+  { id: 'slides', group: 'mFile>mExportMenu', label: 'mExportSlides', def: '' },
+  { id: 'slidespdf', group: 'mFile>mExportMenu', label: 'mExportSlidesPdf', def: '' },
+  { id: 'pptx', group: 'mFile>mExportMenu', label: 'mExportPptx', def: '' },
   { id: 'archive', group: 'mFile>mExportMenu', label: 'mExportArchive', def: '' },
   { id: 'print', group: 'mFile', label: 'mPrint', def: 'CmdOrCtrl+P' },
   { id: 'readonly', group: 'mFile', label: 'mReadOnly', def: '' },
@@ -61,6 +64,8 @@ const COMMANDS = [
   { id: 'mode:preview', group: 'mView', label: 'mModePreview', def: 'CmdOrCtrl+2' },
   { id: 'mode:history', group: 'mView', label: 'mModeHistory', def: 'CmdOrCtrl+3' },
   { id: 'prune', group: 'mView', label: 'mPrune', def: '' },
+  // スライドショー: PowerPoint と同じ F5(Mac は PowerPoint の ⌘⇧Return)
+  { id: 'show', group: 'mView', label: 'mShow', def: 'F5', mac: 'CmdOrCtrl+Shift+Enter' },
   { id: 'side', group: 'mView', label: 'mSide', def: 'CmdOrCtrl+B' },
   { id: 'lines', group: 'mView', label: 'mLines', def: 'CmdOrCtrl+L' },
   { id: 'zoomIn', group: 'mView', label: 'mZoomIn', def: 'CmdOrCtrl+Plus', role: 'zoomIn' },

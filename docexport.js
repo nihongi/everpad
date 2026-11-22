@@ -57,7 +57,7 @@ const hasClass = (n, c) => (' ' + (n.attrs && n.attrs.class || '') + ' ').indexO
              { t:'alert', kind:'note'|'tip'|'important'|'warning'|'caution', title:[文中], c:[ブロック] }
              { t:'footnotes', items:[{ n, c:[ブロック] }] }(脚注の一覧。本文の最後に1つ)
    文中: { t:'text', v } { t:'br' } { t:'b'|'i'|'s', c } { t:'code', v } { t:'a', href, c }
-         { t:'img', file, alt, w, h } { t:'math', tex, mml, error, display } { t:'fn', n }(脚注の参照) */
+         { t:'img', file, alt, w, h, box(PowerPoint の書き出しで、スライドの中の場所。pptxexport.js) } { t:'math', tex, mml, error, display } { t:'fn', n }(脚注の参照) */
 const ALERT_KINDS = ['note', 'tip', 'important', 'warning', 'caution'];
 const HEADING = /^h([1-6])$/;
 function mathNode(n, display) {
@@ -88,7 +88,7 @@ function inlinesOf(nodes) {
       else out.push(...inlinesOf(n.children));
     } else if (tag === 'img') {
       const file = n.attrs['data-att'] || '';
-      if (/^[0-9a-f]{16}\.[a-z0-9]{1,8}$/.test(file)) out.push({ t: 'img', file: file, alt: n.attrs.alt || '', w: +n.attrs['data-w'] || 0, h: +n.attrs['data-h'] || 0 });
+      if (/^[0-9a-f]{16}\.[a-z0-9]{1,8}$/.test(file)) out.push(Object.assign({ t: 'img', file: file, alt: n.attrs.alt || '', w: +n.attrs['data-w'] || 0, h: +n.attrs['data-h'] || 0 }, n.attrs['data-box'] ? { box: n.attrs['data-box'] } : {}));
     } else if (tag === 'input') out.push({ t: 'check', on: 'checked' in n.attrs });
     else out.push(...inlinesOf(n.children));
   }
@@ -1416,4 +1416,4 @@ function docxImageExt(fileId) {
   return e === 'jpg' || e === 'jpeg' ? 'jpeg' : e === 'png' || e === 'gif' || e === 'bmp' ? e : null;
 }
 
-module.exports = { parseMarkup, bodyTree, treeImages, treeHasMath, toAsciiDoc, toLatex, texDiagrams, texImagesDir, texImageOk, mathmlToOmml, toDocx, docxImageExt, colorHex };
+module.exports = { parseMarkup, blocksOf, bodyTree, treeImages, treeHasMath, toAsciiDoc, toLatex, texDiagrams, texImagesDir, texImageOk, mathmlToOmml, toDocx, docxImageExt, colorHex };

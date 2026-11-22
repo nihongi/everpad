@@ -160,12 +160,12 @@ test('Word: 用紙と向き・言語・目次のフィールド(開くときに�
 
 test('つなぎ込み: プレビュー・履歴・印刷・書き出しで設定を使い、main.js は値をそろえる', () => {
   const app = read('renderer/app.js'), main = read('main.js'), preload = read('preload.js'), css = read('renderer/styles.css');
-  assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true \}\) [^\n]*\n\s+applyDocOpts\(pv, docOpts\(cur\(\)\.text\), 'pv-h-'\);/);
-  assert.match(app, /body\.innerHTML = '<div class="md">' \+ md\(text, \{ lines: true, fm: true \}\) \+ '<\/div>';\n\s+applyDocOpts\(body\.firstChild, docOpts\(text\), 'hv-h-'\);/);
-  assert.match(app, /applyDocOpts\(area\.firstChild, opts, 'ep-h-'\);/);
-  assert.match(app, /if \(web\) applyDocOpts\(box, opts, 'ep-h-'\);/);
+  assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true, slides: slides \}\) [^\n]*\n\s+applyDocOpts\(pv, docOpts\(cur\(\)\.text\), 'pv-h-'\);/);
+  assert.match(app, /body\.innerHTML = '<div class="md">' \+ md\(text, \{ lines: true, fm: true, slides: slides \}\) \+ '<\/div>';\n\s+applyDocOpts\(body\.firstChild, docOpts\(text\), 'hv-h-'\);/);
+  assert.match(app, /applyDocOpts\(area\.firstChild, slides \? Object\.assign\(\{\}, opts, \{ toc: false \}\) : opts, 'ep-h-'\);/);
+  assert.match(app, /if \(web && kind !== 'slides'\) applyDocOpts\(box, opts, 'ep-h-'\);/);
   assert.match(app, /'@page \{ margin: 18mm 16mm; background: #fff;' \+ \(size \? ' size: ' \+ size \+ ';' : ''\)/);
-  assert.match(app, /api\.savePdf\(title, \{ paper: opts\.paper, landscape: opts\.landscape \}\)/);
+  assert.match(app, /api\.savePdf\(title, slides \? \{\} : \{ paper: opts\.paper, landscape: opts\.landscape \}\)/);
   assert.match(app, /api\.print\(\{ paper: opts\.paper, landscape: opts\.landscape \}\)/);
   // 目次はプレビューで編集欄を開かない。項目を押すと見出しへ
   assert.match(app, /const PE_SKIP = '[^']*, \.toc';/);

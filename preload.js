@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   // page: { paper, landscape }(フロントマターの用紙の大きさと向き)
   print: page => ipcRenderer.invoke('print:print', page),
   savePdf: (title, page) => ipcRenderer.invoke('print:pdf', title, page),
+  showFullScreen: on => ipcRenderer.invoke('win:show', !!on),
   exportPage: (id, p, kind) => ipcRenderer.invoke('export:page', id, p, kind),
   fileUrl: (noteId, fileId) => 'everpad-file://f/' + encodeURIComponent(noteId) + '/' + encodeURIComponent(fileId),
   // 画面を閉じる直前に使う同期版(非同期だと間に合わないことがある)

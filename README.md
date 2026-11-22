@@ -24,6 +24,7 @@ This program was created with the help of Claude Code.
 - **Images and attachments**: paste screenshots or drop files into a note.
 - **Links from the web browser**: drag the icon to the left of the address in Chrome or Edge (or a link on a page) onto a note to insert `[page title](URL)`.
 - **Print and export**: print a note, or save it as a PDF or as one web page file (HTML or MHTML) with the images included, with the same formatting as the preview. A note can also be saved as AsciiDoc, as a Word document (`.docx`) or as LaTeX (`.tex`), keeping its headings, lists, tables, images and formulas.
+- **Slides**: split a note with `---` lines to make 16:9 slides, as in Marp. Show them full screen with View → Slideshow (`F5`), or save them as a web page, a PDF or a PowerPoint file with editable text and equations. With `marp: true` in the front matter, the preview and the history show the note as slides.
 - **Keyboard shortcuts you can change**: assign the keys you like from File → Keyboard Shortcuts….
 - **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
@@ -54,10 +55,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.47.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.48.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.47.1.exe
+EverPad 0.48.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -311,6 +312,16 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Word (`.docx`) opens in Microsoft Word and in other programs that read Word documents. Attached images are inside the file (WebP and AVIF images are converted to PNG, because older versions of Word cannot read them), and images wider than the page are shrunk to fit. Headings use Word's Heading 1–6 styles, so the Navigation pane and tables of contents work. Formulas become Word equations that can be edited in Word; a formula with an error is put in as its LaTeX. The body text uses Yu Mincho and the headings Yu Gothic (the fonts Word uses for Japanese documents), and no fonts are put in the file. The paper size is A4 (Letter in the United States and Canada).
 - LaTeX (`.tex`) is a text file to be compiled with LuaLaTeX (for example `lualatex Notes.tex`; TeX Live and MiKTeX include it, and on Overleaf choose LuaLaTeX as the compiler). Formulas keep their LaTeX; the few commands that only KaTeX has (such as `\R`) are defined at the top of the file, and Greek letters and symbols typed directly in a formula (such as `α` and `≤`) become LaTeX commands. Attached images and diagrams are put in a folder named after the file with `_images` added, as for AsciiDoc (images LuaLaTeX cannot read, such as WebP, are converted to PNG, and diagrams become PNG pictures). A note with Japanese text uses the `ltjsarticle` class, and other notes use `article`; only the packages the note needs are loaded. Headings are not numbered (delete the line `\setcounter{secnumdepth}{0}` to number them). Footnotes become `\footnote`, alerts become boxes with a colored line, and tables become `longtable` tables that can continue on the next page (long text in a column wraps). The title is set as for AsciiDoc. Characters missing from the fonts, such as emoji, are left out of the PDF.
 
+**Slides**
+
+- A note becomes slides when it is split with horizontal rules (`---`, `***` or `___` on a line of their own, with blank lines around them): each part is one 16:9 slide. Rules inside block quotes, lists and code blocks do not split slides, and empty slides are left out. This is the same way of writing as [Marp](https://marp.app/), so a note made in Marp opens in EverPad as slides. In slides, lines that are HTML comments (`<!-- … -->`, which Marp uses for directives such as `paginate` and for speaker notes) are not shown; Marp's themes, directives and `![bg]` background images are not used. Put a blank line before `---`, so that Marp does not read the line above it as a heading.
+- Write `marp: true` in the front matter to show the note as slides in the preview and in the history's preview: the slides are lined up as 16:9 frames, numbered in the bottom-right corner. The text is sized to the width of the frame (35 px when the frame is 1280 px wide, as in Marp) and centered vertically. When a slide's content does not fit, its text is made smaller until it fits (down to half size), as PowerPoint does; this also applies to the slideshow and the exports. A slide that still does not fit gets a red bottom edge (point at it for an explanation), and the part that does not fit is cut off. Editing in the preview works as usual, and the slide grows while you edit it. In the history, the slide changed by the version shown has a colored frame, so you can see which slide each edit changed (during playback, the view follows that slide). Without `marp: true`, the preview shows the horizontal rules as before.
+- View → Slideshow (`F5`; on macOS, ⌘⇧Return) makes the window full screen and shows one slide at a time, starting with the slide you are viewing (in the Text view, the slide with the cursor). → ↓ Page Down, Space, Enter, a click or the mouse wheel go to the next slide; ← ↑ Page Up and Backspace go back; Home and End go to the first and last slide; Esc ends the slideshow. The slide number appears in the bottom-right corner while the mouse moves. The slideshow works for any note, with or without `marp: true`. While the history is shown, the version being viewed is shown.
+- File → Export → Slides (HTML)… saves the slides as one web page file, with images and the fonts for formulas inside, as for HTML. Opened in a web browser, it shows the slides one under another; press the Slideshow button at the top right (or F) to show them full screen, one at a time, with the same keys as above. Printing it from the browser puts one slide on each page. The page contains a small script for the slideshow (the only script it may run; it loads nothing from the internet).
+- File → Export → Slides (PDF)… saves a PDF with one slide on each 16:9 page (254 × 142.875 mm), without the title, times and page numbers of the usual PDF.
+- File → Export → Slides (PowerPoint)… saves the slides as a PowerPoint file (`.pptx`, 16:9) that can be edited in PowerPoint. Each part of a slide (heading, paragraph, list, code, table, quote and so on) becomes a text box, a table or a picture placed where it is in the preview, with the same text sizes (made smaller when the slide's text was made smaller to fit). Formulas become PowerPoint equations, which can be edited in PowerPoint (in Microsoft 365, select an equation and choose LaTeX in the Equation tab to edit its LaTeX); for apps that cannot show PowerPoint equations, the file also holds the LaTeX as text. Diagrams and attached images become pictures (WebP and AVIF images are converted to PNG). Links stay links. The text uses the same font as EverPad (Yu Gothic UI in Japanese, Segoe UI in English on Windows), so the layout can differ slightly on a computer without that font. In PowerPoint, a fraction inside a line of text is always drawn small, also when written with `dfrac`.
+- The exports and the slideshow work for any note, using the horizontal rules, and use the version being viewed while the history is shown. Exported slides always use light colors; the slideshow uses the same colors as the preview.
+
 **Other**
 
 - Menu items that cannot be used in the current view are grayed out (and their shortcut keys do nothing): Attach Image or File… and Insert Link to Note… work only in the Text view, and Format only in the Text view and while a part of the note is being edited in the preview; Toggle Line Numbers (and the Line numbers button at the bottom right) works only where line numbers are shown (the Text view and the history started from it); Back to Previous Note works only when there is a note to go back to; Delete History Older Than This Version… works only in the history; in the View menu, Text or Preview is grayed out while that view is shown (also during the history). For a read-only note, Attach Image or File…, Format, Insert Link to Note… and Delete History Older Than This Version… are grayed out (Find and Replace… still works, as find only).
@@ -482,15 +493,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.47.1.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.48.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.47.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.48.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.47.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.48.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -499,7 +510,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.47.1.AppImage` (x64)
+- Linux: `EverPad-0.48.0.AppImage` (x64)
 
 **macOS**
 
@@ -515,7 +526,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.47.1.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.48.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -536,7 +547,8 @@ macmenu.js       The macOS menu layout (testable without Electron)
 keymap.js        Keyboard shortcuts: the default keys (Windows and macOS), checking and saving the keys you set (testable without Electron)
 updatecheck.js   Checking GitHub for a newer version (testable without Electron)
 updatedownload.js  Downloading a new version and checking its SHA-256 for updating from within the app (testable without Electron)
-pageexport.js    Building HTML and MHTML files for File → Export (testable without Electron)
+pageexport.js    Building HTML, MHTML and slide HTML files for File → Export (testable without Electron)
+pptxexport.js    Building PowerPoint files of the slides for File → Export (testable without Electron)
 docexport.js     Building AsciiDoc, Word and LaTeX files for File → Export (testable without Electron)
 datalock.js      The marker file that lets only one EverPad edit a data folder, and hands editing over between them (testable without Electron)
 textcodec.js     Detecting the encoding of imported text files (testable without Electron)
@@ -610,6 +622,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **画像・ファイルの添付**: スクリーンショットを貼り付けたり、ファイルをドラッグ&ドロップしたりできます。
 - **ブラウザからのリンク**: Chrome や Edge のアドレスの左のアイコン(またはページの中のリンク)をメモにドラッグ&ドロップすると、`[ページのタイトル](URL)` を入れます。
 - **印刷・エクスポート**: メモを、プレビューと同じ整形した見た目で印刷したり、PDF や、画像も入った1つの Web ページのファイル(HTML・MHTML)として保存したりできます。見出し・リスト・表・画像・数式を保ったまま、AsciiDoc、Word 文書(`.docx`)、LaTeX(`.tex`)としても保存できます。
+- **スライド**: Marp と同じく、メモを `---` の行で分けると 16:9 のスライドになります。「表示」→「スライドショー」(`F5`)で全画面にして見せたり、Web ページや PDF、文字と数式を編集できる PowerPoint のファイルとして保存したりできます。フロントマターに `marp: true` と書くと、プレビューと履歴でもスライドの形で見せます。
 - **キーボードショートカットを変えられる**: 「ファイル」→「キーボードショートカット…」で、好きなキーを割り当てられます。
 - **日本語と英語**: 画面の言語を設定から切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
@@ -640,10 +653,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.47.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.48.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.47.1.exe
+EverPad 0.48.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(既定)
@@ -897,6 +910,16 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - Word(`.docx`)は、Microsoft Word や、Word の文書を読めるほかのソフトで開けます。添付の画像はファイルの中に入れます(WebP と AVIF の画像は、古い Word では読めないので PNG にします)。ページの幅より大きい画像は、幅に収まるよう縮めます。見出しは Word の「見出し 1〜6」のスタイルにするので、ナビゲーションウィンドウや目次がそのまま使えます。数式は Word の数式になり、Word で編集できます。誤りのある数式は、LaTeX の文字のまま入れます。本文は游明朝、見出しは游ゴシック(Word で日本語の文書を作るときと同じフォント)にし、フォントはファイルに入れません。用紙は A4 です(米国とカナダでは Letter)。
 - LaTeX(`.tex`)は、LuaLaTeX でコンパイルするテキストのファイルです(例: `lualatex メモ.tex`。TeX Live や MiKTeX に入っています。Overleaf ではコンパイラーに LuaLaTeX を選んでください)。数式は LaTeX のまま入ります。KaTeX にだけある少しの命令(`\R` など)はファイルの先頭で定義し、数式に直接書いたギリシャ文字や記号(`α`、`≤` など)は LaTeX の命令にします。添付の画像と図は、AsciiDoc と同じく、ファイル名に `_images` を付けたフォルダーに置きます(WebP など LuaLaTeX が読めない画像は PNG にし、図は PNG の画像にします)。日本語を含むメモは `ltjsarticle`、そうでないメモは `article` のクラスにし、パッケージはメモで使う分だけ読み込みます。見出しに番号は付けません(付けるときは `\setcounter{secnumdepth}{0}` の行を消してください)。脚注は `\footnote` に、アラートは色の付いた線の枠に、表はページをまたげる `longtable` の表(長い文の列は折り返します)になります。題名の決め方は AsciiDoc と同じです。絵文字など、フォントに無い文字は PDF には出ません。
 
+**スライド**
+
+- メモを区切り線(前後を空の行にした `---`・`***`・`___` だけの行)で分けると、分けた1つずつが 16:9 のスライドになります。引用・リスト・コードブロックの中の区切り線では分けず、中身の無いスライドは出しません。[Marp](https://marp.app/) と同じ書き方なので、Marp で書いたメモも、EverPad でスライドとして開けます。スライドでは、HTML のコメントの行(`<!-- … -->`。Marp では `paginate` などの指定と、発表者のメモに使います)は出しません。Marp のテーマ、指定、`![bg]` の背景の画像は使いません。`---` の前には空の行を入れてください(入れないと、Marp ではその上の行が見出しになります)。
+- フロントマターに `marp: true` と書くと、プレビューと、プレビューの履歴の表示で、メモをスライドの形で見せます。16:9 の枠を縦に並べ、右下にスライドの番号を出します。文字の大きさは枠の幅に合わせ(Marp と同じく、幅 1280 px で 35 px)、中身は上下の中央に置きます。枠に入りきらないスライドは、PowerPoint と同じく、入りきるまで文字を小さくします(半分の大きさまで。スライドショーと書き出しでも同じです)。それでも入りきらないスライドは下の縁が赤くなり(マウスを重ねると説明が出ます)、入りきらない所は切れて見えません。プレビューでの編集は今までどおりで、編集している間はスライドが伸びます。履歴の表示では、その版で変えたスライドに色の付いた枠が付くので、編集ごとにどのスライドが変わったかが分かります(再生中は、そのスライドが見えるように動きます)。`marp: true` が無いメモのプレビューでは、今までどおり区切り線を出します。
+- 「表示」→「スライドショー」(`F5`。macOS では ⌘⇧Return)で、窓を全画面にして、スライドを1枚ずつ見せます。見ているスライド(「テキスト」ではカーソルのあるスライド)から始めます。→ ↓ PageDown・Space・Enter・クリック・マウスのホイールで次へ、← ↑ PageUp・Backspace で前へ、Home・End で最初と最後へ移り、Esc で終わります。マウスを動かすと、右下にスライドの番号が出ます。`marp: true` が無いメモでも使えます。履歴の表示中は、見ている版を見せます。
+- 「ファイル」→「エクスポート」→「スライド (HTML)…」で、スライドを1つの Web ページのファイルに保存します。HTML と同じく、画像と数式のフォントもファイルの中に入ります。Web ブラウザーで開くとスライドが縦に並び、右上の「スライドショー」のボタン(か F キー)で、全画面にして1枚ずつ見せます(キーは上と同じです)。ブラウザーで印刷すると、1枚を1ページにします。このファイルには、スライドショーのための小さなスクリプトが入っています(動かせるのはそのスクリプトだけで、インターネットから何かを読み込むことはありません)。
+- 「ファイル」→「エクスポート」→「スライド (PDF)…」で、1枚を1ページ(16:9。254 × 142.875 mm)にした PDF を保存します。いつもの PDF の題名・日時・ページ番号は入れません。
+- 「ファイル」→「エクスポート」→「スライド (PowerPoint)…」で、PowerPoint で編集できるファイル(`.pptx`。16:9)を保存します。スライドの中のかたまり(見出し・段落・リスト・コード・表・引用など)を、プレビューと同じ場所に、同じ文字の大きさ(入りきるように文字を小さくしたスライドは、小さくした大きさ)で、テキストボックス・表・画像として置きます。数式は PowerPoint の数式になり、PowerPoint で編集できます(Microsoft 365 では、数式を選んで「数式」タブで LaTeX を選ぶと、LaTeX で編集できます)。PowerPoint の数式を表示できないソフトのために、LaTeX の文字も入れておきます。図と添付の画像は画像になります(WebP と AVIF の画像は PNG にします)。リンクはリンクのままです。文字のフォントは EverPad と同じ(Windows では、日本語なら Yu Gothic UI、英語なら Segoe UI)なので、そのフォントの無いパソコンでは、配置が少し変わることがあります。PowerPoint では、文の中の分数は、`dfrac` で書いても小さく表示されます。
+- スライドの書き出しもスライドショーも、`marp: true` が無いメモでも区切り線で分けて使えます。履歴の表示中は、見ている版を使います。書き出したスライドは、いつも明るい配色です。スライドショーは、プレビューと同じ配色です。
+
 **その他**
 
 - 今の表示で使えないメニューの項目は、グレーアウトします(キー操作も効きません)。「画像・ファイルを添付…」「メモへのリンクを挿入…」は「テキスト」表示だけ、「書式」は「テキスト」表示と、プレビューでかたまりを編集している間だけ、「行番号の表示を切り替え」(と右下の「行番号」ボタン)は行番号が出る表示(「テキスト」表示と、そこから入った履歴の表示)だけ、「前に見たメモに戻る」は戻れるメモがあるときだけ、「この版より古い履歴を削除…」は履歴の表示だけで使えます。「表示」メニューの「テキスト」「プレビュー」は、その表示を見ているあいだ(履歴の表示の中も)グレーアウトします。読み取り専用のメモでは、「画像・ファイルを添付…」「書式」「メモへのリンクを挿入…」「この版より古い履歴を削除…」がグレーアウトします(「検索と置換…」は、検索だけとして使えます)。
@@ -1068,15 +1091,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.47.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.48.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.47.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.48.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.47.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.48.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -1085,7 +1108,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.47.1.AppImage`(x64)
+- Linux: `EverPad-0.48.0.AppImage`(x64)
 
 **macOS**
 
@@ -1101,7 +1124,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.47.1.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.48.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -1122,7 +1145,8 @@ macmenu.js       macOS のメニューの形(Electron なしでテストでき�
 keymap.js        キーボードショートカット: 既定のキー(Windows と macOS)、割り当てたキーの判定と保存(Electron なしでテストできる)
 updatecheck.js   GitHub に新しいバージョンがあるかの確認(Electron なしでテストできる)
 updatedownload.js  アプリの中からの更新のための、新しい版のダウンロードと SHA-256 の確認(Electron なしでテストできる)
-pageexport.js    「エクスポート」の HTML と MHTML のファイルの組み立て(Electron なしでテストできる)
+pageexport.js    「エクスポート」の HTML・MHTML・スライドの HTML のファイルの組み立て(Electron なしでテストできる)
+pptxexport.js    「エクスポート」のスライドの PowerPoint のファイルの組み立て(Electron なしでテストできる)
 docexport.js     「エクスポート」の AsciiDoc・Word・LaTeX のファイルの組み立て(Electron なしでテストできる)
 datalock.js      同じ保存先を編集する EverPad を1つにする目印のファイルと、編集の引き継ぎ(Electron なしでテストできる)
 textcodec.js     取り込むテキストファイルの文字コードの判定(Electron なしでテストできる)

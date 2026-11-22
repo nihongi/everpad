@@ -228,10 +228,10 @@ test('画面: メニュー・検索・プレビュー・文言がつながって
   // 色付けと検索のバーには、タグを除いた検索語
   assert.ok(!/highlight\([a-z]+, S\.q\)|matchRanges\(text, S\.q\)|\$\('frFind'\)\.value = S\.q;/.test(app));
   // プレビューと履歴の Markdown 表示ではフロントマターを出す。印刷・書き出しでは出さない(題名・著者・日付だけを先頭に出す)
-  assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true \}\)/);
-  assert.match(app, /md\(text, \{ lines: true, fm: true \}\)/);
-  assert.match(app, /const web = kind === 'html' \|\| kind === 'mhtml';\n\s+box\.innerHTML = \(web \? titleBlockHtml\(meta, T\('authorSep'\)\) : ''\) \+ md\(text\);/);
-  assert.match(app, /area\.innerHTML = '<div class="md">' \+ titleBlockHtml\(meta, T\('authorSep'\)\) \+ md\(text\) \+ '<\/div>';/);
+  assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true, slides: slides \}\)/);
+  assert.match(app, /md\(text, \{ lines: true, fm: true, slides: slides \}\)/);
+  assert.match(app, /const pptx = kind === 'pptx', slides = kind === 'slides' \|\| pptx, web = kind === 'html' \|\| kind === 'mhtml' \|\| kind === 'slides';\n\s+box\.innerHTML = slides \? md\(text, \{ slides: true \}\) : \(web \? titleBlockHtml\(meta, T\('authorSep'\)\) : ''\) \+ md\(text\);/);
+  assert.match(app, /area\.innerHTML = '<div class="md">' \+ \(slides \? md\(text, \{ slides: true \}\) : titleBlockHtml\(meta, T\('authorSep'\)\) \+ md\(text\)\) \+ '<\/div>';/);
   assert.match(css, /\.md \.fm \{/);
   assert.match(css, /\.tag \{/);
   for (const l of ['ja', 'en']) for (const k of ['mInsertFm', 'tagMatches']) assert.ok(I18N.DICT[l][k], l + ' ' + k);

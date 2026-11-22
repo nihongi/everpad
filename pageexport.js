@@ -74,7 +74,78 @@ function pageHtml(o) {
     + '</body>\n</html>\n';
 }
 
-const b64lines = buf => Buffer.from(buf).toString('base64').replace(/.{1,76}/g, '$&\r\n');
+/* スライドの HTML(「エクスポート」→「スライド (HTML)」)。本文は core.js の slidesHtml で分けたスライド(<section class="slide">)。
+   ふだんはスライドを縦に並べて見せ、「スライドショー」のボタン(か F キー・F5)で、画面いっぱいに1枚ずつ見せる
+   (→ ↓ PageDown Space Enter・クリックで次、← ↑ PageUp Backspace で前、Home・End で最初・最後、Esc で終わる)。
+   印刷すると、1枚を1ページ(16:9。余白なし)にする。スクリプトはこのファイルの中のものだけを、CSP のハッシュで許す。
+   o は pageHtml と同じ(head・foot は使わない)に、play(ボタンの言葉)・playTitle(ボタンの説明)を足したもの */
+const SLIDES_JS = [
+  '(function () {',
+  '  var d = document.querySelector("main.md"), btn = document.getElementById("play"), no = document.getElementById("no");',
+  '  var s = Array.prototype.filter.call(d.children, function (x) { return x.classList.contains("slide"); }), i = 0, on = false;',
+  '  if (!s.length) { btn.hidden = true; return; }',
+  '  function go(k) { i = Math.max(0, Math.min(s.length - 1, k)); s.forEach(function (x, j) { x.classList.toggle("cur", j === i); }); no.textContent = (i + 1) + " / " + s.length; }',
+  '  function near() { var c = innerHeight / 2, best = 0, bd = Infinity; s.forEach(function (x, j) { var r = x.getBoundingClientRect(), v = Math.abs((r.top + r.bottom) / 2 - c); if (v < bd) { bd = v; best = j; } }); return best; }',
+  '  function start(k) { on = true; document.body.classList.add("present"); go(k); var el = document.documentElement; if (el.requestFullscreen) { var p = el.requestFullscreen(); if (p && p.catch) p.catch(function () {}); } }',
+  '  function stop() { if (!on) return; on = false; document.body.classList.remove("present"); s.forEach(function (x) { x.classList.remove("cur"); }); if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); s[i].scrollIntoView({ block: "center" }); }',
+  '  btn.addEventListener("click", function () { start(near()); });',
+  '  document.addEventListener("keydown", function (e) {',
+  '    var k = e.key;',
+  '    if (e.ctrlKey || e.metaKey || e.altKey) return;',
+  '    if (!on) { if (k === "F5" || k === "f" || k === "F") { e.preventDefault(); start(near()); } return; }',
+  '    if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === " " || k === "Enter") go(i + 1);',
+  '    else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") go(i - 1);',
+  '    else if (k === "Home") go(0);',
+  '    else if (k === "End") go(s.length - 1);',
+  '    else if (k === "Escape") stop();',
+  '    else return;',
+  '    e.preventDefault();',
+  '  });',
+  '  d.addEventListener("click", function (e) { if (on && !(e.target.closest && e.target.closest("a"))) go(i + 1); });',
+  '  document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement) stop(); });',
+  '})();'
+].join('\n');
+const SLIDES_CSS = [
+  'html, body.deck { background: #E6E9EF; }',
+  'body.deck { max-width: 1000px; padding: 56px 16px 40px; }',
+  '.play { position: fixed; top: 12px; right: 16px; z-index: 2; font: 600 14px/1 var(--ui); color: #fff; background: var(--accent); border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); }',
+  '.play:hover { filter: brightness(1.1); }',
+  '.no { display: none; }',
+  'body.present { overflow: hidden; }',
+  'body.present .play { display: none; }',
+  'body.present main.md { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: #000; cursor: default; }',
+  'body.present main.md > .slide { display: none; flex: none; width: min(100vw, 177.78vh); margin: 0; border: 0; border-radius: 0; box-shadow: none; }',
+  'body.present main.md > .slide.cur { display: block; }',
+  'body.present .no { display: block; position: fixed; right: 14px; bottom: 10px; z-index: 4; font: 13px/1 var(--ui); color: #9AA3B5; }',
+  '@page { size: 254mm 142.875mm; margin: 0; }',
+  '@media print {',
+  '  html, body.deck { background: #fff; }',
+  '  body.deck { max-width: none; padding: 0; }',
+  '  .play, .no { display: none; }',
+  '  main.md > .slide { width: 100vw; height: 100vh; aspect-ratio: auto; margin: 0; border: 0; border-radius: 0; box-shadow: none; break-after: page; }',
+  '  main.md > .slide:last-child { break-after: auto; }',
+  '}'
+].join('\n');
+function slidesHtml(o) {
+  const hash = require('crypto').createHash('sha256').update(SLIDES_JS, 'utf8').digest('base64');
+  const csp = "default-src 'none'; img-src cid: data:; style-src 'unsafe-inline'; font-src cid: data:; script-src 'sha256-" + hash + "'; base-uri 'none'; form-action 'none'";
+  return '<!DOCTYPE html>\n<html lang="' + esc(o.lang || 'en') + '">\n<head>\n<meta charset="utf-8">\n'
+    + '<meta http-equiv="Content-Security-Policy" content="' + csp + '">\n'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+    + '<meta name="generator" content="' + esc(o.generator || 'EverPad') + '">\n'
+    + (o.author && o.author.length ? '<meta name="author" content="' + esc(o.author.join(', ')) + '">\n' : '')
+    + (o.keywords && o.keywords.length ? '<meta name="keywords" content="' + esc(o.keywords.join(', ')) + '">\n' : '')
+    + '<title>' + esc(o.title || '') + '</title>\n'
+    + '<style>\n' + (o.katexCss ? o.katexCss + '\n' : '') + o.css + SLIDES_CSS + '\n</style>\n</head>\n<body class="deck">\n'
+    + '<button type="button" class="play" id="play" title="' + esc(o.playTitle || '') + '">▶ ' + esc(o.play || 'Slideshow') + '</button>\n'
+    + '<main class="md">' + o.bodyHtml + '</main>\n'
+    + '<div class="no" id="no" aria-live="polite"></div>\n'
+    // CSP のハッシュは <script> と </script> の間の文字そのもの(改行も含む)で計るので、間に何も足さない
+    + '<script>' + SLIDES_JS + '</script>\n'
+    + '</body>\n</html>\n';
+}
+
+const b64lines = buf =>Buffer.from(buf).toString('base64').replace(/.{1,76}/g, '$&\r\n');
 // メールの見出しに使う題名(ASCII 以外は RFC 2047 の形にする)
 const encodedWord = s => (/^[\x20-\x7e]*$/.test(s) ? s : '=?utf-8?B?' + Buffer.from(s, 'utf8').toString('base64') + '?=');
 
@@ -117,4 +188,4 @@ function buildHtml(o) {
   return Buffer.from(html, 'utf8');
 }
 
-module.exports = { IMAGE_TYPES, imageType, cidOf, exportCss, katexCss, referencedImages, pageHtml, buildMhtml, buildHtml };
+module.exports = { IMAGE_TYPES, imageType, cidOf, exportCss, katexCss, referencedImages, pageHtml, slidesHtml, SLIDES_JS, buildMhtml, buildHtml };

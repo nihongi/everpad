@@ -21,6 +21,7 @@ const updget = require('./updatedownload');
 const { spawn } = require('child_process');
 const pageexport = require('./pageexport');
 const docexport = require('./docexport');
+const pptxexport = require('./pptxexport');
 const { officeClipPath } = require('./pasteclip');
 const isMac = process.platform === 'darwin';
 
@@ -512,6 +513,9 @@ ipcMain.handle('note:menu', (e, title, ro) => {
         { label: T('mExportAdoc'), click: pick('exportAdoc') },
         { label: T('mExportDocx'), click: pick('exportDocx') },
         { label: T('mExportTex'), click: pick('exportTex') },
+        { label: T('mExportSlides'), click: pick('exportSlides') },
+        { label: T('mExportSlidesPdf'), click: pick('exportSlidesPdf') },
+        { label: T('mExportPptx'), click: pick('exportPptx') },
         { label: T('mExportArchive'), click: pick('exportArchive') }
       ] },
       { type: 'separator' },
@@ -954,6 +958,19 @@ ipcMain.handle('print:pdf', async (e, title, page) => {
   } catch (err) { return { status: 'failed' }; }
 });
 
+/* スライドショー(画面側の「表示」→「スライドショー」)の間だけ、窓を全画面にする。もとから全画面なら、そのままにする */
+let showWasFull = null;
+ipcMain.handle('win:show', (e, on) => {
+  if (!fromOurWindow(e) || !win || win.isDestroyed()) return;
+  if (on) {
+    if (showWasFull == null) showWasFull = win.isFullScreen();
+    if (!showWasFull) win.setFullScreen(true);
+  } else {
+    if (showWasFull === false) win.setFullScreen(false);
+    showWasFull = null;
+  }
+});
+
 /* Web ページ(HTML か MHTML)として書き出す。本文は画面側で整形した HTML(画像は cid:<ファイルID>@everpad で参照)。
    画像はこのメモの添付から読み、数式があれば KaTeX の CSS とフォントも入れる。
    HTML は画像とフォントを data: で埋め込んだ1つのファイル、MHTML は別の部分として入れた1つのファイル */
@@ -962,7 +979,9 @@ const PAGE_KINDS = {
   mhtml: { ext: 'mhtml', title: 'mhtmlSaveTitle', filter: { name: 'MHTML', extensions: ['mhtml', 'mht'] } },
   adoc: { ext: 'adoc', title: 'adocSaveTitle', filter: { name: 'AsciiDoc', extensions: ['adoc', 'asciidoc'] } },
   docx: { ext: 'docx', title: 'docxSaveTitle', filter: { name: 'Word', extensions: ['docx'] } },
-  tex: { ext: 'tex', title: 'texSaveTitle', filter: { name: 'LaTeX', extensions: ['tex'] } }
+  tex: { ext: 'tex', title: 'texSaveTitle', filter: { name: 'LaTeX', extensions: ['tex'] } },
+  slides: { ext: 'html', title: 'slidesSaveTitle', filter: { name: 'HTML', extensions: ['html', 'htm'] } },
+  pptx: { ext: 'pptx', title: 'pptxSaveTitle', filter: { name: 'PowerPoint', extensions: ['pptx'] } }
 };
 /* 画面から来る文書の情報(フロントマターの題名・著者・日付・タグ)を、決まった形と長さにそろえる */
 function cleanMeta(m) {
@@ -983,6 +1002,13 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
     filters: [k.filter]
   });
   if (r.canceled || !r.filePath) return { status: 'cancelled' };
+  if (kind === 'pptx') {
+    try {
+      await writePptxFile(id, title, p.bodyHtml, r.filePath, meta, typeof p.font === 'string' ? p.font : '');
+      rememberDir('export', r.filePath);
+      return { status: 'saved', path: r.filePath };
+    } catch (err) { return { status: 'failed' }; }
+  }
   if (kind === 'adoc' || kind === 'docx' || kind === 'tex') {
     try {
       await writeDocFile(id, title, p.bodyHtml, kind, r.filePath, meta, opts);
@@ -1002,13 +1028,15 @@ ipcMain.handle('export:page', async (e, id, p, kind) => {
       kx = pageexport.katexCss(fs.readFileSync(path.join(dir, 'katex.min.css'), 'utf8'));
       for (const f of kx.fonts) parts.push({ cid: pageexport.cidOf(f), type: 'font/woff2', data: fs.readFileSync(path.join(dir, 'fonts', f)) });
     }
-    const html = pageexport.pageHtml({
+    const page = {
       lang: opts.lang || lang, title: meta.title || title, author: meta.author, keywords: meta.keywords, pageSize: pageSizeCss(opts), head: String(p.head || ''), foot: String(p.foot || ''), bodyHtml: p.bodyHtml,
       generator: APP_NAME + ' ' + app.getVersion(),
       css: pageexport.exportCss(fs.readFileSync(path.join(__dirname, 'renderer', 'styles.css'), 'utf8')),
       katexCss: kx && kx.css
-    });
-    const data = kind === 'html' ? pageexport.buildHtml({ html: html, parts: parts }) : pageexport.buildMhtml({ title: title, html: html, parts: parts });
+    };
+    // スライド: 1枚ずつ見せるスクリプトと、ボタンの言葉を入れる
+    const html = kind === 'slides' ? pageexport.slidesHtml(Object.assign(page, { play: T('slidesPlay'), playTitle: T('slidesPlayTitle') })) : pageexport.pageHtml(page);
+    const data = kind === 'mhtml' ? pageexport.buildMhtml({ title: title, html: html, parts: parts }) : pageexport.buildHtml({ html: html, parts: parts });
     fs.writeFileSync(r.filePath, data);
     rememberDir('export', r.filePath);
     return { status: 'saved', path: r.filePath };
@@ -1069,6 +1097,22 @@ async function writeDocFile(id, title, bodyHtml, kind, filePath, meta, opts) {
     convert.forEach((c, k) => { if (pngs[k]) images[c.f] = { data: pngs[k], ext: 'png' }; });
   }
   fs.writeFileSync(filePath, docexport.toDocx(tree, { title: title, meta: meta, opts: opts, lang: lang, paper: opts.paper || paperSize(), generator: APP_NAME + ' ' + app.getVersion(), images: images }));
+}
+/* PowerPoint として書き出す(本文の HTML の決まりは pptxexport.js を参照)。画像はファイルの中に入れ、PowerPoint が読めない WebP・AVIF は PNG にする */
+async function writePptxFile(id, title, bodyHtml, filePath, meta, font) {
+  const images = {}, convert = [];
+  for (const f of pptxexport.pptxImages(bodyHtml)) {
+    const fp = store.attachmentPath(id, f);
+    if (!fp) continue;
+    const ext = docexport.docxImageExt(f), data = fs.readFileSync(fp);
+    if (ext) images[f] = { data: data, ext: ext };
+    else convert.push({ f: f, data: data, type: pageexport.imageType(f) });
+  }
+  if (convert.length) {
+    const pngs = await imagesToPng(convert);
+    convert.forEach((c, k) => { if (pngs[k]) images[c.f] = { data: pngs[k], ext: 'png' }; });
+  }
+  fs.writeFileSync(filePath, pptxexport.toPptx(bodyHtml, { title: title, meta: meta, lang: lang, font: font.replace(/[^\p{L}\p{N} ._-]/gu, '').slice(0, 64), generator: APP_NAME + ' ' + app.getVersion(), images: images }));
 }
 /* 画像(WebP・AVIF など)を PNG にする。表示しない窓で、data: の画像を canvas に描いて PNG にする。
    読めなかったものは null */
@@ -1294,6 +1338,9 @@ function buildMenu() {
           { label: T('mExportAdoc'), accelerator: A('adoc'), click: () => send('adoc') },
           { label: T('mExportDocx'), accelerator: A('docx'), click: () => send('docx') },
           { label: T('mExportTex'), accelerator: A('tex'), click: () => send('tex') },
+          { label: T('mExportSlides'), accelerator: A('slides'), click: () => send('slides') },
+          { label: T('mExportSlidesPdf'), accelerator: A('slidespdf'), click: () => send('slidespdf') },
+          { label: T('mExportPptx'), accelerator: A('pptx'), click: () => send('pptx') },
           { label: T('mExportArchive'), accelerator: A('archive'), click: () => send('archive') }
         ] },
         { label: T('mPrint'), accelerator: A('print'), click: () => send('print') },
@@ -1340,6 +1387,7 @@ function buildMenu() {
         { label: T('mModePreview'), accelerator: A('mode:preview'), enabled: ui.base !== 'preview', click: () => send('mode:preview') },
         { label: T('mModeHistory'), accelerator: A('mode:history'), click: () => send('mode:history') },
         { label: T('mPrune'), accelerator: A('prune'), enabled: ui.hist && !ui.ro, click: () => send('prune') },
+        { label: T('mShow'), accelerator: A('show'), click: () => send('show') },
         { label: T('mSide'), accelerator: A('side'), click: () => send('side') },
         { label: T('mLines'), accelerator: A('lines'), enabled: ui.lines, click: () => send('lines') },
         { type: 'separator' },

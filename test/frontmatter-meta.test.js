@@ -117,7 +117,7 @@ test('HTML・MHTML: <title> と author・keywords の meta', () => {
 
 test('つなぎ込み: 画面は文書の情報を渡し、main.js はそろえてから書き出しに使う', () => {
   const app = read('renderer/app.js'), main = read('main.js');
-  assert.match(app, /bodyHtml: box\.innerHTML, meta: meta, opts: Object\.assign\(\{ tocTitle: tocLabel\(opts\.lang\) \}, opts\) \}, kind\);/);
+  assert.match(app, /bodyHtml: box\.innerHTML, meta: meta, opts: Object\.assign\(\{ tocTitle: tocLabel\(opts\.lang\) \}, opts\),/);
   // 印刷・PDF: 先頭に題名などを出し、PDF のタイトルになる窓の題名を、その間だけ文書の題名にする
   assert.match(app, /document\.title = meta\.title \|\| title;/);
   assert.match(app, /document\.title = winTitle;/);
@@ -145,7 +145,7 @@ test('Markdown の書き方: フロントマターの例(枠にして出す)と�
     assert.match(html, /<div class="fm">/, l);
     assert.match(html, /<span class="fm-k">title<\/span>/, l);
     assert.strictEqual(core.docMeta(ex.src).author.length, 2, l);
-    assert.deepStrictEqual(keys.rows.map(r => r[0]), ['tags', 'title', 'author', 'date', 'toc', 'toc-depth', 'lang', 'papersize', 'orientation'], l);
+    assert.deepStrictEqual(keys.rows.map(r => r[0]), ['tags', 'title', 'author', 'date', 'toc', 'toc-depth', 'lang', 'papersize', 'orientation', 'marp'], l);
     assert.strictEqual(H[l].keyHead.length, 2, l);
   }
   const help = read('renderer/help.js');

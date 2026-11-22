@@ -289,8 +289,8 @@ test('AsciiDoc・Word・LaTeX: メニュー・画面・main.js へのつなぎ�
   assert.match(fn, /img\.dataset\.w = img\.naturalWidth; img\.dataset\.h = img\.naturalHeight/);
   assert.match(fn, /output: 'mathml'/);
   assert.match(fn, /el\.textContent = ''/);
-  assert.match(fn, /const p = \(kind === 'docx' \|\| kind === 'tex'\) && svg \? await Diagrams\.toPng\(svg\) : null;/);
-  assert.match(fn, /const doc = kind === 'adoc' \|\| kind === 'docx' \|\| kind === 'tex';/);
+  assert.match(fn, /const p = \(kind === 'docx' \|\| kind === 'tex' \|\| pptx\) && svg \? await Diagrams\.toPng\(svg\) : null;/);
+  assert.match(fn, /const doc = kind === 'adoc' \|\| kind === 'docx' \|\| kind === 'tex' \|\| pptx;/);
   const pkg = JSON.parse(read('package.json'));
   assert.ok(pkg.build.files.includes('docexport.js') && pkg.build.files.includes('ziplite.js'));
 });
