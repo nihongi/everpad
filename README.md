@@ -12,6 +12,9 @@ The user interface is available in English and Japanese. The language follows th
 
 This program was created with the help of Claude Code.
 
+<p align="center"><img src="docs/images/en-replay.gif" width="880" alt="Playing back the history of a note: the note is written again version by version, a few values are corrected the next day, and the finished note is shown in the preview with a formula, a diagram and a table"></p>
+<p align="center"><em>Every edit is kept. Play the history back and watch a note being written.</em></p>
+
 ### Features
 
 - **Full edit history**: every edit is recorded. Drag the time slider or play the history back to see any past version, and restore it with one click.
@@ -29,6 +32,19 @@ This program was created with the help of Claude Code.
 - **English and Japanese**: switch the interface language from the menu.
 - **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder. Keep several data folders, for example one for work and one for personal notes, and switch between them from the menu.
 - **Sharing between computers**: keep the data folder in OneDrive or similar and use it from several computers. One EverPad edits at a time; the others open it read-only, and editing can be handed over (see "Sharing the data folder between computers").
+
+### Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/en-preview.png" alt="The preview of a note with a formula, a flowchart and a table"><br>Preview with formulas, diagrams and tables</td>
+<td width="50%"><img src="docs/images/en-history-search.png" alt="Searching all history for a word that was later deleted; colored bands on the time slider show the versions that contain it"><br>Search all history, including deleted text. Colored bands show when it was there</td>
+</tr>
+<tr>
+<td><img src="docs/images/en-slides.png" alt="A note shown as 16:9 slides in the preview"><br>Slides from a note split with <code>---</code> lines</td>
+<td><img src="docs/images/en-dark.png" alt="The preview in dark mode"><br>Dark mode</td>
+</tr>
+</table>
 
 ### Download
 
@@ -572,6 +588,7 @@ tools/           The Etherpad import tool (import-etherpad.js), the script that 
                  the script that copies Mermaid into renderer/vendor/mermaid (vendor-mermaid.js),
                  the script that makes the Microsoft Store icons (make-store-assets.js), the script that makes renderer/emoji.js from gemoji (make-emoji.js),
                  the script that makes the portable exe unpack to a folder of its own for each launch (portable-unpack.js; runs before npm run dist),
+                 the script that makes the README images in docs/images from sample notes (make-readme-media.js; needs ffmpeg),
                  and the Windows startup checks used by GitHub Actions (ci-smoke-windows.ps1, ci-smoke-store.ps1)
 renderer/vendor/katex/  KaTeX for math (copied from node_modules automatically before npm start and npm run dist; not stored in Git)
 renderer/vendor/mermaid/  Mermaid for diagrams (copied the same way as KaTeX; not stored in Git)
@@ -618,6 +635,9 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 
 このプログラムは Claude Code を活用して作成しました。
 
+<p align="center"><img src="docs/images/ja-replay.gif" width="880" alt="メモの履歴の再生: 版を追ってメモが書かれていき、次の日に値を直したあと、仕上がったメモを数式・図・表の入ったプレビューで見せる"></p>
+<p align="center"><em>すべての編集を残します。履歴を再生すると、メモが書かれていく様子を見返せます。</em></p>
+
 ### 特長
 
 - **すべての編集を履歴に残す**: タイムスライダーを動かすか履歴を再生すると、どの時点の版でも見られます。その版にはボタン1つで戻せます。
@@ -635,6 +655,19 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **日本語と英語**: 画面の言語を設定から切り替えられます。
 - **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。仕事用と個人用など、保存先フォルダをいくつか作って、メニューで切り替えられます。
 - **パソコンの間で共有**: 保存先を OneDrive などに置いて、複数のパソコンで使えます。編集するのはいつも1つの EverPad で、ほかは読み取り専用で開き、編集を引き継げます(「保存先を別のパソコンと共有する」を参照)。
+
+### スクリーンショット
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/ja-preview.png" alt="数式・フローチャート・表の入ったメモのプレビュー"><br>数式・図・表のプレビュー</td>
+<td width="50%"><img src="docs/images/ja-history-search.png" alt="あとで消した言葉を履歴すべてから検索し、その言葉がある版をタイムスライダーの色の帯で示している"><br>消した文字も含めて履歴すべてから検索。いつあったかを色の帯で示します</td>
+</tr>
+<tr>
+<td><img src="docs/images/ja-slides.png" alt="プレビューで 16:9 のスライドとして見せたメモ"><br><code>---</code> の行で分けたメモのスライド</td>
+<td><img src="docs/images/ja-dark.png" alt="ダークモードのプレビュー"><br>ダークモード</td>
+</tr>
+</table>
 
 ### ダウンロード
 
@@ -1178,6 +1211,7 @@ tools/           Etherpad からの取り込みツール(import-etherpad.js)、K
                  Mermaid を renderer/vendor/mermaid にコピーするスクリプト(vendor-mermaid.js)、
                  Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、gemoji から renderer/emoji.js を作るスクリプト(make-emoji.js)、
                  portable 版の exe が起動ごとに別のフォルダへ展開するようにするスクリプト(portable-unpack.js。npm run dist の前に動く)、
+                 見本のメモから docs/images の README の画像を作るスクリプト(make-readme-media.js。ffmpeg が要る)、
                  GitHub Actions で使う Windows 版の起動の確認(ci-smoke-windows.ps1、ci-smoke-store.ps1)
 renderer/vendor/katex/  数式の表示に使う KaTeX(npm start と npm run dist の前に node_modules から自動でコピーする。Git には入れない)
 renderer/vendor/mermaid/  図の表示に使う Mermaid(KaTeX と同じく自動でコピーする。Git には入れない)
