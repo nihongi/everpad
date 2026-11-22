@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.49.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.49.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -64,9 +64,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・仕事用と個人用など、テーマごとに保存先フォルダを分けて、「ファイル」→「保存先フォルダ」か、メモの一覧の下の「切り替え…」で切り替えられます。「フォルダを追加…」で一覧に加え、「一覧から外す」で外します(フォルダとメモは消えません)。メモの一覧・検索・タグは、使っている保存先の中だけです。
-・切り替えは、編集を保存してからすぐに行い、EverPad を起動し直しません。テキストかプレビューかはそのままで、保存先ごとに開いていたメモを覚えています。
-・「Markdown の書き方」とキーボードショートカットの設定で、「既定」を「デフォルト」に、「字形」を「フォント」にしました。
+・プレビューで段落を編集しているとき、折り返して2行以上に見えていれば、↓ で次の部分に移らずに、同じ段落の次の行に動くようになりました。↑↓ で前・次の部分に移るのは、見えている最初・最後の行で押したときだけです。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -165,9 +163,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Keep a data folder for each theme, for example one for work and one for personal notes, and switch between them with File → Data Folder, or with Switch… below the note list. Add Folder… adds a folder to the list, and Remove from List takes it off the list without deleting it or its notes. The note list, search and tags cover the folder in use.
-• Switching saves your edits and happens at once, without restarting EverPad. Text or Preview stays as it was, and the note you had open in each folder opens again.
-• Clearer Japanese wording in the Markdown Guide and in the keyboard shortcut settings.
+• When you edit a paragraph in the Preview and it wraps onto two or more lines, ↓ now moves to the next line of the same paragraph instead of jumping to the next part. ↑ and ↓ move to the previous or next part only on the first or last line as you see it.
 
 ### Product features (up to 20, up to 200 characters each)
 
