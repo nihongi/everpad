@@ -56,7 +56,7 @@
   const S = { notes: [], active: null, mode: 'edit', hbase: 'edit', rev: 0, playing: false, speed: 1, q: '', qRaw: '', qText: '', scope: 'latest', lines: false, frOpen: false };
   // プレビューでの編集の状態(「プレビューでの編集」を参照。表示の切り替えやメモの移動で閉じるので、ここで用意する)
   const pe = { box: null, holder: null, el: null, kind: '', s: 0, e: 0, n: 0, pre: '', post: '', hasPost: false, start: '', row: 0, col: 0, html: '', init: '' };
-  let peComposing = false, peNext = null, peLastCell = null;
+  let peComposing = false, peNext = null, peLastCell = null, peCaret = null;
   const peUndo = [], peRedo = [];
   const cur = () => S.notes.find(n => n.id === S.active);
   const sorted = () => S.notes.slice().sort((a, b) => b.t - a.t);
@@ -3062,8 +3062,17 @@
       return;
     }
     const ta = pe.box, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
-    if (e.key === 'ArrowUp' && plain && !e.shiftKey && s === en && v.lastIndexOf('\n', s - 1) < 0) { e.preventDefault(); peMove(-1); return; }
-    if (e.key === 'ArrowDown' && plain && !e.shiftKey && s === en && v.indexOf('\n', s) < 0) { e.preventDefault(); peMove(1); return; }
+    // ↑↓: 見た目の最初・最後の行にいるときだけ、前後のかたまりに移る(折り返した行なら、同じかたまりの中で上下に動く)。
+    // ↑↓・Home・End で動いた先の行を覚えておく(折り返しの境目では、文字位置だけでは前の行の終わりか次の行の初めか分からない)
+    const vert = e.key === 'ArrowUp' || e.key === 'ArrowDown';
+    if ((vert || e.key === 'Home' || e.key === 'End') && plain && !e.shiftKey && s === en) {
+      const line = peCaretLine(ta, s);
+      if (e.key === 'ArrowUp' && line <= 0) { e.preventDefault(); peMove(-1); return; }
+      if (e.key === 'ArrowDown' && line >= peCaretLine(ta, v.length, true)) { e.preventDefault(); peMove(1); return; }
+      const to = e.key === 'ArrowUp' ? line - 1 : e.key === 'ArrowDown' ? line + 1 : line;
+      peCaret = null;
+      setTimeout(() => { if (pe.box === ta && ta.selectionStart === ta.selectionEnd) peCaret = { ta: ta, v: ta.value, pos: ta.selectionStart, line: to }; }, 0);
+    } else peCaret = null;
     // Enter / Tab: 「テキスト」表示と同じ、箇条書きの続き・自動インデント・字下げ
     if ((e.key === 'Enter' || e.key === 'Tab') && plain) {
       const r = e.key === 'Tab' ? tabEdit(v, s, en, EDIT.indentWidth, e.shiftKey) : newlineEdit(v, s, en, { indent: EDIT.autoIndent, list: EDIT.autoList, soft: e.shiftKey });
@@ -3072,6 +3081,43 @@
       peReplace(r.from, r.to, r.insert);
       ta.setSelectionRange(r.selStart, r.selEnd);
     }
+  });
+  /* 編集欄 ta で、文字位置 pos のカーソルがある見た目の行の上端(折り返しも、見えない複製に全文を入れて測る)。
+     pos の文字を印で囲むので、折り返しの境目では、カーソルと同じく次の行になる */
+  function peLineTop(ta, pos) {
+    const cs = getComputedStyle(ta), v = ta.value;
+    mirror.style.font = cs.font; mirror.style.lineHeight = cs.lineHeight; mirror.style.letterSpacing = cs.letterSpacing;
+    mirror.style.tabSize = cs.tabSize; mirror.style.overflowWrap = cs.overflowWrap; mirror.style.wordBreak = cs.wordBreak;
+    mirror.style.width = (ta.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0)) + 'px';
+    const ch = v.charAt(pos), one = ch && ch !== '\n' && !/[\uD800-\uDBFF]/.test(ch) ? ch : ch && ch !== '\n' ? v.slice(pos, pos + 2) : '';
+    mirror.textContent = v.slice(0, pos);
+    const mk = document.createElement('span');
+    mk.textContent = one || '​';
+    mirror.appendChild(mk);
+    mirror.appendChild(document.createTextNode(v.slice(pos + one.length)));
+    const y = mk.offsetTop;
+    mirror.innerHTML = '';
+    return y;
+  }
+  /* カーソルのある見た目の行(0 から)。↑↓・Home・End・クリックで置いたところなら覚えている行、ほかは位置の文字のある行。
+     fresh なら覚えている行を使わない(最後の行を数えるとき) */
+  function peCaretLine(ta, pos, fresh) {
+    if (!fresh && peCaret && peCaret.ta === ta && peCaret.pos === pos && peCaret.v === ta.value) return peCaret.line;
+    const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+    return Math.round(peLineTop(ta, pos) / lh);
+  }
+  // 編集欄をクリックしたら、押した高さの行を覚える
+  $('preview').addEventListener('mousedown', e => { if (e.target === pe.box) peCaret = null; });
+  $('preview').addEventListener('mouseup', e => {
+    const ta = pe.box;
+    if (e.target !== ta || pe.kind !== 'block') return;
+    const cs = getComputedStyle(ta), lh = parseFloat(cs.lineHeight) || 20, r = ta.getBoundingClientRect();
+    const y = e.clientY - r.top - ta.clientTop - (parseFloat(cs.paddingTop) || 0) + ta.scrollTop;
+    setTimeout(() => {
+      if (pe.box !== ta || ta.selectionStart !== ta.selectionEnd) return;
+      const line = Math.max(0, Math.min(peCaretLine(ta, ta.value.length, true), Math.floor(y / lh)));
+      peCaret = { ta: ta, v: ta.value, pos: ta.selectionStart, line: line };
+    }, 0);
   });
   /* 編集欄の範囲を置き換える(元に戻せるよう、入力として行う) */
   function peReplace(from, to, str) {
