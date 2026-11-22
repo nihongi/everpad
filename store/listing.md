@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.48.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.49.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -48,7 +48,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・履歴が長くなったら、選んだ版より古い履歴を削除できます。
 
 ■ 残す・渡す  
-・メモは、選んだフォルダに普通のファイルとして保存します。バックアップはフォルダをコピーするだけです。  
+・メモは、選んだフォルダに普通のファイルとして保存します。バックアップはフォルダをコピーするだけです。仕事用と個人用など、保存先フォルダを分けて切り替えることもできます。  
 ・印刷、PDF、HTML、MHTML、AsciiDoc、Word 文書(.docx)、LaTeX(.tex)、テキストファイルに書き出せます。Word では見出しのスタイルが付き、数式は Word で編集できる数式に、図は画像になります。LaTeX では数式を書いたまま渡せるので、論文やレポートの原稿にそのまま使えます。  
 ・メモを --- の行で分けると、スライドになります。全画面のスライドショーで発表したり、HTML・PDF・PowerPoint に書き出したりできます。PowerPoint では、数式も PowerPoint の数式として編集できます。  
 ・テキストファイルを、メモとして取り込めます。  
@@ -64,11 +64,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・メモを区切り線(--- の行)で分けると、16:9 のスライドになります(Marp と同じ書き方)。フロントマターに marp: true と書くと、プレビューと履歴でもスライドの形で見せ、履歴では版ごとに変わったスライドに枠を付けます。入りきらないスライドは、文字を小さくして入れます。
-・「表示」→「スライドショー」(F5)で、全画面にしてスライドを1枚ずつ見せます。
-・「エクスポート」で、スライドを HTML・PDF・PowerPoint に書き出せます。PowerPoint のファイルは PowerPoint で編集でき、数式は PowerPoint の数式に、図は画像になります。
-・図の矢印の文字に、矢印の線が重なるのを直しました。
-・検索欄の下の説明を短くしました。
+・仕事用と個人用など、テーマごとに保存先フォルダを分けて、「ファイル」→「保存先フォルダ」か、メモの一覧の下の「切り替え…」で切り替えられます。「フォルダを追加…」で一覧に加え、「一覧から外す」で外します(フォルダとメモは消えません)。メモの一覧・検索・タグは、使っている保存先の中だけです。
+・切り替えは、編集を保存してからすぐに行い、EverPad を起動し直しません。テキストかプレビューかはそのままで、保存先ごとに開いていたメモを覚えています。
+・「Markdown の書き方」とキーボードショートカットの設定で、「既定」を「デフォルト」に、「字形」を「フォント」にしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -82,7 +80,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 8. 他のメモへのリンクと、ブラウザからドロップしたページへのリンク
 9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word・LaTeX への書き出し。--- で分けたスライドのスライドショーと、PowerPoint への書き出し
 10. 履歴と添付ファイルごと移せる EverPad アーカイブ
-11. メモは選んだフォルダに普通のファイルとして保存(OneDrive などで、複数のパソコンから共有もできます)
+11. メモは選んだフォルダに普通のファイルとして保存。テーマごとに保存先を切り替えられ、OneDrive などで複数のパソコンから共有もできます
 12. アカウント不要、インターネットに接続しない
 13. 日本語と英語の画面、ダークモード、メモの背景と文字の色の設定、常に手前に表示
 14. Mermaid の図(フローチャート・シーケンス図など)と、拡大・移動しながら書ける図エディタ
@@ -151,7 +149,7 @@ LOOK BACK
 • When a history grows long, you can delete the versions older than a chosen one.
 
 KEEP AND SHARE  
-• Notes are saved as ordinary files in a folder you choose. Backing up is just copying the folder.  
+• Notes are saved as ordinary files in a folder you choose. Backing up is just copying the folder. You can also keep separate folders, for example for work and personal notes, and switch between them.  
 • Print, or export to PDF, HTML, MHTML, AsciiDoc, Word (.docx), LaTeX (.tex) or a text file. Word documents get heading styles, formulas become Word equations you can edit, and diagrams become images. LaTeX files keep formulas exactly as written, ready for papers and reports.  
 • Split a note with --- lines to make slides. Present them as a full-screen slideshow, or export them to HTML, PDF or PowerPoint, where formulas become PowerPoint equations you can edit.  
 • Import text files as notes.  
@@ -167,11 +165,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Split a note with horizontal rules (--- lines) to make 16:9 slides, written the same way as in Marp. With marp: true in the front matter, the preview and the history show the note as slides, and the history outlines the slide changed by each version. Text that does not fit on a slide is made smaller to fit.
-• View → Slideshow (F5) shows the slides full screen, one at a time.
-• Export slides to HTML, PDF or PowerPoint. The PowerPoint file can be edited in PowerPoint: formulas become PowerPoint equations, and diagrams become pictures.
-• In diagrams, the text on an arrow no longer has the arrow's line running through it.
-• The help text below the search box is shorter.
+• Keep a data folder for each theme, for example one for work and one for personal notes, and switch between them with File → Data Folder, or with Switch… below the note list. Add Folder… adds a folder to the list, and Remove from List takes it off the list without deleting it or its notes. The note list, search and tags cover the folder in use.
+• Switching saves your edits and happens at once, without restarting EverPad. Text or Preview stays as it was, and the note you had open in each folder opens again.
+• Clearer Japanese wording in the Markdown Guide and in the keyboard shortcut settings.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -185,7 +181,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 8. Links between notes, and links to web pages dropped from the browser
 9. Print and export to PDF, HTML, MHTML, AsciiDoc, Word and LaTeX; slides split with --- lines, shown as a slideshow or exported to PowerPoint
 10. EverPad archives that move a note with its history and attachments
-11. Notes saved as ordinary files in a folder you choose (it can also be shared between computers through OneDrive or similar)
+11. Notes saved as ordinary files in folders you choose: switch folders by theme, and share them between computers through OneDrive or similar
 12. No account, and no internet connection
 13. English and Japanese interface, dark mode, note background and text colors you can choose, and Always on Top
 14. Mermaid diagrams (flowcharts, sequence diagrams and more), with a diagram editor you can zoom and pan
