@@ -23,7 +23,7 @@ test('メモを切り替えると、前のメモの場所を覚え、開いた�
   // 閉じるときにも覚え、起動したら最初のメモの場所に戻す
   assert.match(app, /window\.addEventListener\('pagehide', rememberPos\);/);
   assert.match(app, /loadRecent\(\);\n\s+loadPos\(\);/);
-  assert.match(app, /else \{ setMode\('edit', true\); restorePos\(\); \}/);
+  assert.match(app, /setMode\(m === 'preview' \? 'preview' : 'edit', true\);\n\s+restorePos\(\);/);
 });
 
 test('検索結果から開くとき: プレビューならプレビューのまま、テキスト表示なら見つかった箇所を選ぶ', () => {

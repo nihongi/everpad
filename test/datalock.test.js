@@ -198,7 +198,7 @@ test('main.js: 後から開いたほうは読み取り専用で開き、引き�
   assert.ok(!/lockBusy|lockChoose|checkLock|touchLock/.test(m), '古い「別の保存先を選ぶ」の窓は使わない');
   assert.match(m, /if \(!datalock\.lockFree\(lock, now, me\)\) ro = \{ mode: 'ro', reason: 'busy', by: byOf\(datalock\.holderOf\(lock\)\)/);
   assert.match(m, /datalock\.filesPending\(wanted, lock\.v\.files\) > 0/);
-  assert.match(m, /if \(ro\) store\.readOnly = true;/);
+  assert.match(m, /if \(ro\) s\.readOnly = true;/);
   assert.ok(!/!!lock\.v\.released \|\|/.test(m), '手放された印を、いつも「空いている」とはみなさない(引き継いだばかりの印は lockFree が見る)');
   // 編集中: ほかが印を書いたら読み取り専用。依頼が来たら帯に出し(返事を待っていることを印に書く)、渡すか断るかを選んでもらう
   assert.match(m, /demote\('taken', byOf\(lock\.v\)\)/);

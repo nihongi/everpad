@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   remove: id => ipcRenderer.invoke('memo:remove', id),
   confirmTrash: message => ipcRenderer.invoke('memo:confirmTrash', message),
   openFolder: () => ipcRenderer.invoke('memo:openFolder'),
+  dirMenu: pos => ipcRenderer.invoke('dir:menu', pos),   // 保存先フォルダを切り替えるメニュー
   // 画像・添付ファイル
   attachSave: (noteId, name, bytes) => ipcRenderer.invoke('attach:save', noteId, name, bytes),
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),

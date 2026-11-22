@@ -27,7 +27,7 @@ This program was created with the help of Claude Code.
 - **Slides**: split a note with `---` lines to make 16:9 slides, as in Marp. Show them full screen with View → Slideshow (`F5`), or save them as a web page, a PDF or a PowerPoint file with editable text and equations. With `marp: true` in the front matter, the preview and the history show the note as slides.
 - **Keyboard shortcuts you can change**: assign the keys you like from File → Keyboard Shortcuts….
 - **English and Japanese**: switch the interface language from the menu.
-- **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder.
+- **Plain files**: notes are stored as ordinary files in a folder you choose, so backing up is just copying the folder. Keep several data folders, for example one for work and one for personal notes, and switch between them from the menu.
 - **Sharing between computers**: keep the data folder in OneDrive or similar and use it from several computers. One EverPad edits at a time; the others open it read-only, and editing can be handed over (see "Sharing the data folder between computers").
 
 ### Download
@@ -55,10 +55,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.48.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.49.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.48.0.exe
+EverPad 0.49.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -67,7 +67,7 @@ EverPad Data\
 - The data folder inside `EverPad Data` is remembered relative to the executable, so it keeps working when the drive letter changes.
 - The portable and installed versions do not share settings, and can run at the same time. Their "Send to" entries have different names (`EverPad (Portable)` and `EverPad`), and they appear as separate taskbar buttons.
 - If the folder of the executable cannot be written to (for example, inside Program Files), settings are saved in `%APPDATA%\EverPad Portable` and notes in `Documents\EverPad Portable`; EverPad tells you once.
-- Versions before 0.17.0 stored the portable version's settings and notes in `%APPDATA%\EverPad` and `Documents\EverPad`. Those notes are not moved: choose File → Change Data Folder… and select `Documents\EverPad`, or copy the note files into `EverPad Data\notes`.
+- Versions before 0.17.0 stored the portable version's settings and notes in `%APPDATA%\EverPad` and `Documents\EverPad`. Those notes are not moved: choose File → Data Folder → Add Folder… and select `Documents\EverPad`, or copy the note files into `EverPad Data\notes`.
 - Everything EverPad saves stays in `EverPad Data` (plus the "Send to" shortcut if you add it). Windows itself still records some traces, and the portable executable unpacks itself into a temporary folder (`%TEMP%`) each time it starts.
 
 ### Usage
@@ -400,7 +400,15 @@ Tables can also be written in the MultiMarkdown way. Merging with the cell on th
 
 ### Where notes are stored
 
-The default data folder is `Documents\EverPad`. You can change it with File → Change Data Folder…, and open it in Explorer with File → Open Data Folder.
+The default data folder is `Documents\EverPad`. File → Open Data Folder opens it in Explorer.
+
+You can keep several data folders, for example one for work and one for personal notes, and switch between them with File → Data Folder, or with Switch… below the note list. EverPad uses one data folder at a time: the note list, search, tags and links between notes cover only the folder in use.
+
+- File → Data Folder → Add Folder… chooses a folder (it can also be a new, empty one) and switches to it. The folder is added to the end of the list.
+- Switching saves your edits and reads the other folder without restarting EverPad. The note you had open in each folder opens again when you come back to it. As when you open another note, Text or Preview and the search scope (Latest version or All history) stay as they were (from the history view, you return to the view you opened it from).
+- Remove from List takes a folder off the menu. The folder and its notes are not deleted, and you can add it again later.
+- If a folder in the list cannot be found (it was moved or renamed, or it is on a USB drive that is not connected), EverPad says so and stays in the current folder.
+- If another EverPad is editing the folder you switch to, it opens read-only, as described in "Sharing the data folder between computers".
 
 Each note consists of the following files and folder.
 
@@ -419,7 +427,7 @@ The data folder also contains `.everpad-index.json`, an index for the note list 
 
 ### Sharing the data folder between computers
 
-You can put the data folder in OneDrive (or another folder that is synced between computers) and use the same notes on several computers. On each computer, choose File → Change Data Folder… and select the same folder. With the portable version, keep the executable outside the synced folder and change only the data folder, because its `EverPad Data\settings` folder is meant for one computer.
+You can put the data folder in OneDrive (or another folder that is synced between computers) and use the same notes on several computers. On each computer, choose File → Data Folder → Add Folder… and select the same folder. With the portable version, keep the executable outside the synced folder and change only the data folder, because its `EverPad Data\settings` folder is meant for one computer.
 
 - Only one EverPad edits the data folder at a time. The editing EverPad keeps a marker file, `.everpad-lock`, in the data folder. It tells other EverPads which EverPad (on which computer) is editing the folder, and is updated every 30 seconds. Another EverPad that opens the same folder (on another computer, or the portable version on the same computer) opens it read-only: a bar at the top says which EverPad is editing, and you can read, search, copy, print and export notes, but not change them. Reload in the bar reads the notes again to show what the other EverPad wrote (they are also read again when you switch back to the window).
 - To edit in the read-only EverPad, press Take Over Editing in the bar. The editing EverPad shows the request in a bar at the top (its taskbar button flashes if it is not in front) and keeps editing until someone there chooses Hand Over or Decline. With Hand Over, it saves its edits and becomes read-only, and the asking EverPad becomes editable (this takes a few seconds, longer if the folder is synced). With Decline, the asking EverPad says so and stays read-only.
@@ -493,15 +501,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.48.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.49.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.48.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.49.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.48.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.49.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -510,7 +518,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.48.0.AppImage` (x64)
+- Linux: `EverPad-0.49.0.AppImage` (x64)
 
 **macOS**
 
@@ -526,7 +534,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.48.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.49.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -625,7 +633,7 @@ EverPad は Windows 用のメモ帳です。テキストまたは Markdown(表�
 - **スライド**: Marp と同じく、メモを `---` の行で分けると 16:9 のスライドになります。「表示」→「スライドショー」(`F5`)で全画面にして見せたり、Web ページや PDF、文字と数式を編集できる PowerPoint のファイルとして保存したりできます。フロントマターに `marp: true` と書くと、プレビューと履歴でもスライドの形で見せます。
 - **キーボードショートカットを変えられる**: 「ファイル」→「キーボードショートカット…」で、好きなキーを割り当てられます。
 - **日本語と英語**: 画面の言語を設定から切り替えられます。
-- **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。
+- **普通のファイルで保存**: メモは選んだフォルダに普通のファイルとして保存されるので、バックアップはフォルダをコピーするだけです。仕事用と個人用など、保存先フォルダをいくつか作って、メニューで切り替えられます。
 - **パソコンの間で共有**: 保存先を OneDrive などに置いて、複数のパソコンで使えます。編集するのはいつも1つの EverPad で、ほかは読み取り専用で開き、編集を引き継げます(「保存先を別のパソコンと共有する」を参照)。
 
 ### ダウンロード
@@ -643,29 +651,29 @@ Windows 版には3種類あります。アプリの機能はほぼ同じで、�
 
 #### Microsoft Store 版
 
-Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、設定に「「送る」メニューに登録する」もありません。メモの保存先は、インストール版と同じです(既定は ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
+Microsoft Store 版では、更新は Microsoft Store から届くので、「ヘルプ」に更新の確認はなく、設定に「「送る」メニューに登録する」もありません。メモの保存先は、インストール版と同じです(デフォルトは ドキュメント\EverPad)。設定は、Windows がアプリ専用のフォルダに置き、アンインストールすると消えます(インストール版も入っている PC では、インストール版の設定をそのまま使います)。
 
 #### インストーラー版
 
-インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(既定はオフ)があります。
+インストーラーは日本語と英語を選べ、エクスプローラーの「送る」メニューに EverPad を追加するかのチェックボックス(デフォルトはオフ)があります。
 
-**アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(既定はオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
+**アンインストール**: アンインストーラーは、メモの保存先フォルダを削除しません(メモは残ります)。「EverPad の設定も削除する」のチェックボックス(デフォルトはオフ)を付けると、EverPad の設定(`%APPDATA%\EverPad`。保存先の場所、言語、ウィンドウの位置、最近見たメモなど)も削除します。設定は Windows のユーザーごとにあるため、削除するのはアンインストールを実行したユーザーの設定だけです。すべてのユーザー向けにインストールした場合も同じで、他のユーザーの設定には触れません。更新のときや、画面を出さないアンインストール(`/S`)では、設定を削除しません。
 
 #### portable 版
 
-portable 版(`EverPad 0.48.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.49.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.48.0.exe
+EverPad 0.49.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
-  notes\      メモの保存先(既定)
+  notes\      メモの保存先(デフォルト)
 ```
 
 - `EverPad Data` の中の保存先は実行ファイルからの相対で覚えるので、ドライブ文字が変わっても動きます。
 - インストール版とは設定を共有せず、同時に起動できます。「送る」メニューの名前(`EverPad (Portable)` と `EverPad`)と、タスクバーのボタンも別になります。
 - 実行ファイルのフォルダに書き込めない場合(Program Files の中など)は、設定を `%APPDATA%\EverPad Portable` に、メモを `ドキュメント\EverPad Portable` に保存します。そのことは一度だけ知らせます。
-- 0.17.0 より前の portable 版は、設定とメモを `%APPDATA%\EverPad` と `ドキュメント\EverPad` に保存していました。そのメモは移しません。「ファイル」→「保存先フォルダを変更…」で `ドキュメント\EverPad` を選ぶか、メモのファイルを `EverPad Data\notes` にコピーしてください。
+- 0.17.0 より前の portable 版は、設定とメモを `%APPDATA%\EverPad` と `ドキュメント\EverPad` に保存していました。そのメモは移しません。「ファイル」→「保存先フォルダ」→「フォルダを追加…」で `ドキュメント\EverPad` を選ぶか、メモのファイルを `EverPad Data\notes` にコピーしてください。
 - EverPad が保存するものは `EverPad Data` の中だけです(「送る」に登録したときのショートカットを除く)。ただし、Windows 自体が記録するものは残ります。また、portable 版は起動のたびに一時フォルダ(`%TEMP%`)に自分自身を展開して動きます。
 
 ### 使い方
@@ -698,13 +706,13 @@ EverPad Data\
 | 履歴で1つ前 / 1つ先の版へ | `←` / `→` |
 | 履歴の再生 / 停止 | `Space` |
 
-macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「macOS と Linux(未確認)」を見てください)。これは既定のキーで、ほとんどは変えられます(「キーボードショートカット」を見てください)。
+macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「macOS と Linux(未確認)」を見てください)。これはデフォルトのキーで、ほとんどは変えられます(「キーボードショートカット」を見てください)。
 
 **字下げと箇条書き**
 
 - 字下げした行で Enter を押すと、次の行にも同じ字下げが付きます(半角スペースとタブ。全角スペースは引き継ぎません)。空白だけの行で Enter を押すと、その行の空白を消して次の行に字下げを移すので、見えない空白は残りません。「ファイル」→「設定…」の「自動インデント」で切り替えられます。
 - 箇条書きなどの行(`- `・`* `・`+ `・`1. `・`1) `・`- [ ] `・`> `)で Enter を押すと、次の行にも同じ記号が付きます。番号は1つ増え、チェックボックスはチェックの無い状態で付きます。記号だけの行で Enter を押すと、記号を消して箇条書きを終えます。Shift+Enter は、記号を付けずに項目の文字の位置まで字下げして、同じ項目の中で改行します。コードブロックの中では記号を付けません。「ファイル」→「設定…」の「箇条書きを自動で続ける」で切り替えられます。
-- Tab を押すと、カーソルの位置に次の字下げの位置までスペースを入れます。箇条書きの行では、行全体を字下げして1段深い入れ子にします。文字を選んでいるときは、Tab で選んだ行をまとめて字下げし(空の行には付けません)、Shift+Tab で字下げを戻します。Shift+Tab は今の行にも使えます。1回の字下げの幅(スペース2つか4つ。既定は4つ)は「ファイル」→「設定…」の「Tab の字下げの幅」で選びます。「編集」→「書式」にも「字下げ」「字下げを戻す」があります。本文の中では、Tab でボタンなどに移動しなくなります(検索と置換のバーなど、ほかの入力欄では今までどおり移動します)。
+- Tab を押すと、カーソルの位置に次の字下げの位置までスペースを入れます。箇条書きの行では、行全体を字下げして1段深い入れ子にします。文字を選んでいるときは、Tab で選んだ行をまとめて字下げし(空の行には付けません)、Shift+Tab で字下げを戻します。Shift+Tab は今の行にも使えます。1回の字下げの幅(スペース2つか4つ。デフォルトは4つ)は「ファイル」→「設定…」の「Tab の字下げの幅」で選びます。「編集」→「書式」にも「字下げ」「字下げを戻す」があります。本文の中では、Tab でボタンなどに移動しなくなります(検索と置換のバーなど、ほかの入力欄では今までどおり移動します)。
 - 元に戻す(`Ctrl+Z`)を1回押すと、改行と一緒に付いた字下げや記号もまとめて消えます。日本語入力の変換中は、何も付けません。
 
 **プレビューでの編集**
@@ -761,7 +769,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - `title: 設計メモ` と書くと、それがメモの題名になります。メモ一覧・ウィンドウの題名・検索の結果・「メモへのリンクを挿入…」・書き出すときのファイル名の候補に使います。本文の1行目を、題名に縛られずに書けます。`title` が無ければ、今までどおりフロントマターより後ろの、最初の文字のある行が題名です。
 - `title`・`author`・`date` は、印刷と書き出しにも使います。印刷・PDF・HTML・MHTML・Word では、本文の先頭に出します(Word では「Title」「Author」「Date」のスタイル)。ファイルの情報にも入ります。PDF のタイトル、HTML・MHTML の `<title>` と著者とキーワード(タグから)、Word のタイトル・作成者・キーワード、LaTeX の `\title`・`\author`・`\date`、AsciiDoc の題名・著者の行・`:revdate:` です。フロントマターに題名があるときは、本文の先頭の `#` の見出しは、LaTeX と AsciiDoc でも文書の題名にせず、見出しのままにします。著者が複数なら `author: [山田, 佐藤]` と書きます。日付は書いたまま出します(`2026-11-19` の形なら、ほかのアプリでも日付として読まれます)。
 - 値は YAML の決まりで読みます。値に `: ` を含むときや、値が `[`・`{`・`#`・`@`・`*`・`&`・`!`・`|`・`>`・引用符・`%`・バッククォートで始まるときは、引用符で囲みます(`title: "設計: 第2版"`)。囲まないと、ほかのアプリで読めないことがあります。空白のあとの `#` から後ろはコメントです。`|` と `>` のブロックや、字下げした次の行に続けた値も読めます。フロントマターとそのキーの説明は、「ヘルプ」→「Markdown の書き方」にもあります。
-- フロントマターで、メモごとの表示と印刷の設定もできます。`toc: true` と書くと、プレビュー・印刷・PDF・HTML・MHTML の本文の先頭に、見出しへのリンクを並べた目次を出します(項目を押すと、その見出しへ移ります)。Word には目次のフィールド(開くときに Word がフィールドを更新するか尋ねるので「はい」を選ぶと、ページ番号が付きます)、LaTeX には `\tableofcontents`(2回コンパイルします)、AsciiDoc には `:toc:` を入れます。`toc-depth: 2` で、目次に入れる見出しの深さを決めます(1〜6、既定は3)。`lang: en` は文書の言語です。プレビュー・印刷・PDF・HTML では漢字の字形などがその言語のものになり、Word・LaTeX・AsciiDoc・HTML のファイルにも言語として入ります。`ja` なら、LaTeX は日本語用の文書クラスになります。`papersize: a5`(a4・a5・b5・letter・legal。b5 は JIS の B5)と `orientation: landscape`(EverPad だけのキー)で、印刷・PDF・Word・LaTeX と、HTML をブラウザで印刷するときの用紙を決めます。書かなければ、用紙は今までどおりです。
+- フロントマターで、メモごとの表示と印刷の設定もできます。`toc: true` と書くと、プレビュー・印刷・PDF・HTML・MHTML の本文の先頭に、見出しへのリンクを並べた目次を出します(項目を押すと、その見出しへ移ります)。Word には目次のフィールド(開くときに Word がフィールドを更新するか尋ねるので「はい」を選ぶと、ページ番号が付きます)、LaTeX には `\tableofcontents`(2回コンパイルします)、AsciiDoc には `:toc:` を入れます。`toc-depth: 2` で、目次に入れる見出しの深さを決めます(1〜6、デフォルトは3)。`lang: en` は文書の言語です。プレビュー・印刷・PDF・HTML では漢字の字形などがその言語のものになり、Word・LaTeX・AsciiDoc・HTML のファイルにも言語として入ります。`ja` なら、LaTeX は日本語用の文書クラスになります。`papersize: a5`(a4・a5・b5・letter・legal。b5 は JIS の B5)と `orientation: landscape`(EverPad だけのキー)で、印刷・PDF・Word・LaTeX と、HTML をブラウザで印刷するときの用紙を決めます。書かなければ、用紙は今までどおりです。
 
 **最近見たメモとメモ同士のリンク**
 
@@ -823,10 +831,10 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 - 「ファイル」→「キーボードショートカット…」で、メニューのすべての操作とそのキーを、メニューごと(ファイル、ファイル › エクスポート、編集、編集 › 書式、編集 › 表、表示、ヘルプ)に一覧で出します。上の欄に入力すると、操作の名前やキー(例: `ctrl+shift`)で絞り込めます。
 - メニューの右端のキーの名前は、画面の言語にかかわらず英語で出ます(`Ctrl+,` は `Ctrl+Comma`、`Alt+←` は `Alt+Left Arrow` など)。
-- キーを変えるには、操作をダブルクリックするか、選んで Enter を押すか「キーを変える」を押してから、割り当てたいキーを押します。押したキーが枠の中に出ます。Enter で決め、Esc でやめます。キーを押している間は、メニューのショートカットは効きません。既定でキーの無い操作(「ファイル」→「エクスポート」→「HTML…」など)にも割り当てられます。
+- キーを変えるには、操作をダブルクリックするか、選んで Enter を押すか「キーを変える」を押してから、割り当てたいキーを押します。押したキーが枠の中に出ます。Enter で決め、Esc でやめます。キーを押している間は、メニューのショートカットは効きません。デフォルトでキーの無い操作(「ファイル」→「エクスポート」→「HTML…」など)にも割り当てられます。
 - 割り当てられるのは、Ctrl か Alt(macOS では ⌘・⌃・⌥)を含むキーか、F1〜F24 です。英字・数字・F キー・矢印キー・Home / End / Page Up / Page Down・Insert・Delete・Backspace・Space・Enter・Tab・テンキーを使えます。キーボードの配列によって文字が変わる記号のキー(`;` や `@` など)は割り当てられません。文字の入力や編集、システムの操作に使うキーも割り当てられません: Ctrl+Z / Y / X / C / V / A、Ctrl と矢印・Home・End・Backspace・Delete の組み合わせ、F3、Alt+F4、F10(macOS では ⌘Q、⌘H、⌘W、⌘M、⌥ と英字・数字の組み合わせ、⌃A、⌃E などの文字の編集のキー)。
 - ほかの操作がすでに使っているキーを押すと、どの操作で使っているかを出します。Enter を押すと、そのキーをこちらに移し、ほかの操作はキーなしになります。
-- 「キーなしにする」は選んだ操作のキーを外し、「既定に戻す」は既定のキーに戻し、「すべて既定に戻す…」は確かめてから、すべてのキーを既定に戻します。キーを変えた操作には「変更済み」と出て、マウスを重ねると既定のキーがわかります。
+- 「キーなしにする」は選んだ操作のキーを外し、「デフォルトに戻す」はデフォルトのキーに戻し、「すべてデフォルトに戻す…」は確かめてから、すべてのキーをデフォルトに戻します。キーを変えた操作には「変更済み」と出て、マウスを重ねるとデフォルトのキーがわかります。
 - メニュー、右クリックのメニュー、ボタンの説明、「Markdown の書き方」には、変えたキーが出ます。キーはほかの設定と一緒に `config.json` に保存し(変えたものだけ)、このパソコンだけで使います(メモの保存先には入りません)。一覧の最後には、参考として変えられないキー(元に戻す、コピー、字下げの Tab、F3 など)を出します。
 
 **整形された文書の貼り付け**
@@ -928,7 +936,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - メニューの「ファイル」→「プロパティ…」(`Alt+Enter`)で、今のメモの題名、メモID、作成と最終編集の日時、版数(古い履歴を削除したメモでは、見られる履歴の範囲も)、文字数(改行を含まない)・単語数・行数と、メモを保存しているファイル(履歴の `.jsonl`、本文の `.md`、添付の `.files` フォルダ)の場所と大きさを確認できます。ファイルごとに、エクスプローラーで場所を開くボタンと、パスをコピーするボタンがあります。文字数・単語数・行数は Notepad++ の「要約」と同じ数え方です。単語は、空白・改行と半角の記号 ``\ . , ; : ! ? ( ) + - * / = [ ] { } & ~ " ' ` | @ $ % < > ^`` 以外が続く部分を1語と数えます(全角の句読点は区切りにならないので、日本語の文は長いひと続きとして数えられます)。空のメモは1行です。
 - 「テキスト」表示(と検索・置換の入力欄)で右クリックすると、元に戻す・やり直し・切り取り・コピー・貼り付け・削除・すべて選択のメニューが出ます。「テキスト」表示では、文字の装飾(太字など)、行の書式(引用など)、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)、「図を挿入…」(カーソルが図の中なら「図を編集…」)、「フロントマター(タグ)を挿入」(フロントマターがもうあれば「フロントマター(タグ)を編集」)、「表」も出ます。プレビューでは、表のセルを右クリックすると表の操作、数式・図を右クリックすると編集とコピーと「段落を挿入」、そのほかの場所では「段落を挿入」「数式を挿入…」「図を挿入…」「フロントマター(タグ)を挿入」「表を挿入」が出ます。プレビューで編集している部分や表のセルの右クリックにも、「数式を挿入…」(カーソルが数式の中なら「数式を編集…」)と「表」が出ます。編集している部分には、「図を挿入…」と「フロントマター(タグ)を挿入」も出ます。プレビューや履歴では、文字を選んで右クリックするとコピーできます。
 - ウィンドウの位置と大きさ(最大化しているかどうかも)は、次の起動で前回閉じたときの状態に戻ります。ディスプレイを外したなどで前回の位置が画面の外になるときは、位置だけ Windows に任せます。
-- 「表示」→「常に手前に表示」で、EverPad のウィンドウをほかのウィンドウより手前に出したままにできます(「Markdown の書き方」の窓も)。この設定は次回も使われます。既定のキーはありませんが、「ファイル」→「キーボードショートカット…」で割り当てられます。
+- 「表示」→「常に手前に表示」で、EverPad のウィンドウをほかのウィンドウより手前に出したままにできます(「Markdown の書き方」の窓も)。この設定は次回も使われます。デフォルトのキーはありませんが、「ファイル」→「キーボードショートカット…」で割り当てられます。
 - **設定**: 「ファイル」→「設定…」(`Ctrl+,`)で、設定を1つの窓にまとめて変えられます。「編集」(自動インデント・箇条書きを自動で続ける・貼り付けで書式を保つ・Tab の字下げの幅)、「表示」(カーソル行の強調・最後の行より下までのスクロール・行番号・メモの色・言語)、「その他」(起動時の更新の確認と「送る」メニューへの登録。どちらも Microsoft Store 版にはありません。「キーボードショートカット…」を開くボタン)があります。「キーボードショートカット…」は、「ファイル」メニューの「設定…」のすぐ下にもあります。変えるとすぐに効き、次回も使われます。
 - 画面の言語は、「ファイル」→「設定…」の「言語 (Language)」で「日本語」か「English」を選んで切り替えます。選んだ言語は次回も使われます。切り替えても、今の表示(テキスト・プレビュー・履歴、検索、検索と置換のバー、カーソルやスクロールの位置)はそのまま引き継がれます。
 - 画面下のステータスバーには、最大3つのまとまりが区切り線で分かれて出ます。**カーソル**(入力位置が何行目の何文字目か。「テキスト」表示だけ)、**選択**(選んでいる部分の文字数。複数行なら行数も。選んでいるときだけ)、**全体**(メモ全体の文字数・行数・版数。履歴の表示中は、表示している版の文字数・行数)です。文字数には改行を含めず、行は行番号と同じく改行で区切って数えます(空のメモは1行)。マウスを重ねると、それぞれの説明が出ます。
@@ -998,7 +1006,15 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 ### メモの保存先と形式
 
-既定の保存先は `ドキュメント\EverPad` です。メニューの「ファイル」→「保存先フォルダを変更…」で変えられ、「保存先フォルダを開く」でエクスプローラーが開きます。
+デフォルトの保存先は `ドキュメント\EverPad` です。メニューの「ファイル」→「保存先フォルダを開く」で、エクスプローラーが開きます。
+
+仕事用と個人用など、保存先フォルダをいくつか使い分けられます。「ファイル」→「保存先フォルダ」か、メモの一覧の下の「切り替え…」で切り替えます。使う保存先はいつも1つで、メモの一覧・検索・タグ・メモへのリンクは、使っている保存先の中だけです。
+
+- 「ファイル」→「保存先フォルダ」→「フォルダを追加…」でフォルダを選ぶと(新しい空のフォルダでもかまいません)、そのフォルダに切り替えます。フォルダは一覧の最後に加わります。
+- 切り替えると、編集を保存してから別のフォルダを読みます。EverPad を起動し直すことはありません。保存先ごとに開いていたメモを覚えていて、戻るとそのメモが開きます。ほかのメモを開いたときと同じく、テキストかプレビューかと、検索の範囲(最新の版・履歴すべて)はそのままです(履歴の表示中なら、そのもとの表示になります)。
+- 「一覧から外す」は、メニューからフォルダを外すだけです。フォルダとその中のメモは消えず、あとでまた加えられます。
+- 一覧のフォルダが見つからないとき(移した、名前を変えた、USB メモリーをつないでいないなど)は、そう知らせて、今の保存先のままにします。
+- 切り替えた先のフォルダをほかの EverPad が編集中なら、「保存先を別のパソコンと共有する」のとおり、読み取り専用で開きます。
 
 1つのメモは、次のファイルとフォルダでできています。
 
@@ -1017,7 +1033,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 ### 保存先を別のパソコンと共有する
 
-保存先フォルダを OneDrive など(パソコンの間で同期されるフォルダ)に置くと、同じメモを複数のパソコンで使えます。どのパソコンでも「ファイル」→「保存先フォルダを変更…」で、同じフォルダを選んでください。portable 版は、実行ファイルを同期するフォルダの外に置き、保存先だけを変えてください。`EverPad Data\settings` は、そのパソコンだけで使う設定だからです。
+保存先フォルダを OneDrive など(パソコンの間で同期されるフォルダ)に置くと、同じメモを複数のパソコンで使えます。どのパソコンでも「ファイル」→「保存先フォルダ」→「フォルダを追加…」で、同じフォルダを選んでください。portable 版は、実行ファイルを同期するフォルダの外に置き、保存先だけを変えてください。`EverPad Data\settings` は、そのパソコンだけで使う設定だからです。
 
 - 保存先を編集するのは、いつも1つの EverPad だけです。編集している EverPad は、保存先に目印のファイル `.everpad-lock` を置きます。どの EverPad(どのパソコン)がこの保存先を編集しているかを、ほかの EverPad に知らせるためのもので、30秒ごとに新しくします。同じ保存先を開いた別の EverPad(別のパソコンの EverPad や、同じパソコンの portable 版)は、読み取り専用で開きます。画面の上の帯に、編集している EverPad が出ます。メモを見る・検索する・コピーする・印刷とエクスポートはできますが、変えることはできません。帯の「再読み込み」で、もう一方の EverPad が書いた内容を読み直します(ウィンドウに戻ったときにも読み直します)。
 - 読み取り専用の EverPad で編集したいときは、帯の「編集を引き継ぐ」を押します。編集中の EverPad は、画面の上の帯に頼まれたことを出し(手前に無いときは、タスクバーのアイコンが点滅します)、「編集を渡す」か「断る」を選ぶまで編集を続けられます。「編集を渡す」を選ぶと、保存していない編集を書き出してから読み取り専用になり、頼んだ EverPad が編集できるようになります(数秒かかります。同期するフォルダでは、もっとかかります)。「断る」を選ぶと、頼んだ EverPad にそう出て、読み取り専用のままになります。
@@ -1091,15 +1107,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.48.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.49.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.48.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.49.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.48.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.49.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -1108,7 +1124,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.48.0.AppImage`(x64)
+- Linux: `EverPad-0.49.0.AppImage`(x64)
 
 **macOS**
 
@@ -1124,7 +1140,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.48.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.49.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -1142,7 +1158,7 @@ store.js         ファイル保存層(Electron なしでテストできる)
 windowstate.js   ウィンドウの位置の記憶と復元(Electron なしでテストできる)
 portable.js      portable 版(と Linux の AppImage)の設定とメモの保存場所(Electron なしでテストできる)
 macmenu.js       macOS のメニューの形(Electron なしでテストできる)
-keymap.js        キーボードショートカット: 既定のキー(Windows と macOS)、割り当てたキーの判定と保存(Electron なしでテストできる)
+keymap.js        キーボードショートカット: デフォルトのキー(Windows と macOS)、割り当てたキーの判定と保存(Electron なしでテストできる)
 updatecheck.js   GitHub に新しいバージョンがあるかの確認(Electron なしでテストできる)
 updatedownload.js  アプリの中からの更新のための、新しい版のダウンロードと SHA-256 の確認(Electron なしでテストできる)
 pageexport.js    「エクスポート」の HTML・MHTML・スライドの HTML のファイルの組み立て(Electron なしでテストできる)
@@ -1175,7 +1191,7 @@ test/            自動テスト
 - 画像は専用の `everpad-file://` からだけ読み込み、保存先のフォルダの外のファイルは読めません。
 - 画面からはネットワークに接続できません(Content Security Policy の `connect-src 'none'`)。更新の確認はメインプロセスで行い、GitHub の応答からは版の番号と、リリースのファイルの大きさと SHA-256 だけを使います。開くのは固定の場所(リリースのページかリポジトリのページ)だけで、応答に含まれる URL は開きません。アプリの中からの更新では、固定のリポジトリの場所と版の番号から作った場所からだけダウンロードし、大きさと SHA-256 が合ったときだけ、EverPad を閉じたあとでインストーラーを動かします(Microsoft Store 版では動かしません)。
 - Mermaid の図は、Mermaid の strict モードで描き、図の中のクリック・リンク・スクリプトは使えません。Content Security Policy でも、画面はアプリのファイル以外のスクリプトを実行できません。
-- 画面からは Node.js の機能を直接使えない構成(`contextIsolation`、`sandbox`)で、ページの外へ移動することも禁止しています。外部リンクだけは既定のブラウザで開きます。
+- 画面からは Node.js の機能を直接使えない構成(`contextIsolation`、`sandbox`)で、ページの外へ移動することも禁止しています。外部リンクだけはデフォルトのブラウザで開きます。
 - インストールしたアプリは、デバッグ用の接続を受け付けません。`--inspect`、`NODE_OPTIONS`、`ELECTRON_RUN_AS_NODE` は実行ファイル自体で無効にしてあり(Electron の fuses)、`--remote-debugging-port` などの起動オプションは無視します。`npm start` での開発時の起動には影響しません。
 - インストールしたアプリは、起動時にアプリ本体(`app.asar`)が書き換えられていないかを確かめ、書き換えや差し替えがあれば起動しません(Electron の fuses の OnlyLoadAppFromAsar と EnableEmbeddedAsarIntegrityValidation)。
 

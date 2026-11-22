@@ -180,7 +180,8 @@
     }
   }
 
-  function rememberActive() { try { localStorage.setItem('everpad:active', S.active); } catch (e) { /* 無くても動く */ } }
+  // 開いていたメモは保存先ごとに覚える(保存先を切り替えて戻ったときも、そのメモを開く)
+  function rememberActive() { try { localStorage.setItem('everpad:active:' + S.dir, S.active); localStorage.setItem('everpad:active', S.active); } catch (e) { /* 無くても動く */ } }
 
   function newNote() {
     const n = { id: uid(), c: Date.now(), ops: [], text: '', loaded: true, used: ++useSeq };
@@ -4768,6 +4769,10 @@
   window.addEventListener('pagehide', flushSync);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
   $('openDirBtn').addEventListener('click', () => api.openFolder());
+  $('switchDirBtn').addEventListener('click', () => {
+    const r = $('switchDirBtn').getBoundingClientRect();
+    api.dirMenu({ x: r.left, y: r.bottom });
+  });
   document.addEventListener('selectionchange', queueStatus);
   ['keydown', 'keyup', 'mouseup', 'select', 'focus'].forEach(ev => $('editor').addEventListener(ev, queueStatus));
 
@@ -4837,7 +4842,7 @@
     S.notes = data.notes.map(r => ({ id: r.id, c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro, loaded: false }));
     if (!S.notes.length) S.notes.push((await makeNote()) || newNote());
     let last = null;
-    try { last = localStorage.getItem('everpad:active'); } catch (e) { /* 無くても動く */ }
+    try { last = localStorage.getItem('everpad:active:' + S.dir) || localStorage.getItem('everpad:active'); } catch (e) { /* 無くても動く */ }
     const first = S.notes.some(n => n.id === last) ? last : sorted()[0].id;
     try { setCollapsed(localStorage.getItem('everpad:side') === 'hidden', false); } catch (e) { /* 無くても動く */ }
     try { setLines(localStorage.getItem('everpad:lines') === '1', false); } catch (e) { /* 無くても動く */ }
@@ -4847,10 +4852,19 @@
       for (const n of sorted()) { if (n.id !== first && await select(n.id)) { okOpen = true; break; } }
       if (!okOpen) { toast(T('loadFailed')); return; }
     }
+    // 保存先を切り替えて読み直したときは、メモごとの状態(カーソル・履歴の版・検索の言葉など)は引き継がず、
+    // ほかのメモを開いたときと同じく、テキストかプレビューかと検索の範囲だけを引き継ぐ(履歴の表示中なら、そのもとの表示)
+    const switched = query.get('sw');
     const view = takeView();
     S.booted = true;
-    if (view) restoreView(view);
-    else { setMode('edit', true); restorePos(); }
+    if (view && !switched) restoreView(view);
+    else {
+      const m = view ? (view.mode === 'history' ? view.hbase : view.mode) : 'edit';
+      if (view && (view.scope === 'latest' || view.scope === 'history')) { S.scope = view.scope; updateHint(); }
+      setMode(m === 'preview' ? 'preview' : 'edit', true);
+      restorePos();
+    }
+    if (switched) toast(T('dirSwitched', { name: switched }));
     api.ready();
   })();
 })();

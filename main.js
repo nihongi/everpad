@@ -151,8 +151,8 @@ function startLockTimer() {
   if (lockTimer.unref) lockTimer.unref();
 }
 
-function openStore() {
-  const wanted = dataDirFromConfig(readConfig().dataDir, layout) || defaultDir();
+/* 保存先を開く(まだ使い始めない)。ほかの EverPad が編集中なら読み取り専用で開く。開けないときは例外 */
+function openStoreAt(wanted) {
   const now = Date.now();
   const lock = datalock.readLock(wanted);
   let ro = null;
@@ -162,20 +162,42 @@ function openStore() {
     // 前に別の PC で書いたメモが、まだ同期で届いていない。届くまで読み取り専用で開き、届いたら編集を始める
     ro = { mode: 'ro', reason: 'syncing', by: byOf(lock.v), waiting: true, free: true, since: now, left: datalock.filesPending(wanted, lock.v.files) };
   }
+  const s = new Store(wanted);
+  if (ro) s.readOnly = true;
+  s.init();
+  return { store: s, ro: ro };
+}
+/* 開いた保存先を使い始める(編集できるなら、目印のファイルを書く) */
+function useStore(r) {
+  store = r.store;
+  dirSt = r.ro || { mode: 'edit' };
+  myReq = null;
+  lockExtra = {};
+  lastBeat = 0;
+  lastSweep = 0;
+  if (!r.ro) acquireLock();
+  startLockTimer();
+}
+/* 使っている保存先を手放す。編集していたときは、目印のファイルを「手放した」にして、この間に書いたメモの大きさを残す
+   (次に開く EverPad が同期を待てるように)。読み取り専用のときは目印のファイルに触らず、自分の引き継ぎの依頼だけを消す */
+function releaseStore() {
+  if (!store) return;
+  try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
+  try { if (dirSt.mode === 'edit') datalock.releaseLock(store.dir, me, Date.now(), touchedFiles()); else datalock.clearRequest(store.dir, me.sid); } catch (e) { /* 次に開くときに古い目印として扱われる */ }
+}
+function openStore() {
+  const wanted = dataDirFromConfig(readConfig().dataDir, layout) || defaultDir();
+  let r;
   try {
-    store = new Store(wanted);
-    if (ro) store.readOnly = true;
-    store.init();
+    r = openStoreAt(wanted);
   } catch (e) {
     const fallback = path.join(app.getPath('userData'), 'notes');
     dialog.showErrorBox(APP_NAME, T('dirFallback', { wanted: wanted, fallback: fallback }));
-    store = new Store(fallback);
-    store.init();
-    ro = null;
+    const s = new Store(fallback);
+    s.init();
+    r = { store: s, ro: null };
   }
-  dirSt = ro || { mode: 'edit' };
-  if (!ro) acquireLock();
-  startLockTimer();
+  useStore(r);
   return true;
 }
 
@@ -1155,33 +1177,106 @@ const send = name => {
   else if (isMac && !quitting) { pendingSends.push(name); ensureWindow(); }
 };
 
-async function changeFolder() {
+/* ---------- 保存先フォルダの一覧と切り替え ----------
+   使う保存先フォルダを一覧に覚えておき(config.json の dataDirs。portable 版は「EverPad Data」の中なら相対)、
+   メニューの「保存先フォルダ」で切り替える(仕事・個人など、テーマごとにフォルダを分けられる)。使うのはいつも1つだけで、
+   検索・タグ・メモへのリンクは、使っている保存先の中だけ。切り替えは再起動せず、書き込み待ちの編集を書き出し、
+   元の保存先の目印のファイルを手放してから、新しい保存先を開いて画面を読み込み直す */
+const samePath = (a, b) => {
+  if (!a || !b) return false;
+  const x = path.resolve(a), y = path.resolve(b);
+  return process.platform === 'linux' ? x === y : x.toLowerCase() === y.toLowerCase();
+};
+function dirList() {
+  const c = readConfig();
+  const out = [];
+  for (const v of Array.isArray(c.dataDirs) ? c.dataDirs : []) {
+    const d = dataDirFromConfig(v, layout);
+    if (d && !out.some(x => samePath(x, d))) out.push(d);
+  }
+  if (store && !out.some(x => samePath(x, store.dir))) out.unshift(store.dir);
+  return out;
+}
+function saveDirs(list, cur) {
+  const c = readConfig();
+  c.dataDirs = list.map(d => dataDirToConfig(d, layout));
+  if (cur) c.dataDir = dataDirToConfig(cur, layout);
+  writeConfig(c);
+}
+/* メニューに出す名前: フォルダの名前(同じ名前が2つ以上あるときは、場所ごと) */
+function dirLabel(d, list) {
+  const base = path.basename(d) || d;
+  return list.filter(x => (path.basename(x) || x).toLowerCase() === base.toLowerCase()).length > 1 ? d : base;
+}
+function dirMenu() {
+  const list = dirList();
+  const cur = store ? store.dir : '';
+  const others = list.filter(d => !samePath(d, cur));
+  return list.map(d => ({ label: menuLabel(dirLabel(d, list)), type: 'radio', checked: samePath(d, cur), click: () => switchFolder(d) }))
+    .concat([
+      { type: 'separator' },
+      { label: T('mDirAdd'), click: addFolder },
+      others.length
+        ? { label: T('mDirRemove'), submenu: others.map(d => ({ label: menuLabel(dirLabel(d, list)), click: () => removeFolder(d) })) }
+        : { label: T('mDirRemove'), enabled: false }
+    ]);
+}
+async function addFolder() {
   const r = await dialog.showOpenDialog(win, {
     title: T('dirPickTitle'),
-    defaultPath: store.dir,
+    defaultPath: store ? path.dirname(store.dir) : undefined,
     properties: ['openDirectory', 'createDirectory']
   });
   if (r.canceled || !r.filePaths[0]) return;
+  await switchFolder(r.filePaths[0], true);
+}
+async function removeFolder(d) {
+  if (store && samePath(d, store.dir)) return;   // 使っている保存先は外せない
+  const list = dirList();
   const choice = await dialog.showMessageBox(win, {
     type: 'question',
-    buttons: [T('dirChangeButton'), T('cancel')],
+    buttons: [T('dirRemoveButton'), T('cancel')],
     defaultId: 0,
     cancelId: 1,
     title: APP_NAME,
     icon: ICON,
-    message: T('dirChangeQ'),
-    detail: T('dirChangeDetail', { dir: r.filePaths[0] })
+    message: T('dirRemoveQ', { name: dirLabel(d, list) }),
+    detail: T('dirRemoveDetail', { dir: d })
   });
   if (choice.response !== 0) return;
-  await flushRenderer();
-  writeConfig(Object.assign(readConfig(), { dataDir: dataDirToConfig(r.filePaths[0], layout) }));
-  closing = true;
-  // portable 版は、一時フォルダに展開した EverPad ではなく portable 版の exe から起動し直す
-  // (展開した EverPad をじかに起動し直すと、元の起動役が終わるときに一時フォルダを消してしまう)
-  if (isPortable && process.env.PORTABLE_EXECUTABLE_FILE) app.relaunch({ execPath: process.env.PORTABLE_EXECUTABLE_FILE, args: [] });
-  else app.relaunch();
-  app.quit();
+  try { saveDirs(dirList().filter(x => !samePath(x, d))); } catch (e) { /* 覚えられなくても動く */ }
+  buildMenu();
 }
+/* 保存先を切り替える。add: 一覧に無ければ足す(開けたときだけ) */
+async function switchFolder(dir, add) {
+  if (!store || dirBusy || !dir) { buildMenu(); return; }
+  if (samePath(dir, store.dir)) { buildMenu(); return; }
+  // 一覧の保存先が無くなっていたら(移した・名前を変えた・USB メモリーを外したなど)、作り直さずに知らせる
+  let ok = false;
+  try { ok = fs.statSync(dir).isDirectory(); } catch (e) { ok = false; }
+  if (!ok && !add) { dialog.showErrorBox(APP_NAME, T('dirMissing', { dir: dir })); buildMenu(); return; }
+  dirBusy = true;
+  try {
+    let r;
+    try { r = openStoreAt(dir); } catch (e) { dialog.showErrorBox(APP_NAME, T('dirOpenFailed', { dir: dir })); return; }
+    await prepareRenderer();   // 書き込み待ちの編集と本文を書き出す(画面は読み直すまで読み取り専用になる)
+    const list = dirList();    // 元の保存先も入れた一覧(足すフォルダは最後に)
+    if (add && !list.some(x => samePath(x, dir))) list.push(dir);
+    releaseStore();
+    useStore(r);
+    try { saveDirs(list, dir); } catch (e) { /* 覚えられなくても、今回は使う */ }
+    if (win && !win.isDestroyed()) loadPage({ sw: path.basename(dir) || dir });
+  } finally {
+    dirBusy = false;
+    buildMenu();
+  }
+}
+ipcMain.handle('dir:menu', (e, pos) => {
+  if (!fromOurWindow(e)) return;
+  const z = win.webContents.getZoomFactor() || 1;   // 画面の位置(CSS の px)を、拡大・縮小に合わせてウィンドウの位置にする
+  const p = pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) ? { x: Math.round(pos.x * z), y: Math.round(pos.y * z) } : {};
+  Menu.buildFromTemplate(dirMenu()).popup(Object.assign({ window: win }, p));
+});
 
 /* ---------- 編集の設定(「設定」の窓) ----------
    自動インデント・箇条書きを自動で続ける(どちらも既定はオン)、Tab での字下げの幅(2 か 4、既定は 4)、
@@ -1349,7 +1444,7 @@ function buildMenu() {
         { id: 'props', label: T('mProps'), accelerator: A('props'), click: () => send('props') },
         { type: 'separator' },
         { label: T('mOpenDir'), accelerator: A('openDir'), click: () => shell.openPath(store.dir) },
-        { label: T('mChangeDir'), click: changeFolder },
+        { label: T('mDirs'), submenu: dirMenu() },
         { type: 'separator' },
         { id: 'settings', label: T('mSettings'), accelerator: A('settings'), click: () => send('settings') },
         { id: 'keys', label: T('mKeys'), click: () => send('keys') },
@@ -1432,7 +1527,8 @@ async function setLang(l) {
   if (win && !win.isDestroyed()) { await flushRenderer(); loadPage(); }
 }
 // os: 画面で、ショートカットキーの書き方(Mac は ⌘)と、リンクを開く Ctrl/⌘+クリックを切り替える
-const loadPage = () => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform, kd: JSON.stringify(keyShown()) }, editQuery()) }); };
+// extra: { sw: 切り替えた保存先の名前 }(保存先を切り替えたときは、前の画面の状態を引き継がず、切り替えたことを知らせる)
+const loadPage = extra => { rendererReady = false; return win.loadFile(path.join(__dirname, 'renderer', 'index.html'), { query: Object.assign({ lang: lang, os: process.platform, kd: JSON.stringify(keyShown()) }, editQuery(), extra || {}) }); };
 // 画面に渡す編集の設定(ai: 自動インデント、al: 箇条書きを続ける、iw: 字下げの幅、hl: カーソル行の強調、sp: 最後の行より下までスクロール、nc: メモの色)
 const editQuery = () => { const p = editPrefs(); return { ai: p.autoIndent ? '1' : '0', al: p.autoList ? '1' : '0', iw: String(p.indentWidth), hl: p.lineHl ? '1' : '0', sp: p.scrollPast ? '1' : '0', nc: JSON.stringify(p.noteColor), pr: p.pasteRich ? '1' : '0' }; };
 
@@ -1795,13 +1891,8 @@ if (!app.requestSingleInstanceLock()) {
   // Mac: Dock のアイコンを押したとき、ウィンドウが無ければ開く
   app.on('activate', () => ensureWindow());
   app.on('will-quit', () => {
-    try { store.writeIndex(); } catch (e) { /* 索引は控え */ }
-    // 編集していたときは、印を「手放した」にして、この起動で書いたメモの大きさを残す(次に開く EverPad が同期を待てるように)。
-    // 読み取り専用のときは印に触らず、自分の引き継ぎの依頼だけを消す
-    if (store) {
-      clearInterval(lockTimer);
-      try { if (dirSt.mode === 'edit') datalock.releaseLock(store.dir, me, Date.now(), touchedFiles()); else datalock.clearRequest(store.dir, me.sid); } catch (e) { /* 次の起動で古い印として扱われる */ }
-    }
+    clearInterval(lockTimer);
+    releaseStore();
     // ダウンロードの途中で終わるときは、書きかけを消す
     if (updateJob) {
       updateJob.ctrl.abort();

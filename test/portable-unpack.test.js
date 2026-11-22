@@ -31,9 +31,9 @@ test('起動役: 決まったフォルダ(%TEMP%\\<ID>)ではなく、起動ご�
   assert.throws(() => patch('Section\n  StrCpy $INSTDIR "$TEMP\\x"\nSectionEnd\n'), /portable\.nsi has changed/, '形が変わっていたらビルドを止める');
 });
 
-test('起動役: ビルドの前に直し、保存先を変えたときは portable 版の exe から起動し直す', () => {
+test('起動役: ビルドの前に直す。保存先を切り替えても起動し直さない(展開した EverPad をじかに起動し直すと、一時フォルダが消える)', () => {
   assert.match(JSON.parse(read('package.json')).scripts.predist, /&& node tools\/portable-unpack\.js$/);
-  assert.match(read('main.js'), /if \(isPortable && process\.env\.PORTABLE_EXECUTABLE_FILE\) app\.relaunch\(\{ execPath: process\.env\.PORTABLE_EXECUTABLE_FILE, args: \[\] \}\);\n {2}else app\.relaunch\(\);/);
+  assert.ok(!/app\.relaunch\(/.test(read('main.js')), 'main.js は起動し直さない');
   // GitHub Actions: 起動中にもう一度起動しても、1つ目のファイルを消さず、待ち続けずに終わる。閉じると印は「手放した」
   const ci = read('tools/ci-smoke-windows.ps1');
   assert.match(ci, /\$second = Start-Process -FilePath \$pexe/);
