@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.47.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.48.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -50,6 +50,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ■ 残す・渡す  
 ・メモは、選んだフォルダに普通のファイルとして保存します。バックアップはフォルダをコピーするだけです。  
 ・印刷、PDF、HTML、MHTML、AsciiDoc、Word 文書(.docx)、LaTeX(.tex)、テキストファイルに書き出せます。Word では見出しのスタイルが付き、数式は Word で編集できる数式に、図は画像になります。LaTeX では数式を書いたまま渡せるので、論文やレポートの原稿にそのまま使えます。  
+・メモを --- の行で分けると、スライドになります。全画面のスライドショーで発表したり、HTML・PDF・PowerPoint に書き出したりできます。PowerPoint では、数式も PowerPoint の数式として編集できます。  
 ・テキストファイルを、メモとして取り込めます。  
 ・EverPad アーカイブ(.everpad)には、メモの本文・すべての履歴・添付ファイルがまとめて入ります。別のパソコンへの引っ越しや受け渡しに使えます。  
 ・書き終えたメモは読み取り専用にして、うっかり書き換えないように守れます。
@@ -63,9 +64,11 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・検索欄に tag: と打つと、当たるタグを、メモの件数つきで候補に出します。↑↓ で選んで Enter か Tab で(クリックでも)、そのタグで探します。
-・tag: だけで、タグを持つメモをすべて出します。tag:名前 を打っている間は、打った文字で始まるタグを探すので、打つにつれて絞られます。
-・検索で、フロントマターのキーの名前(tags: や title: など)には当てないようにしました。「tag」で探しても、タグを持つメモがすべて出ることはありません。
+・メモを区切り線(--- の行)で分けると、16:9 のスライドになります(Marp と同じ書き方)。フロントマターに marp: true と書くと、プレビューと履歴でもスライドの形で見せ、履歴では版ごとに変わったスライドに枠を付けます。入りきらないスライドは、文字を小さくして入れます。
+・「表示」→「スライドショー」(F5)で、全画面にしてスライドを1枚ずつ見せます。
+・「エクスポート」で、スライドを HTML・PDF・PowerPoint に書き出せます。PowerPoint のファイルは PowerPoint で編集でき、数式は PowerPoint の数式に、図は画像になります。
+・図の矢印の文字に、矢印の線が重なるのを直しました。
+・検索欄の下の説明を短くしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -77,7 +80,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 6. 検索と置換(正規表現にも対応)
 7. 画像の貼り付けとファイルの添付。Web ページ・Word・Excel からコピーした文書は、整形を保って Markdown で貼り付け
 8. 他のメモへのリンクと、ブラウザからドロップしたページへのリンク
-9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word・LaTeX への書き出し(フロントマターで題名・著者・目次・用紙も設定)
+9. 印刷と、PDF・HTML・MHTML・AsciiDoc・Word・LaTeX への書き出し。--- で分けたスライドのスライドショーと、PowerPoint への書き出し
 10. 履歴と添付ファイルごと移せる EverPad アーカイブ
 11. メモは選んだフォルダに普通のファイルとして保存(OneDrive などで、複数のパソコンから共有もできます)
 12. アカウント不要、インターネットに接続しない
@@ -150,6 +153,7 @@ LOOK BACK
 KEEP AND SHARE  
 • Notes are saved as ordinary files in a folder you choose. Backing up is just copying the folder.  
 • Print, or export to PDF, HTML, MHTML, AsciiDoc, Word (.docx), LaTeX (.tex) or a text file. Word documents get heading styles, formulas become Word equations you can edit, and diagrams become images. LaTeX files keep formulas exactly as written, ready for papers and reports.  
+• Split a note with --- lines to make slides. Present them as a full-screen slideshow, or export them to HTML, PDF or PowerPoint, where formulas become PowerPoint equations you can edit.  
 • Import text files as notes.  
 • An EverPad archive (.everpad) holds a note's text, its whole history and its attachments, for moving notes to another PC or sharing them.  
 • Make a finished note read-only so it cannot be changed by accident.
@@ -163,9 +167,11 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Type tag: in the search box to see the matching tags, with their number of notes. Choose one with ↑↓ and Enter or Tab, or click it, to search for that tag.
-• tag: alone lists all the notes that have tags, and while you are typing tag:name, it finds the tags that begin with what you have typed, so the results narrow as you type.
-• Searching no longer matches the key names of the front matter (such as tags: and title:), so searching for "tag" no longer finds every note that has tags.
+• Split a note with horizontal rules (--- lines) to make 16:9 slides, written the same way as in Marp. With marp: true in the front matter, the preview and the history show the note as slides, and the history outlines the slide changed by each version. Text that does not fit on a slide is made smaller to fit.
+• View → Slideshow (F5) shows the slides full screen, one at a time.
+• Export slides to HTML, PDF or PowerPoint. The PowerPoint file can be edited in PowerPoint: formulas become PowerPoint equations, and diagrams become pictures.
+• In diagrams, the text on an arrow no longer has the arrow's line running through it.
+• The help text below the search box is shorter.
 
 ### Product features (up to 20, up to 200 characters each)
 
@@ -177,7 +183,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 6. Find and replace, with regular expressions
 7. Paste images and attach files, and paste formatted text from web pages, Word and Excel as Markdown
 8. Links between notes, and links to web pages dropped from the browser
-9. Print, and export to PDF, HTML, MHTML, AsciiDoc, Word and LaTeX, with title, author, table of contents and paper set in the front matter
+9. Print and export to PDF, HTML, MHTML, AsciiDoc, Word and LaTeX; slides split with --- lines, shown as a slideshow or exported to PowerPoint
 10. EverPad archives that move a note with its history and attachments
 11. Notes saved as ordinary files in a folder you choose (it can also be shared between computers through OneDrive or similar)
 12. No account, and no internet connection
