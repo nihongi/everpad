@@ -93,6 +93,8 @@ test('図: 画面・ヘルプ・main.js・ビルドへのつなぎ込み', () =>
   assert.match(dg, /s\.src = 'vendor\/mermaid\/mermaid\.min\.js'/);
   assert.match(dg, /securityLevel: 'strict'/);
   assert.match(dg, /htmlLabels: false, flowchart: \{ htmlLabels: false \}/);
+  // 矢印のラベルの背景は透けさせず、図の背景と同じ色にする(線が文字に重ならず、文字のところで途切れて見える)
+  assert.match(dg, /themeCSS: '\.edgeLabel rect \{ opacity: 1 !important; fill: var\(--surface, #fff\) !important; \}'/);
   assert.match(dg, /maxTextSize: 50000, maxEdges: 500/);
   const app = read('renderer/app.js');
   assert.match(app, /return Diagrams\.render\(root, diagramOpts \|\| noteDiag\(\)\)/);   // 印刷・書き出しは明るい配色、画面はメモの色に合わせる

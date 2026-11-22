@@ -30,6 +30,10 @@
     return {
       startOnLoad: false, securityLevel: 'strict', theme: theme,
       htmlLabels: false, flowchart: { htmlLabels: false },
+      // 矢印のラベル(SVG の文字のとき)の背景は、Mermaid の既定では半分透けた灰色で(opacity: 0.5)、矢印の線が文字に重なって見える。
+      // 透けない、図の背景と同じ色(メモの欄の --surface。メモの色・ダークモードに合う。印刷と書き出しの画像では白)にして、
+      // 線が文字のところで途切れて見えるようにする
+      themeCSS: '.edgeLabel rect { opacity: 1 !important; fill: var(--surface, #fff) !important; }',
       fontFamily: getComputedStyle(document.body).fontFamily,
       maxTextSize: 50000, maxEdges: 500, suppressErrorRendering: true
     };
