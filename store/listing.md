@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.50.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.51.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -64,9 +64,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューの履歴で、その版で変えた段落・リストの項目・表の行などに、左の線と薄い色が付きます。追加した文字には色が付き、文字を消しただけの版では、消した位置に細い線が出ます。変更箇所が画面の外にあるときは、再生中も、見える所まで表示が動きます。
-・履歴の長いメモを開く、履歴すべてを検索する、タイムスライダーの色の帯を出す、のがずっと速くなり、使うメモリーも大きく減りました。
-・開いているメモを削除したあとは、その前に見ていたメモが開くようになりました。
+・プレビューで、コードブロックの長い行を折り返して、スクロールせずに全体を見られるようになりました。折り返した続きは字下げして左に矢印を付けるので、コードの中の改行と見分けられます。コードブロックの右上のボタンで、横にスクロールする表示にも切り替えられます。
+・起動したときに、前回最後に使った表示(テキストかプレビュー)で始まるようになりました。
+・プレビューで履歴を再生しているときに、スクロールバーが跳ねたり、本文が一瞬ずれたりすることがあったのを直しました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -165,9 +165,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• In the history of the Preview, the paragraph, list item, table row or other part changed in each version is marked with a bar on the left. Added characters are highlighted, and in a version that only deleted characters, a thin line shows where they were deleted. If the change is out of view, the view scrolls to it, also while the history is playing.
-• Opening a note with a long history, searching all history and the colored bands on the time slider are much faster and use far less memory.
-• After you delete the note that is open, the note you viewed before it opens.
+• In the preview, long lines in code blocks are now wrapped, so you can see them whole without scrolling. The wrapped continuation of a line is indented and marked with an arrow on the left, so you can tell it from the line breaks in the code. The button at the top right of a code block switches to scrolling long lines sideways.
+• EverPad now starts in Text or Preview, whichever you used last.
+• Fixed the scroll bar jumping, and the text jumping for a moment, while the history was playing in the Preview.
 
 ### Product features (up to 20, up to 200 characters each)
 
