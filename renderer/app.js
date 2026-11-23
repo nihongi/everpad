@@ -2960,6 +2960,7 @@
     const ta = document.createElement('textarea');
     ta.className = 'pe-edit';
     ta.spellcheck = false;
+    ta.rows = 1;   // textarea は何もしないと2行分の高さになり、1行の中身でも使えない2行目が出る(peFit が中身の高さに合わせて伸ばす)
     ta.value = src;
     let holder = ta;
     if (el.tagName === 'LI') { holder = document.createElement('li'); holder.className = 'pe-li'; holder.appendChild(ta); }
@@ -2994,6 +2995,7 @@
     const ta = document.createElement('textarea');
     ta.className = 'pe-edit';
     ta.spellcheck = false;
+    ta.rows = 1;   // textarea は何もしないと2行分の高さになり、1行の中身でも使えない2行目が出る(peFit が中身の高さに合わせて伸ばす)
     if (top) top.after(ta);
     else {
       const next = pv.querySelector(':scope > .footnotes, :scope > .pe-tail');

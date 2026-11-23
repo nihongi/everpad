@@ -28,3 +28,11 @@ test('折り返しの境目のために、↑↓・Home・End・クリックで�
   assert.match(app, /\$\('preview'\)\.addEventListener\('mousedown', e => \{ if \(e\.target === pe\.box\) peCaret = null; \}\);/);
   assert.match(app, /Math\.max\(0, Math\.min\(peCaretLine\(ta, ta\.value\.length, true\), Math\.floor\(y \/ lh\)\)\)/);
 });
+
+test('プレビューの編集欄は1行の高さから始める(textarea の2行分のままだと、1行の中身でも使えない2行目が出る)', () => {
+  // かたまりを開く欄(peOpenBlock)と、書き足す欄(peOpenAdd)の両方。中身に合わせて伸ばすのは peFit
+  const app = read('renderer/app.js');
+  const opens = app.match(/const ta = document\.createElement\('textarea'\);\n\s+ta\.className = 'pe-edit';\n\s+ta\.spellcheck = false;\n\s+ta\.rows = 1;/g) || [];
+  assert.strictEqual(opens.length, 2);
+  assert.match(app, /ta\.style\.height = 'auto';\n\s+ta\.style\.height = ta\.scrollHeight \+ 2 \+ 'px';/);
+});
