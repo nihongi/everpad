@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.51.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.52.0(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -28,7 +28,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・プレビューのままでも、クリックした段落やリストをその場で書き換えられ、図や数式の下にも段落を書き足せます。空の表の挿入もでき、表はセルごとに編集でき、右クリックで行・列の挿入と削除、左寄せ・中央揃え・右寄せができます。チェックボックスは押すだけで切り替わります。  
 ・テキストとプレビューを切り替えても、見ていた場所はそのままです。  
 ・選んだ文字を、右クリックで太字・斜体・取り消し線・コードにできます。  
-・GitHub と同じ書き方で、絵文字(:smile: など。打つと候補が出ます)、色付きの注意書き(アラート)、脚注を書けます。  
+・GitHub と同じ書き方で、絵文字(:smile: など。打つと候補が出ます)、色付きの注意書き(アラート)、脚注を書けます。README のような、見た目を整える HTML も表示します。  
 ・LaTeX の数式と化学式を、整った数式として表示します。数式エディタでは、典型的な数式のひな型や記号を選んで、プレビューを見ながら書けます。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。図エディタでは、ひな型から始めて、図を拡大・移動しながら書けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
@@ -64,9 +64,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューで、コードブロックの長い行を折り返して、スクロールせずに全体を見られるようになりました。折り返した続きは字下げして左に矢印を付けるので、コードの中の改行と見分けられます。コードブロックの右上のボタンで、横にスクロールする表示にも切り替えられます。
-・起動したときに、前回最後に使った表示(テキストかプレビュー)で始まるようになりました。
-・プレビューで履歴を再生しているときに、スクロールバーが跳ねたり、本文が一瞬ずれたりすることがあったのを直しました。
+・メモに書いた HTML を、見た目を変えるだけのタグ(中央寄せ・幅を付けた画像・表・改行・<details> など)に限って、GitHub と同じように表示するようになりました。スクリプトなどは取り除きます。
+・Markdown のファイル(スクリーンショット入りの README など)をインポートすると、同じフォルダかその下にある画像も、添付として取り込みます。
+・Web ページから貼った文書の中の Web 上の画像はリンクとして入ります。そのときに、画像も入れる方法をお知らせするようにしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -129,7 +129,7 @@ WRITE
 • Edit right in the preview: click a paragraph or a list to change it in place, or add a paragraph below a diagram or formula. Insert an empty table, edit tables cell by cell, and right-click to insert or delete rows and columns or to align a column left, center or right. Check boxes switch with a click.  
 • Switching between Text and Preview keeps your place.  
 • Make selected text bold, italic, struck through or code from the right-click menu.  
-• Use GitHub's emoji shortcodes (such as :smile:, with suggestions as you type), alerts and footnotes.  
+• Use GitHub's emoji shortcodes (such as :smile:, with suggestions as you type), alerts and footnotes. HTML that sets out how text looks, as in a README, is shown too.  
 • LaTeX math and chemical formulas are shown as formatted formulas. The formula editor lets you pick templates and symbols and see the result as you type.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax. The diagram editor lets you start from a template and zoom and move the diagram as you write.  
 • Paste screenshots or drop files to attach images and files to a note.  
@@ -165,9 +165,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• In the preview, long lines in code blocks are now wrapped, so you can see them whole without scrolling. The wrapped continuation of a line is indented and marked with an arrow on the left, so you can tell it from the line breaks in the code. The button at the top right of a code block switches to scrolling long lines sideways.
-• EverPad now starts in Text or Preview, whichever you used last.
-• Fixed the scroll bar jumping, and the text jumping for a moment, while the history was playing in the Preview.
+• HTML written in a note is now shown as on GitHub, limited to tags that only change how the text looks (centered paragraphs, images with a width, tables, line breaks, <details> and so on). Scripts and the like are removed.
+• When you import a Markdown file (for example a README with screenshots), the images in the same folder or below that it refers to are added as attachments.
+• Images on the web in text pasted from a web page are inserted as links; a message now says how to add the images themselves.
 
 ### Product features (up to 20, up to 200 characters each)
 
