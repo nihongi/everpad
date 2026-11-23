@@ -7,6 +7,67 @@ const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&
 
 function applyOp(text, op) { return text.slice(0, op.p) + op.i + text.slice(op.p + op.d.length); }
 
+/* 履歴を当て直すための本文。小さなかたまり(およそ CHUNK 文字)の配列で持つので、1回の編集の手間がかたまりの大きさ程度で済み、
+   本文の長さに比例しない(1つの文字列のまま当て直すと、長い本文で編集の数×本文の長さの時間がかかる)。
+   apply は applyOp と同じ結果になる(位置や消す範囲が本文の外に出るときも、文字列の slice と同じに扱う)。
+   length と slice があるので、snippetOf などには文字列の代わりに渡せる。前の位置を覚えていて、近くの編集ほど速い */
+const CHUNK = 2048;
+class ChunkText {
+  constructor(text) {
+    text = text || '';
+    this.c = [];
+    for (let i = 0; i < text.length; i += CHUNK) this.c.push(text.slice(i, i + CHUNK));
+    if (!this.c.length) this.c.push('');
+    this.ci = 0; this.cs = 0; this.length = text.length;
+  }
+  // p を含むかたまりに移る(かたまりの終わりちょうどなら、そのかたまり)
+  _seek(p) {
+    const c = this.c;
+    while (p < this.cs && this.ci > 0) { this.ci--; this.cs -= c[this.ci].length; }
+    while (this.ci < c.length - 1 && p > this.cs + c[this.ci].length) { this.cs += c[this.ci].length; this.ci++; }
+  }
+  apply(p, dl, ins) {
+    if (p > this.length) p = this.length;
+    if (p + dl > this.length) dl = this.length - p;
+    this._seek(p);
+    const c = this.c, ci = this.ci, t = c[ci], local = p - this.cs;
+    if (local + dl <= t.length) c[ci] = t.slice(0, local) + ins + t.slice(local + dl);
+    else {
+      let rem = dl - (t.length - local);
+      while (rem > 0 && ci + 1 < c.length) {
+        const nx = c[ci + 1];
+        if (nx.length <= rem) { rem -= nx.length; c.splice(ci + 1, 1); } else { c[ci + 1] = nx.slice(rem); rem = 0; }
+      }
+      c[ci] = t.slice(0, local) + ins;
+    }
+    this.length += ins.length - dl;
+    const s = c[ci];
+    if (s.length > 2 * CHUNK) {
+      const parts = [];
+      for (let i = 0; i < s.length; i += CHUNK) parts.push(s.slice(i, i + CHUNK));
+      c.splice(ci, 1, ...parts);
+    } else if (s.length < CHUNK / 4 && c.length > 1) {
+      // 小さくなったかたまりは隣とつなぐ(かたまりが増え続けて、移るのが遅くならないように)
+      if (ci + 1 < c.length && s.length + c[ci + 1].length <= 2 * CHUNK) { c[ci] = s + c[ci + 1]; c.splice(ci + 1, 1); }
+      else if (ci > 0 && s.length + c[ci - 1].length <= 2 * CHUNK) { this.ci--; this.cs -= c[ci - 1].length; c[ci - 1] += s; c.splice(ci, 1); }
+    }
+  }
+  slice(lo, hi) {
+    if (lo == null || lo < 0) lo = 0;
+    if (hi == null || hi > this.length) hi = this.length;
+    if (hi <= lo) return '';
+    this._seek(lo);
+    let out = '', i = this.ci, s = this.cs;
+    while (i < this.c.length && s < hi) {
+      const t = this.c[i];
+      out += t.slice(Math.max(0, lo - s), Math.min(t.length, hi - s));
+      s += t.length; i++;
+    }
+    return out;
+  }
+  toString() { return this.c.length === 1 ? this.c[0] : this.c.join(''); }
+}
+
 function makeOp(a, b, t) {
   const min = Math.min(a.length, b.length);
   let p = 0;
@@ -18,19 +79,28 @@ function makeOp(a, b, t) {
   return { p: p, d: a.slice(p, a.length - s), i: b.slice(p, b.length - s), t: t };
 }
 
-/* 100版ごとに途中の状態を覚えておき、スライダーを動かしても素早く再現する */
+/* 第 k 版の本文。途中の版の本文(チェックポイント)を覚えておき、いちばん近い手前のものから当て直す。
+   チェックポイントは、前のチェックポイントからの編集の量(1回につき 32 + 消した文字数 + 入れた文字数)が
+   本文の長さに届いたところに置く(ただし 100版以上あける)。覚える本文の合計は履歴の大きさ程度に収まり、
+   当て直す編集も本文の長さ程度で済むので、長い履歴でもスライダーを素早く動かせる。
+   n._cp = { k: [版の番号…](小さい順), t: [その版の本文…] }。編集は後ろに足すだけなので、覚えた版は消さずに使える */
+const CP_MIN = 100;
 function textAt(n, k) {
-  const cp = n._cp || (n._cp = ['']);
-  const target = Math.floor(k / 100);
-  while (cp.length <= target) {
-    const j = cp.length - 1;
-    let t = cp[j];
-    for (let r = j * 100; r < (j + 1) * 100; r++) t = applyOp(t, n.ops[r]);
-    cp.push(t);
+  const cp = n._cp || (n._cp = { k: [0], t: [''] });
+  let lo = 0, hi = cp.k.length - 1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (cp.k[m] <= k) lo = m; else hi = m - 1; }
+  if (cp.k[lo] === k) return cp.t[lo];
+  const last = lo === cp.k.length - 1;
+  const b = new ChunkText(cp.t[lo]);
+  let from = cp.k[lo], cost = 0;
+  for (let r = cp.k[lo]; r < k; r++) {
+    const op = n.ops[r];
+    b.apply(op.p, op.d.length, op.i);
+    if (!last) continue;
+    cost += 32 + op.d.length + op.i.length;
+    if (r + 1 - from >= CP_MIN && cost >= b.length) { from = r + 1; cost = 0; cp.k.push(from); cp.t.push(b.toString()); }
   }
-  let t = cp[target];
-  for (let r = target * 100; r < k; r++) t = applyOp(t, n.ops[r]);
-  return t;
+  return b.toString();
 }
 
 /* ---------- Markdown(簡易版) ---------- */
@@ -1517,22 +1587,22 @@ function searchHistory(notes, q, per, probe) {
   let total = 0;
   for (const n of notes) {
     const N = n.ops.length, found = [];
-    let text = '', alive = [];
+    const text = new ChunkText('');   // 当て直している本文(長い履歴でも速いように、かたまりで持つ)
+    let alive = [];
     for (let k = 1; k <= N; k++) {
       const op = n.ops[k - 1], dl = op.d.length, il = op.i.length, delta = il - dl;
-      const prev = text;
-      let sp = null;   // prev のキーの名前の範囲(壊れた箇所があるときだけ求める)
+      let sp = null;   // 編集の前の本文の、キーの名前の範囲(壊れた箇所があるときだけ求める)
       const next = [];
       for (const m of alive) {
         if (m.e <= op.p) next.push(m);                                  // 編集より前: そのまま
         else if (m.s >= op.p + dl) { m.s += delta; m.e += delta; next.push(m); } // 編集より後: 位置だけずれる
         else {                                                          // 編集で壊れた
           m.b = k - 1; m.removedAt = op.t;
-          if (!sp) sp = fmKeySpans(prev);
+          if (!sp) sp = fmKeySpans(text.toString());
           if (!inSpans(sp, m.s, m.e)) found.push(m);
         }
       }
-      text = applyOp(text, op);
+      text.apply(op.p, dl, op.i);
       const lo = Math.max(0, op.p - (ql - 1)), hi = Math.min(text.length, op.p + il + (ql - 1));
       const seg = text.slice(lo, hi);
       re.lastIndex = 0;
@@ -1543,9 +1613,9 @@ function searchHistory(notes, q, per, probe) {
         if (!next.some(x => x.s < e && x.e > s)) next.push({ id: n.id, a: k, s: s, e: e, snippet: snippetOf(text, s, e) });
       }
       alive = next;
-      if (probe) probe(k, text, alive);
+      if (probe) probe(k, text.toString(), alive);
     }
-    const spN = alive.length ? fmKeySpans(text) : [];
+    const spN = alive.length ? fmKeySpans(text.toString()) : [];
     for (const m of alive) { m.b = N; m.removedAt = 0; if (!inSpans(spN, m.s, m.e)) found.push(m); }
     found.sort((x, y) => y.a - x.a);
     total += found.length;
@@ -1641,13 +1711,14 @@ function chunkLines(lines, size) {
    counter.counts[k] が第 k 版(0 は空の版)の数 */
 function historyCounter(ops, re, ql) {
   const N = ops.length, counts = new Uint32Array(N + 1);
-  let text = '', alive = [], k = 0;
+  const text = new ChunkText('');   // 当て直している本文(かたまりで持つ)
+  let alive = [], k = 0;
   const c = { counts, done: N === 0, step };
   function step(limit) {
     const end = Math.min(N, k + Math.max(1, limit));
     while (k < end) {
       const op = ops[k++], dl = op.d.length, il = op.i.length, delta = il - dl;
-      text = applyOp(text, op);
+      text.apply(op.p, dl, op.i);
       const next = [];
       for (const m of alive) {
         if (m.e < op.p) next.push(m);                                          // 編集より前(接していない): そのまま
@@ -2267,5 +2338,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, makeOp, textAt, inline, md, slidesOn, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, ChunkText, makeOp, textAt, inline, md, slidesOn, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

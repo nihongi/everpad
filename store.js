@@ -37,15 +37,20 @@ const validOp = o =>
   typeof o[3] === 'number' && Number.isFinite(o[3]);
 
 function applyWire(text, o) { return text.slice(0, o[0]) + o[2] + text.slice(o[0] + o[1].length); }
+/* 最初の k 個(省略ならすべて)の編集を当てた本文。かたまりで持つ本文(core.ChunkText)で当て直すので、長い履歴でも速い */
+function wireText(ops, k) {
+  const b = new core.ChunkText('');
+  const n = k == null ? ops.length : k;
+  for (let i = 0; i < n; i++) { const o = ops[i]; b.apply(o[0], o[1].length, o[2]); }
+  return b.toString();
+}
 const validBase = b => Number.isInteger(b) && b >= 0;
 const baseOf = head => (head && validBase(head.base) ? head.base : 0);
 
 /* 古い履歴を削除した後の編集の並び。k = 残す最も古い版(編集の個数で数えた位置)。
    最初の k 個の編集を「版 k の本文を位置0に入れる」1つにまとめる(時刻は版 k のまま) */
 function pruneOps(ops, k) {
-  let text = '';
-  for (let i = 0; i < k; i++) text = applyWire(text, ops[i]);
-  return [[0, '', text, ops[k - 1][3]]].concat(ops.slice(k));
+  return [[0, '', wireText(ops, k), ops[k - 1][3]]].concat(ops.slice(k));
 }
 
 /* どれかの版の本文に出てくる添付(attach: の後のハッシュ16桁)の集まり。
@@ -53,9 +58,9 @@ function pruneOps(ops, k) {
 const ATT_RE = /attach:([0-9a-f]{16})/g;
 function attachHashes(ops) {
   const set = new Set();
-  let text = '';
+  const text = new core.ChunkText('');
   for (const o of ops) {
-    text = applyWire(text, o);
+    text.apply(o[0], o[1].length, o[2]);
     const lo = Math.max(0, o[0] - 23), hi = Math.min(text.length, o[0] + o[2].length + 23);
     const seg = text.slice(lo, hi);
     ATT_RE.lastIndex = 0;
@@ -351,8 +356,7 @@ class Store {
       fs.mkdirSync(dir, { recursive: true });
       for (const x of arc.files) { if (!validFileId(x.fileId)) throw storeError('badId', '添付のファイル名が正しくありません'); fs.writeFileSync(path.join(dir, x.fileId), x.data); }
     }
-    let text = '';
-    for (const o of arc.ops) text = applyWire(text, o);
+    const text = wireText(arc.ops);
     fs.writeFileSync(this.file(id, '.md'), text);
     const head = Object.assign({}, arc.head, { id: id, imported: importedAt });
     const tmp = f + '.tmp';
@@ -425,8 +429,7 @@ class Store {
         const note = this.loadOne(id);          // この1つだけ読み直す
         if (!note) continue;
         this.scans++;
-        let text = '';
-        for (const o of note.ops) text = applyWire(text, o);
+        const text = wireText(note.ops);
         st = this._stat(id) || st;               // 壊れた行を直した場合は、直した後のファイルで記録する
         // 並びの時刻は、最後に編集した時刻と取り込んだ時刻の新しいほう(取り込んだメモを一覧の上に出す)
         e = idx[id] = { c: note.c, t: Math.max(note.ops.length ? note.ops[note.ops.length - 1][3] : note.c, note.imported || 0), imported: note.imported || 0, base: note.base, n: note.base + note.ops.length, title: core.titleOf(text), ro: note.ro, size: st.size, mtime: st.mtime };
@@ -451,9 +454,7 @@ class Store {
     } catch (e) { /* 履歴から組み立てる */ }
     const n = this.loadOne(id);
     if (!n) return null;
-    let text = '';
-    for (const o of n.ops) text = applyWire(text, o);
-    return text;
+    return wireText(n.ops);
   }
 
   /* ファイルを消した後に呼ぶ */
@@ -461,4 +462,4 @@ class Store {
   _unindex(id) { const idx = this._index(); if (idx[id]) { delete idx[id]; this._dirty(); } }
 }
 
-module.exports = { Store, validId, validFileId, MAX_ATTACH, validOp, parseLog, applyWire, pruneOps, attachHashes };
+module.exports = { Store, validId, validFileId, MAX_ATTACH, validOp, parseLog, applyWire, wireText, pruneOps, attachHashes };
