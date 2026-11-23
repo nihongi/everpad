@@ -762,7 +762,8 @@
     return p + (m ? m[0].length : 0);
   }
   function syncApply(a, quiet) {
-    fitTail();   // 切り替えたばかりで、下の空きをまだ測っていないことがある(いちばん下に合わせるときに要る)
+    fitTail();
+    hvTok++;     // 位置合わせを優先する(プレビューの履歴の、変更箇所を見せ続けるのをやめる)   // 切り替えたばかりで、下の空きをまだ測っていないことがある(いちばん下に合わせるときに要る)
     const sc = viewEl();
     if (S.mode === 'edit') {
       const ta = sc;
@@ -924,6 +925,92 @@
     $('tEnd').textContent = N ? fmtFull(n.ops[N - 1].t) : '';
   }
 
+  /* ---------- プレビューの履歴の変更箇所 ----------
+     その版で変えた行を含むかたまり(段落・見出し・リストの項目・表の行など、いちばん内側)に印(.hv-chg)を付ける。
+     さらに、追加した文字には色(.hv-ins)を、削除だけの編集では消した位置に細い線(.hv-del)を付ける。
+     元の文の追加した文字の前後(削除なら消した位置)に見えない印の文字を入れて整形し、印を除くと印なしの整形と同じになるときだけ使う
+     (印のせいで書式やかたまりが変わらないことを確かめる)。属性の中の印は取り除き、数式・図・複数の文字のかたまりにまたがるときは使わない */
+  const HV_A = '\uE000', HV_B = '\uE001', HV_D = '\uE002', HV_RE = /[\uE000-\uE002]/g;
+  function hvHtml(text, op, slides) {
+    const opts = { lines: true, fm: true, slides: slides };
+    const html = md(text, opts);
+    if (!op || (!op.i && !op.d)) return html;
+    const p = op.p, il = op.i.length;
+    if (p > text.length || (il && text.slice(p, p + il) !== op.i) || /[\uE000-\uE002]/.test(text)) return html;
+    const marked = il ? text.slice(0, p) + HV_A + op.i + HV_B + text.slice(p + il) : text.slice(0, p) + HV_D + text.slice(p);
+    let m;
+    try { m = md(marked, opts); } catch (e) { return html; }
+    if (m.replace(HV_RE, '') !== html) return html;
+    return m.replace(/<[^>]*>/g, t => t.replace(HV_RE, ''));
+  }
+  // hvHtml が入れた印の文字を、追加した文字の色・削除した位置の線にする。作った要素(無ければ null)を返す
+  function hvMarks(root, op) {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), hits = [];
+    for (let t = w.nextNode(); t; t = w.nextNode()) if (/[\uE000-\uE002]/.test(t.data)) hits.push(t);
+    if (!hits.length) return null;
+    const strip = () => { hits.forEach(t => { t.data = t.data.replace(HV_RE, ''); }); return null; };
+    const t = hits[0], s = t.data;
+    if (hits.length > 1 || t.parentElement.closest('.math, .diagram')) return strip();
+    const d = s.indexOf(HV_D), a = s.indexOf(HV_A), b = s.indexOf(HV_B);
+    let el;
+    if (d >= 0) {
+      el = document.createElement('span');
+      el.className = 'hv-del';
+      const gone = op.d.replace(/\s+/g, ' ');
+      el.title = T('hvDeleted', { text: gone.length > 80 ? gone.slice(0, 80) + '…' : gone });
+      t.data = s.slice(0, d);
+      t.after(el, document.createTextNode(s.slice(d + 1)));
+    } else {
+      if (a < 0 || b < a) return strip();
+      el = document.createElement('ins');
+      el.className = 'hv-ins';
+      el.textContent = s.slice(a + 1, b);
+      t.data = s.slice(0, a);
+      t.after(el, document.createTextNode(s.slice(b + 1)));
+    }
+    return el;
+  }
+  /* 変更箇所を見える所に出し、出し続ける。
+     プレビューのかたまりは、画面の外では描くのを省いていて(content-visibility: auto)、高さは見積もり(1.6em か、前に描いたときの高さ)。
+     そのまま動かすと、見積もりの位置に動いたあとで本当の高さで描かれ、変更箇所がずれて画面の外に出ることがある
+     (長いリストは全体で1つのかたまりなので、ずれが大きい)。そこで、変更箇所を含むいちばん外側のかたまりは省かずに描き(.hv-open)、
+     さらに、図・数式・画像を描き終えるまで(最大で数秒)、毎回の描画のたびに見えているかを確かめ、外にあれば動かし直す。
+     この表示の中でホイール・クリック(スクロールバーも)・キー・タッチを使ったら、そこでやめる。
+     次の版を表示したときと、履歴を出したときの位置合わせ(syncApply)のときもやめる(hvTok を進める) */
+  let hvTok = 0;
+  function hvKeep(body, target) {
+    const tok = ++hvTok, t0 = performance.now();
+    let settled = false;
+    Promise.resolve(lastHydrate).catch(() => {}).then(() => { settled = performance.now(); });
+    const quit = () => { if (tok === hvTok) hvTok++; };
+    const evs = ['wheel', 'mousedown', 'keydown', 'touchstart'];
+    evs.forEach(t => body.addEventListener(t, quit, { capture: true, passive: true }));
+    const shown = () => {
+      const r = target.getBoundingClientRect(), b = body.getBoundingClientRect();
+      return r.height > b.height ? r.top >= b.top && r.top < b.bottom : r.top >= b.top && r.bottom <= b.bottom;
+    };
+    const step = () => {
+      const now = performance.now();
+      const live = tok === hvTok && target.isConnected && S.mode === 'history' && now - t0 < 10000 && (now - t0 < 1500 || !settled || now - settled < 500);
+      if (!live) { evs.forEach(t => body.removeEventListener(t, quit, { capture: true })); return; }
+      if (!shown()) target.scrollIntoView({ block: 'nearest' });
+      requestAnimationFrame(step);
+    };
+    target.scrollIntoView({ block: 'nearest' });
+    requestAnimationFrame(step);
+  }
+  // 変えた行を含むかたまり(いちばん内側)に印を付けて、元の文の順に返す
+  function hvBlocks(root, text, op) {
+    const lineOf = pos => { let n = 0; for (let i = text.indexOf('\n'); i >= 0 && i < pos; i = text.indexOf('\n', i + 1)) n++; return n; };
+    const p = Math.min(op.p, text.length), a = lineOf(p), b = op.i ? lineOf(p + op.i.length - 1) : a;
+    const all = [...root.querySelectorAll('[data-line]')].filter(x => {
+      const s = +x.dataset.line, e = x.dataset.end != null ? +x.dataset.end : s + 1;
+      return s <= b && e > a;
+    });
+    const inner = all.filter(x => !all.some(y => y !== x && x.contains(y)));
+    inner.forEach(x => x.classList.add('hv-chg'));
+    return inner;
+  }
   function renderHist() {
     const n = cur(), N = n.ops.length, lo = histLo(n), k = Math.max(lo, Math.min(N, S.rev)), base = baseOf(n);
     S.rev = k;
@@ -949,9 +1036,17 @@
       body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
       const slides = slidesOn(text);
-      body.innerHTML = '<div class="md">' + md(text, { lines: true, fm: true, slides: slides }) + '</div>';
+      body.innerHTML = '<div class="md">' + hvHtml(text, op, slides) + '</div>';
       applyDocOpts(body.firstChild, docOpts(text), 'hv-h-');
+      // 変更箇所: 追加した文字・削除した位置の印(数式や図を描く前に、印の文字を取り除く)と、変えたかたまりの印。見えていなければ見える所まで動かす
+      const mark = op ? hvMarks(body, op) : null;
+      const chg = op ? hvBlocks(body, text, op) : [];
+      const target = mark || chg[0];
+      // 変更箇所を含むいちばん外側のかたまりは、描くのを省かない(位置が見積もりにならないように)
+      if (target) { let top = target; while (top.parentElement && top.parentElement !== body.firstChild) top = top.parentElement; if (top.parentElement === body.firstChild) top.classList.add('hv-open'); }
       lastHydrate = hydrate(body, cur().id);
+      if (target) hvKeep(body, target);
+      else hvTok++;
       if (slides) {
         markSlides(body, lastHydrate);
         // この版で変えたスライドに枠を付ける(区切り線そのものを変えたときは、その次のスライド)。再生中は、そのスライドが見えるようにする
@@ -1015,10 +1110,20 @@
   }
   const go = k => { stop(); S.rev = k; renderHist(); };
   /* 「追加 1文字」などを押したとき: 変更箇所へ表示を動かし、一瞬強調する。
-     プレビューの表示では整形後のどこが変更箇所か分からないので、「編集」の表示の履歴に切り替えて示す */
+     プレビューの履歴では、追加した文字・削除した位置の印か、変えたかたまりの印を示す。
+     印が無いとき(空の行だけを変えたなど)は、「テキスト」の履歴に切り替えて示す */
   $('delta').addEventListener('click', () => {
     if (S.mode !== 'history' || !(S.rev > 0)) return;
     stop();
+    if (S.hbase === 'preview') {
+      const marks = [...$('hvBody').querySelectorAll('.hv-ins, .hv-del')];
+      const shown = marks.length ? marks : [...$('hvBody').querySelectorAll('.hv-chg')];
+      if (shown.length) {
+        shown[0].scrollIntoView({ block: 'center' });
+        for (const el of shown) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+        return;
+      }
+    }
     if (S.hbase !== 'edit') { S.hbase = 'edit'; setMode('history'); }
     const els = [...$('hvBody').querySelectorAll('ins, del')];
     if (!els.length) return;

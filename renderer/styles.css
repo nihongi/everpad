@@ -12,6 +12,7 @@
   --past: #8A4B00;
   --past-soft: #F5E3C8;
   --ins: #C9EBD3;
+  --ins-line: #3F9A62;
   --del: #F6D2CD;
   --del-fg: #8A2B23;
   --hit: #FFE08A;
@@ -42,6 +43,7 @@
     --past: #EDAA55;
     --past-soft: #33260F;
     --ins: #1B4731;
+    --ins-line: #63C08A;
     --del: #4A2220;
     --del-fg: #F2A9A1;
     --hit: #7A5F12;
@@ -66,6 +68,7 @@
   --past: #EDAA55;
   --past-soft: #33260F;
   --ins: #1B4731;
+  --ins-line: #63C08A;
   --del: #4A2220;
   --del-fg: #F2A9A1;
   --hit: #7A5F12;
@@ -198,13 +201,13 @@ mark { background: var(--hit); color: var(--fg); border-radius: 2px; }
 .nc { background: var(--surface); color: var(--fg); }
 .nc-light {
   --accent: #2D4DA8; --accent-fg: #FFFFFF; --accent-soft: #D9E4F8;
-  --past: #8A4B00; --past-soft: #F5E3C8; --ins: #C9EBD3; --del: #F6D2CD; --del-fg: #8A2B23; --hit: #FFE08A;
+  --past: #8A4B00; --past-soft: #F5E3C8; --ins: #C9EBD3; --ins-line: #3F9A62; --del: #F6D2CD; --del-fg: #8A2B23; --hit: #FFE08A;
   --al-note: #0969DA; --al-tip: #1A7F37; --al-important: #8250DF; --al-warning: #9A6700; --al-caution: #D1242F;
   --line-hl: color-mix(in srgb, var(--accent) 7%, transparent); color-scheme: light;
 }
 .nc-dark {
   --accent: #7FA6F5; --accent-fg: #0A1330; --accent-soft: #1B2A58;
-  --past: #EDAA55; --past-soft: #33260F; --ins: #1B4731; --del: #4A2220; --del-fg: #F2A9A1; --hit: #7A5F12;
+  --past: #EDAA55; --past-soft: #33260F; --ins: #1B4731; --ins-line: #63C08A; --del: #4A2220; --del-fg: #F2A9A1; --hit: #7A5F12;
   --al-note: #4493F8; --al-tip: #3FB950; --al-important: #AB7DF8; --al-warning: #D29922; --al-caution: #F85149;
   --line-hl: color-mix(in srgb, var(--accent) 11%, transparent); color-scheme: dark;
 }
@@ -419,8 +422,19 @@ li.pe-li { list-style: none; }
 .dl .t { min-width: 0; }
 /* 変更した行の行番号 */
 .dl.chg .n { color: var(--accent); font-weight: 700; border-right: 3px solid var(--accent); padding-right: 8px; }
+/* プレビューの履歴: その版で変えたかたまり(薄い色と、左の線)、追加した文字(テキストの履歴と同じ色)、削除だけの編集で消した位置(細い線) */
+#hvBody .md .hv-chg:not(tr) { background: color-mix(in srgb, var(--accent) 7%, transparent); border-radius: 2px;
+  box-shadow: -6px 0 0 color-mix(in srgb, var(--accent) 7%, transparent), -9px 0 0 var(--accent); }
+#hvBody .md tr.hv-chg > * { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+#hvBody .md tr.hv-chg > :first-child { box-shadow: inset 3px 0 0 var(--accent); }
+#hvBody .md ins.hv-ins { background: var(--ins); color: inherit; text-decoration: none; border-radius: 2px; box-shadow: inset 0 -2px 0 var(--ins-line); }
+/* 変更箇所を含むかたまりは、描くのを省かない(見える所に動かす位置が見積もりにならないように。app.js の hvKeep)。
+   動かしたとき、変更箇所が表示の端(下のタイムラインとの境)にぴったり付かないように、上下に余白を取る */
+#hvBody > .md > .hv-open { content-visibility: visible; contain-intrinsic-size: none; }
+#hvBody .md .hv-chg, #hvBody .md .hv-ins, #hvBody .md .hv-del { scroll-margin: 48px 0; }
+#hvBody .md .hv-del { display: inline-block; width: 2px; height: 1.15em; margin: 0 1px; vertical-align: -0.2em; background: var(--del-fg); border-radius: 1px; }
 /* 「追加 1文字」などを押したとき、変更箇所を一瞬強調する */
-.diff ins.flash, .diff del.flash { animation: chg-flash 1.6s ease-out; }
+.diff ins.flash, .diff del.flash, #hvBody .hv-ins.flash, #hvBody .hv-del.flash, #hvBody .hv-chg.flash { animation: chg-flash 1.6s ease-out; }
 @keyframes chg-flash { 0%, 45% { outline: 3px solid var(--accent); outline-offset: 2px; } 100% { outline: 3px solid transparent; outline-offset: 2px; } }
 /* 「編集」と「プレビュー」を切り替えたとき、合わせた場所を一瞬光らせる。
    プレビューはかたまりの内側に色を重ね(元の背景の上、文字の下)、編集は textarea の後ろに重ねた帯(#syncFlash)を光らせる */

@@ -229,7 +229,7 @@ test('画面: メニュー・検索・プレビュー・文言がつながって
   assert.ok(!/highlight\([a-z]+, S\.q\)|matchRanges\(text, S\.q\)|\$\('frFind'\)\.value = S\.q;/.test(app));
   // プレビューと履歴の Markdown 表示ではフロントマターを出す。印刷・書き出しでは出さない(題名・著者・日付だけを先頭に出す)
   assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true, slides: slides \}\)/);
-  assert.match(app, /md\(text, \{ lines: true, fm: true, slides: slides \}\)/);
+  assert.match(app, /const opts = \{ lines: true, fm: true, slides: slides \};\n\s+const html = md\(text, opts\);/);
   assert.match(app, /const pptx = kind === 'pptx', slides = kind === 'slides' \|\| pptx, web = kind === 'html' \|\| kind === 'mhtml' \|\| kind === 'slides';\n\s+box\.innerHTML = slides \? md\(text, \{ slides: true \}\) : \(web \? titleBlockHtml\(meta, T\('authorSep'\)\) : ''\) \+ md\(text\);/);
   assert.match(app, /area\.innerHTML = '<div class="md">' \+ \(slides \? md\(text, \{ slides: true \}\) : titleBlockHtml\(meta, T\('authorSep'\)\) \+ md\(text\)\) \+ '<\/div>';/);
   assert.match(css, /\.md \.fm \{/);
