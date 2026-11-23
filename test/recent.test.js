@@ -26,3 +26,10 @@ test('最近見たメモ: メモを切り替える処理は、どれも touchRec
   assert.ok(names.includes('show') && names.includes('openAt'), '見つけた関数: ' + names.join(', '));
   for (const f of fns) assert.ok(/\btouchRecent\(cur\(\)\)/.test(f.body), f.name + ' が最近見たメモに記録していない');
 });
+
+test('開いているメモを削除したあとは、その前に見ていたメモを開く(無いか読めなければ、いちばん新しく更新したメモ)', () => {
+  const s = src.replace(/\r\n/g, '\n');
+  assert.match(s, /const seen = recent\.map\(r => S\.notes\.find\(n => n\.id === r\.id && n\.id !== id\)\)\.find\(Boolean\) \|\| null;\n\s+const newest = sorted\(\)\.find\(n => n\.id !== id\) \|\| null;\n\s+let next = seen && \(await ensureLoaded\(seen\.id\)\) \? seen : newest;\n\s+if \(next && !next\.loaded && !\(await ensureLoaded\(next\.id\)\)\) \{ toast\(T\('deleteAborted'\)\); return; \}/);
+  // 次のメモを読めてから消す(読めないときは何も消さない)
+  assert(s.indexOf('let next = seen &&') < s.indexOf('ok = await api.remove(id); } catch (e) { ok = false; }\n    if (!ok) { toast(T(\'deleteFailed\')); return; }\n    S.notes = S.notes.filter(n => n.id !== id);\n    if (!next)'));
+});

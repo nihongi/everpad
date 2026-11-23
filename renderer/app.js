@@ -1547,9 +1547,12 @@
       toast(T(ok === 'folder' ? 'deletedToFolder' : 'deleted'));
       return;
     }
-    // 次に開くメモを先に読み込んでおく(読めないときは何も消さない)
-    let next = sorted().find(n => n.id !== id) || null;
-    if (next && !(await ensureLoaded(next.id))) { toast(T('deleteAborted')); return; }
+    // 次に開くメモを先に読み込んでおく(読めないときは何も消さない)。
+    // 次に開くのは、その前に見ていたメモ(最近見たメモの、消すメモの次)。無いか読めなければ、いちばん新しく更新したメモ
+    const seen = recent.map(r => S.notes.find(n => n.id === r.id && n.id !== id)).find(Boolean) || null;
+    const newest = sorted().find(n => n.id !== id) || null;
+    let next = seen && (await ensureLoaded(seen.id)) ? seen : newest;
+    if (next && !next.loaded && !(await ensureLoaded(next.id))) { toast(T('deleteAborted')); return; }
     if (S.active !== id) return;
     pendingOps.delete(id);
     textDirty.delete(id);

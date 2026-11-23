@@ -71,10 +71,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.50.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.50.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.50.0.exe
+EverPad 0.50.1.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -183,7 +183,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 
 **Recently viewed notes and links between notes**
 
-- File → Recently Viewed Notes lists the ten notes you opened most recently (excluding the current one), newest first. Deleted notes stay in the list marked "(deleted)"; choosing one shows a message. A note restored from the Recycle Bin opens again. The list is kept per data folder; Clear List empties it. (Recently updated notes are already at the top of the note list on the left.)
+- File → Recently Viewed Notes lists the ten notes you opened most recently (excluding the current one), newest first. Deleted notes stay in the list marked "(deleted)"; choosing one shows a message. A note restored from the Recycle Bin opens again. The list is kept per data folder; Clear List empties it. (Recently updated notes are already at the top of the note list on the left.) When you delete the note that is open, the note you viewed before it opens (the top of this list); if there is none, the most recently updated note opens.
 - File → Back to Previous Note (`Alt+←`) opens the note you viewed before the current one. Pressing it again switches back, so you can go back and forth between two notes, for example after following a link.
 - Write `[text to show](note:note ID)` to link to another note. You do not need to type the ID: choose Edit → Insert Link to Note… (`Ctrl+K`) and pick a note from the list (type to filter by title), or click Copy Link to This Note in the target note's Properties and paste it.
 - Click a link in the preview or the history's Markdown view, or `Ctrl`+click it in the Text view, to open that note. Hover over it to see the target's current title. Links point to the note, not to a position in it, and are not broken when the target's title or text changes. If the target is deleted, the link is shown struck through in gray, and clicking it shows a message.
@@ -517,15 +517,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.50.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.50.1.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.50.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.50.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.50.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.50.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -534,7 +534,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.50.0.AppImage` (x64)
+- Linux: `EverPad-0.50.1.AppImage` (x64)
 
 **macOS**
 
@@ -550,7 +550,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.50.0.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.50.1.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -694,10 +694,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.50.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.50.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.50.0.exe
+EverPad 0.50.1.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(デフォルト)
@@ -806,7 +806,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 
 **最近見たメモとメモ同士のリンク**
 
-- 「ファイル」→「最近見たメモ」に、最近開いたメモが新しい順に10件(いま開いているメモを除く)並びます。削除したメモも「(削除済み)」と付けて残り、選ぶとお知らせが出ます。ごみ箱から元に戻したメモは、また開けます。一覧は保存先ごとに控え、「一覧を消去」で空にできます(最近更新したメモは、左側の一覧の上にあります)。
+- 「ファイル」→「最近見たメモ」に、最近開いたメモが新しい順に10件(いま開いているメモを除く)並びます。削除したメモも「(削除済み)」と付けて残り、選ぶとお知らせが出ます。ごみ箱から元に戻したメモは、また開けます。一覧は保存先ごとに控え、「一覧を消去」で空にできます(最近更新したメモは、左側の一覧の上にあります)。開いているメモを削除すると、その前に見ていたメモ(この一覧のいちばん上)が開きます。無ければ、いちばん新しく更新したメモが開きます。
 - 「ファイル」→「前に見たメモに戻る」(`Alt+←`)で、今のメモの前に見ていたメモを開きます。続けて押すと元に戻るので、リンクで移動した後などに、2つのメモを行き来できます。
 - `[表示する文字](note:メモID)` と書くと、他のメモへのリンクになります。メモID を手で書く必要はありません。「編集」→「メモへのリンクを挿入…」(`Ctrl+K`)で一覧から選ぶ(題名で絞り込めます)か、参照先のメモのプロパティで「このメモへのリンクをコピー」を押して貼り付けます。
 - プレビューや履歴の「Markdown表示」ではクリック、「テキスト」表示では `Ctrl`+クリックで、そのメモに移動します。マウスを重ねると、参照先の今の題名が出ます。リンクはメモそのものを指し(メモの中の位置は指しません)、参照先の題名や中身が変わっても切れません。参照先を削除すると、リンクは灰色の取り消し線で表示され、クリックするとお知らせが出ます。
@@ -1140,15 +1140,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.50.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.50.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.50.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.50.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.50.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.50.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -1157,7 +1157,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.50.0.AppImage`(x64)
+- Linux: `EverPad-0.50.1.AppImage`(x64)
 
 **macOS**
 
@@ -1173,7 +1173,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.50.0.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.50.1.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
