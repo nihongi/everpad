@@ -57,7 +57,13 @@ test('画面: プレビューの履歴で印を付け、変更箇所を見える
   // 変えた行に掛かる、いちばん内側のかたまり
   assert.match(app, /const inner = all\.filter\(x => !all\.some\(y => y !== x && x\.contains\(y\)\)\);\n\s+inner\.forEach\(x => x\.classList\.add\('hv-chg'\)\);/);
   // 見える所に出す。変更箇所を含むいちばん外側のかたまりは描くのを省かない(長いリストでも位置が見積もりにならない)
-  assert.match(app, /if \(top\.parentElement === body\.firstChild\) top\.classList\.add\('hv-open'\); \}\n\s+lastHydrate = hydrate\(body, cur\(\)\.id\);\n\s+if \(target\) hvKeep\(body, target\);\n\s+else hvTok\+\+;/);
+  assert.match(app, /if \(target && topOf\(target\)\) topOf\(target\)\.classList\.add\('hv-open'\);\n\s+if \(oldH\) hvSizes\(body\.firstChild, oldH, chg\.map\(topOf\)\.filter\(Boolean\)\);\n\s+codeBlocks\(body\);\n\s+lastHydrate = hydrate\(body, cur\(\)\.id\);\n\s+if \(target\) hvKeep\(body, target\);\n\s+else hvTok\+\+;/);
+  // 再生のちらつき: 作り直す前のかたまりの中身の高さ(余白と線を引く)を、作り直したかたまりの仮の高さにする。変えたかたまりより前は前から、後ろは後ろから数える
+  assert.match(app, /const oldMd = body\.dataset\.hvNote === n\.id \? body\.querySelector\(':scope > \.md'\) : null;\n\s+const oldH = oldMd \? \[\.\.\.oldMd\.children\]\.map\(hvInner\) : null;/);
+  assert.match(app, /return x\.getBoundingClientRect\(\)\.height - px\(cs\.paddingTop\) - px\(cs\.paddingBottom\) - px\(cs\.borderTopWidth\) - px\(cs\.borderBottomWidth\);/);
+  assert.match(app, /const h = i < lo \? oldH\[i\] : oldH\[M - \(N - i\)\];\n\s+if \(h > 0\) x\.style\.containIntrinsicSize = 'auto ' \+ Math\.round\(h \* 100\) \/ 100 \+ 'px';/);
+  // 一度読んだ添付の画像は、作り直したときに大きさを先に付ける(読み込むまで高さが 0 にならない)
+  assert.match(app, /const sz = attSizes\.get\(img\.dataset\.att\);\n\s+if \(sz\) \{ img\.width = sz\.w; img\.height = sz\.h; \}\n\s+else img\.addEventListener\('load', \(\) => \{ if \(img\.naturalWidth\) attSizes\.set\(img\.dataset\.att, \{ w: img\.naturalWidth, h: img\.naturalHeight \}\); \}, \{ once: true \}\);/);
   // 描き終えるまで毎回の描画で見えているかを確かめて動かし直す。この表示でのホイール・クリック・キー・タッチと、位置合わせ(syncApply)でやめる
   assert.match(app, /const evs = \['wheel', 'mousedown', 'keydown', 'touchstart'\];\n\s+evs\.forEach\(t => body\.addEventListener\(t, quit, \{ capture: true, passive: true \}\)\);/);
   assert.match(app, /if \(!shown\(\)\) target\.scrollIntoView\(\{ block: 'nearest' \}\);\n\s+requestAnimationFrame\(step\);/);

@@ -336,11 +336,11 @@
     if (s > 0) {
       // 前の行まで(最後の改行は除く。空の行で終わるときは、その行の高さが出るように幅のない文字を足す)
       let before = v.slice(0, s - 1);
-      if (!before || before.endsWith('\n')) before += '​';
+      if (!before || before.endsWith('\n')) before += '\u200B';
       mirror.appendChild(document.createTextNode(before));
     }
     const d = document.createElement('div');
-    d.textContent = v.slice(s, e) || '​';
+    d.textContent = v.slice(s, e) || '\u200B';
     mirror.appendChild(d);
     const m0 = mirror.getBoundingClientRect().top, r = d.getBoundingClientRect();
     mirror.textContent = '';
@@ -577,7 +577,7 @@
     mirror.style.width = (ta.clientWidth - padL - padR) + 'px';
     mirror.textContent = ta.value.slice(0, pos);
     const mk = document.createElement('span');
-    mk.textContent = '​';
+    mk.textContent = '\u200B';
     mirror.appendChild(mk);
     const x = mk.offsetLeft + padL, y = mk.offsetTop + padT, h = mk.offsetHeight || parseFloat(cs.lineHeight) || 20;
     mirror.innerHTML = '';
@@ -635,7 +635,12 @@
     stop();
     emoClose();
     const enteringHistory = m === 'history' && S.mode !== 'history';
-    if (m !== 'history') S.hbase = m;
+    if (m !== 'history') {
+      S.hbase = m;
+      // 最後に使った表示(テキストかプレビューか)を覚えて、次に起動したときもその表示で始める(履歴の表示は覚えない)。
+      // 起動の途中(最初のメモを、まずテキストで開く)では覚えない(前回の表示を読む前に、上書きしてしまう)
+      if (S.booted) { try { localStorage.setItem('everpad:mode', m); } catch (e) { /* 覚えられなくても動く */ } }
+    }
     S.mode = m;
     document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.mode === S.hbase)));
     $('histBtn').setAttribute('aria-pressed', String(m === 'history'));
@@ -704,7 +709,7 @@
     fitMirror(ta, cs);
     mirror.textContent = ta.value.slice(0, pos);
     const mk = document.createElement('span');
-    mk.textContent = '​';
+    mk.textContent = '\u200B';
     mirror.appendChild(mk);
     const m0 = mirror.getBoundingClientRect().top, r = mk.getBoundingClientRect();
     mirror.textContent = '';
@@ -999,6 +1004,30 @@
     target.scrollIntoView({ block: 'nearest' });
     requestAnimationFrame(step);
   }
+  /* 作り直したプレビューの履歴の、画面の外のかたまりの仮の高さを、作り直す前の高さにする。
+     画面の外のかたまりは描くのを省き(content-visibility: auto)、高さは前に描いたときの高さか、描いたことが無ければ 1.6em になる。
+     作り直したかたまりは描いたことが無いので、描くより先に省くと決まった描画では 1.6em になり、本文が一瞬ずっと短くなって
+     スクロールの位置とスクロールバーが跳ねる(再生中に、ときどきちらつく)。
+     ある版と次の版の違いは変えた所だけなので、変えたかたまり(changed。いちばん外側)より前は前から、後ろは後ろから数えて同じ順番の、
+     前の版のかたまりの高さを仮の高さにする(contain-intrinsic-size: auto <高さ>。一度描けば、本当の高さを覚えて使う)。
+     変えたかたまりが分からないときは、かたまりの数が同じときだけ同じ順番で合わせる */
+  // かたまりの中身の高さ(枠の高さから、上下の余白と線を引く。contain-intrinsic-size は中身の大きさなので、
+  // 枠の高さのまま付けると、作り直すたびに余白と線の分ずつ高くなっていく)
+  function hvInner(x) {
+    const cs = getComputedStyle(x), px = v => parseFloat(v) || 0;
+    return x.getBoundingClientRect().height - px(cs.paddingTop) - px(cs.paddingBottom) - px(cs.borderTopWidth) - px(cs.borderBottomWidth);
+  }
+  function hvSizes(md, oldH, changed) {
+    const kids = [...md.children], N = kids.length, M = oldH.length;
+    const idx = changed.map(x => kids.indexOf(x)).filter(i => i >= 0);
+    let lo, hi;
+    if (idx.length) { lo = Math.min(...idx); hi = Math.max(...idx); } else if (N === M) { lo = N; hi = N; } else return;
+    kids.forEach((x, i) => {
+      if (i >= lo && i <= hi) return;
+      const h = i < lo ? oldH[i] : oldH[M - (N - i)];
+      if (h > 0) x.style.containIntrinsicSize = 'auto ' + Math.round(h * 100) / 100 + 'px';
+    });
+  }
   // 変えた行を含むかたまり(いちばん内側)に印を付けて、元の文の順に返す
   function hvBlocks(root, text, op) {
     const lineOf = pos => { let n = 0; for (let i = text.indexOf('\n'); i >= 0 && i < pos; i = text.indexOf('\n', i + 1)) n++; return n; };
@@ -1036,14 +1065,21 @@
       body.innerHTML = '<p class="empty">' + esc(T('emptyVersion')) + '</p>';
     } else if (S.hbase === 'preview') {
       const slides = slidesOn(text);
+      // 作り直す前の、いちばん外側のかたまりの高さ(同じメモのプレビューの履歴を作り直すとき = 版を移す・再生)
+      const oldMd = body.dataset.hvNote === n.id ? body.querySelector(':scope > .md') : null;
+      const oldH = oldMd ? [...oldMd.children].map(hvInner) : null;
       body.innerHTML = '<div class="md">' + hvHtml(text, op, slides) + '</div>';
+      body.dataset.hvNote = n.id;
       applyDocOpts(body.firstChild, docOpts(text), 'hv-h-');
       // 変更箇所: 追加した文字・削除した位置の印(数式や図を描く前に、印の文字を取り除く)と、変えたかたまりの印。見えていなければ見える所まで動かす
       const mark = op ? hvMarks(body, op) : null;
       const chg = op ? hvBlocks(body, text, op) : [];
       const target = mark || chg[0];
+      const topOf = el => { let t = el; while (t.parentElement && t.parentElement !== body.firstChild) t = t.parentElement; return t.parentElement === body.firstChild ? t : null; };
       // 変更箇所を含むいちばん外側のかたまりは、描くのを省かない(位置が見積もりにならないように)
-      if (target) { let top = target; while (top.parentElement && top.parentElement !== body.firstChild) top = top.parentElement; if (top.parentElement === body.firstChild) top.classList.add('hv-open'); }
+      if (target && topOf(target)) topOf(target).classList.add('hv-open');
+      if (oldH) hvSizes(body.firstChild, oldH, chg.map(topOf).filter(Boolean));
+      codeBlocks(body);
       lastHydrate = hydrate(body, cur().id);
       if (target) hvKeep(body, target);
       else hvTok++;
@@ -1221,7 +1257,7 @@
     m.style.width = ta.clientWidth + 'px';
     m.textContent = ta.value.slice(0, idx);
     const mk = document.createElement('span');
-    mk.textContent = '​';
+    mk.textContent = '\u200B';
     m.appendChild(mk);
     document.body.appendChild(m);
     const y = mk.offsetTop;
@@ -1950,9 +1986,84 @@
      本文から消しても履歴には残るので、ファイルは削除しない。 */
   const MAX_ATTACH_MB = 50;
   const missingEl = alt => { const s = document.createElement('span'); s.className = 'att-missing'; s.textContent = T('imageMissing', { alt: alt }); return s; };
+  /* ---------- コードブロックの長い行(プレビューと、履歴のプレビュー) ----------
+     コードブロックの行を1行ずつ span(.cl)で囲み、右上に「折り返す/横にスクロール」のボタンを付ける。
+     文字と改行はそのまま(改行は各行の終わりに残す)なので、コピー・検索・クリックした位置はこれまでどおり。
+     折り返すとき(初めはこちら)は、折り返した2行目からを字下げして左に矢印を出し、もとの改行と見分けられるようにする(styles.css)。
+     切り替えはすべてのコードブロックに効き、次回も同じ(localStorage) */
+  let codeWrap = true;
+  try { codeWrap = localStorage.getItem('everpad:codeWrap') !== '0'; } catch (e) { /* 無くても動く */ }
+  document.body.classList.toggle('code-nowrap', !codeWrap);
+  const codeWrapTitle = () => T(codeWrap ? 'codeWrapOn' : 'codeWrapOff');
+  function codeBlocks(root) {
+    root.querySelectorAll('pre > code').forEach(code => {
+      const pre = code.parentElement;
+      if (pre.classList.contains('cb') || pre.closest('.diagram, .math')) return;
+      const text = code.textContent, lines = text.split('\n');
+      const spans = [];
+      if (code.childNodes.length <= 1) {
+        // ふつうは文字だけ
+        lines.forEach((l, i) => { const s = document.createElement('span'); s.className = 'cl'; s.textContent = l + (i < lines.length - 1 ? '\n' : ''); spans.push(s); });
+        code.textContent = '';
+      } else {
+        // 中に要素がある(履歴の変更箇所の印など): 1行ずつ切り出す(行をまたぐ要素は、行ごとに分かれる)
+        for (let i = 0; i < lines.length; i++) {
+          const len = lines[i].length + (i < lines.length - 1 ? 1 : 0);
+          const r = document.createRange();
+          r.setStart(code, 0);
+          const end = codeOffset(code, len);
+          if (end) r.setEnd(end.node, end.offset); else r.setEnd(code, code.childNodes.length);
+          const s = document.createElement('span');
+          s.className = 'cl';
+          s.appendChild(r.extractContents());
+          spans.push(s);
+        }
+        code.textContent = '';
+      }
+      spans.forEach(s => code.appendChild(s));
+      pre.classList.add('cb');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'code-wrap';
+      b.title = codeWrapTitle();
+      b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-pressed', String(codeWrap));
+      b.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12M2 8h9a2.5 2.5 0 0 1 0 5H8.5M2 12.5h3.5"/><path d="M10 11l-1.8 2L10 15"/></svg>';
+      pre.appendChild(b);
+    });
+  }
+  // code の中の、先頭から n 文字目の位置(文字のノードと、その中の位置)
+  function codeOffset(code, n) {
+    const w = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
+    let seen = 0;
+    for (let t = w.nextNode(); t; t = w.nextNode()) {
+      if (seen + t.data.length >= n) return { node: t, offset: n - seen };
+      seen += t.data.length;
+    }
+    return null;
+  }
+  // ボタン: 折り返すと横にスクロールを切り替える。押したコードブロックが、画面の同じ高さに残るようにする
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.code-wrap');
+    if (!b) return;
+    e.preventDefault();
+    const pre = b.closest('pre'), sc = pre.closest('#preview, #hvBody'), top = pre.getBoundingClientRect().top;
+    codeWrap = !codeWrap;
+    try { localStorage.setItem('everpad:codeWrap', codeWrap ? '1' : '0'); } catch (err) { /* 無くても動く */ }
+    document.body.classList.toggle('code-nowrap', !codeWrap);
+    document.querySelectorAll('.code-wrap').forEach(x => { x.title = codeWrapTitle(); x.setAttribute('aria-label', x.title); x.setAttribute('aria-pressed', String(codeWrap)); });
+    if (sc) sc.scrollTop += pre.getBoundingClientRect().top - top;
+    toast(T(codeWrap ? 'codeWrapDone' : 'codeScrollDone'));
+  });
+  const attSizes = new Map();   // 読んだことのある添付の画像の大きさ(添付の名前 → { w, h })
   function hydrate(root, noteId, diagramOpts) {
     root.querySelectorAll('img[data-att]').forEach(img => {
       img.addEventListener('error', () => img.replaceWith(missingEl(img.alt)), { once: true });
+      // 一度読んだ画像は、大きさを先に付けておく(作り直すたびに、読み込むまで高さが 0 になって、下の文やスクロールバーが跳ねないように。
+      // 履歴の再生では版ごとに作り直す)。添付の名前は中身のハッシュなので、同じ名前なら同じ画像
+      const sz = attSizes.get(img.dataset.att);
+      if (sz) { img.width = sz.w; img.height = sz.h; }
+      else img.addEventListener('load', () => { if (img.naturalWidth) attSizes.set(img.dataset.att, { w: img.naturalWidth, h: img.naturalHeight }); }, { once: true });
       img.src = api.fileUrl(noteId, img.dataset.att);
     });
     // 添付の元のメモ(コピーして別のメモに貼ったとき、ファイルもコピーするため。画像は src からも分かる)
@@ -2615,6 +2726,7 @@
     const slides = slidesOn(cur().text);
     pv.innerHTML = md(cur().text, { lines: true, fm: true, slides: slides }) || '<p class="empty">' + esc(T('emptyNote')) + '</p>';
     applyDocOpts(pv, docOpts(cur().text), 'pv-h-');
+    codeBlocks(pv);
     lastHydrate = hydrate(pv, cur().id);
     if (slides) markSlides(pv, lastHydrate);
     highlight(pv, S.qText);
@@ -3200,7 +3312,7 @@
     const ch = v.charAt(pos), one = ch && ch !== '\n' && !/[\uD800-\uDBFF]/.test(ch) ? ch : ch && ch !== '\n' ? v.slice(pos, pos + 2) : '';
     mirror.textContent = v.slice(0, pos);
     const mk = document.createElement('span');
-    mk.textContent = one || '​';
+    mk.textContent = one || '\u200B';
     mirror.appendChild(mk);
     mirror.appendChild(document.createTextNode(v.slice(pos + one.length)));
     const y = mk.offsetTop;
@@ -5013,7 +5125,10 @@
     S.booted = true;
     if (view && !switched) restoreView(view);
     else {
-      const m = view ? (view.mode === 'history' ? view.hbase : view.mode) : 'edit';
+      // 起動したとき(預けた表示が無いとき)は、前回最後に使った表示(テキストかプレビューか)で始める
+      let last = 'edit';
+      try { last = localStorage.getItem('everpad:mode') || 'edit'; } catch (e) { /* 無くても動く */ }
+      const m = view ? (view.mode === 'history' ? view.hbase : view.mode) : last;
       if (view && (view.scope === 'latest' || view.scope === 'history')) { S.scope = view.scope; updateHint(); }
       setMode(m === 'preview' ? 'preview' : 'edit', true);
       restorePos();

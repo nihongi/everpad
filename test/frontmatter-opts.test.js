@@ -161,7 +161,7 @@ test('Word: 用紙と向き・言語・目次のフィールド(開くときに�
 test('つなぎ込み: プレビュー・履歴・印刷・書き出しで設定を使い、main.js は値をそろえる', () => {
   const app = read('renderer/app.js'), main = read('main.js'), preload = read('preload.js'), css = read('renderer/styles.css');
   assert.match(app, /pv\.innerHTML = md\(cur\(\)\.text, \{ lines: true, fm: true, slides: slides \}\) [^\n]*\n\s+applyDocOpts\(pv, docOpts\(cur\(\)\.text\), 'pv-h-'\);/);
-  assert.match(app, /body\.innerHTML = '<div class="md">' \+ hvHtml\(text, op, slides\) \+ '<\/div>';\n\s+applyDocOpts\(body\.firstChild, docOpts\(text\), 'hv-h-'\);/);
+  assert.match(app, /body\.innerHTML = '<div class="md">' \+ hvHtml\(text, op, slides\) \+ '<\/div>';\n\s+body\.dataset\.hvNote = n\.id;\n\s+applyDocOpts\(body\.firstChild, docOpts\(text\), 'hv-h-'\);/);
   assert.match(app, /function hvHtml\(text, op, slides\) \{\n\s+const opts = \{ lines: true, fm: true, slides: slides \};\n\s+const html = md\(text, opts\);/);
   assert.match(app, /applyDocOpts\(area\.firstChild, slides \? Object\.assign\(\{\}, opts, \{ toc: false \}\) : opts, 'ep-h-'\);/);
   assert.match(app, /if \(web && kind !== 'slides'\) applyDocOpts\(box, opts, 'ep-h-'\);/);

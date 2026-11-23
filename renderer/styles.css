@@ -273,6 +273,26 @@ body.sp-on #hvBody::after { content: ''; display: block; height: var(--hv-tail, 
 .md code { font-family: var(--mono); font-size: 85%; background: var(--surface-2); padding: .2em .4em; border-radius: 6px; }
 .md pre { background: var(--surface-2); border-radius: 6px; padding: 16px; font-size: 85%; line-height: 1.45; overflow-x: auto; }
 .md pre code { background: none; padding: 0; font-size: 100%; border-radius: 0; }
+/* コードブロックの長い行(プレビューと履歴のプレビュー。app.js の codeBlocks が、行を .cl で囲み、pre に .cb を付ける)。
+   横にスクロールするのは中の code(右上のボタンが、スクロールで流れないように)。
+   折り返すとき(body に .code-nowrap が無いとき)は、各行の2行目からを字下げし、左に矢印(折り返した続きの印)を行ごとに出す。
+   矢印は、各行の2行目の上端から下へ、行の高さ(1lh)ごとに繰り返す模様なので、どこで折り返したかを測らなくてよい */
+.md pre.cb { position: relative; padding: 0; overflow: visible; }
+.md pre.cb > code { display: block; padding: 16px 40px 16px 16px; overflow-x: auto; }
+.md .slide-in pre.cb { padding: 0; }
+.md .slide-in pre.cb > code { padding: .6em 2.4em .6em .8em; }
+body:not(.code-nowrap) .md pre.cb > code { white-space: pre-wrap; overflow-wrap: anywhere; }
+body:not(.code-nowrap) .md pre.cb .cl { display: block; position: relative; padding-left: 1.6em; text-indent: -1.6em; }
+body:not(.code-nowrap) .md pre.cb .cl::before { content: ''; position: absolute; left: .3em; top: 1lh; bottom: 0; width: .9em; pointer-events: none;
+  background: var(--fg-2); opacity: .6;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 2.5v6h8.2L8.7 6l1-1 4.2 4.2-4.2 4.2-1-1 2.5-2.5H1.6V2.5z'/></svg>") left top / .9em 1lh repeat-y;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 2.5v6h8.2L8.7 6l1-1 4.2 4.2-4.2 4.2-1-1 2.5-2.5H1.6V2.5z'/></svg>") left top / .9em 1lh repeat-y; }
+/* 右上の「折り返す/横にスクロール」のボタン。コードブロックにマウスを重ねたとき(とキーで選んだとき)に出す。折り返しているときは色を付ける */
+.md pre.cb > .code-wrap { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; padding: 4px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); color: var(--fg-2); cursor: pointer; opacity: 0; transition: opacity .15s; }
+.md pre.cb:hover > .code-wrap, .md pre.cb > .code-wrap:focus-visible { opacity: 1; }
+.md pre.cb > .code-wrap[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.md pre.cb > .code-wrap svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .md blockquote { margin-left: 0; margin-right: 0; padding: 0 1em; border-left: .25em solid var(--line); color: var(--fg-2); }
 .md blockquote > :first-child { margin-top: 0; }
 .md blockquote > :last-child { margin-bottom: 0; }

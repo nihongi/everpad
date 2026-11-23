@@ -282,7 +282,7 @@ function importDump(dumpPath, outDir, log, opts) {
   }
   const csv = ['EverPadのID,Etherpadのパッド名,EverPadの版数,Etherpadの版数,作成,最終更新,読み取り専用'].concat(
     report.filter(r => r.id).map(r => [r.id, '"' + r.name.replace(/"/g, '""') + '"', r.versions, r.etherpadRevisions, new Date(r.created).toISOString(), new Date(r.last).toISOString(), r.readOnly ? 'はい' : ''].join(','))).join('\n');
-  fs.writeFileSync(path.join(outDir, 'etherpad-import-map.csv'), '﻿' + csv + '\n');
+  fs.writeFileSync(path.join(outDir, 'etherpad-import-map.csv'), '\uFEFF' + csv + '\n');
   // 指定した名前のパッドが無いときは知らせる(綴りの間違いに気づけるように)
   for (const name of roSet) if (!report.some(r => r.name === name && r.id)) problems.push(name + ': --read-only で指定したパッドが、変換したパッドの中にありません');
   return { converted: n, readOnly: report.filter(r => r.readOnly).length, skippedEmpty: report.filter(r => r.skipped).length, problems, report };

@@ -31,7 +31,7 @@ test('切り替え: 開けてから、書き出し → 元の目印のファイ�
 test('画面: 切り替えたあとは、テキストかプレビューかと検索の範囲だけを引き継ぎ、開いていたメモは保存先ごとに覚える', () => {
   const a = read('renderer/app.js');
   assert.match(a, /if \(view && !switched\) restoreView\(view\);/);
-  assert.match(a, /const m = view \? \(view\.mode === 'history' \? view\.hbase : view\.mode\) : 'edit';/);
+  assert.match(a, /const m = view \? \(view\.mode === 'history' \? view\.hbase : view\.mode\) : last;/);
   assert.match(a, /setMode\(m === 'preview' \? 'preview' : 'edit', true\);\n {6}restorePos\(\);/);
   assert.match(a, /if \(switched\) toast\(T\('dirSwitched', \{ name: switched \}\)\);/);
   assert.match(a, /localStorage\.getItem\('everpad:active:' \+ S\.dir\) \|\| localStorage\.getItem\('everpad:active'\)/);

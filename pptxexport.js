@@ -56,10 +56,10 @@ function pptMath(om, st, X) {
   // 見えない文字(\phantom・\vphantom。\ce{} が添え字の高さをそろえるのに使う)は、PowerPoint では見えてしまうので、空の文字にする
   //(入れ子でも壊れないよう、内側から1つずつ)
   const PHANT = /<m:phant>(?:(?!<m:phant>)[\s\S])*?<\/m:phant>/g;
-  while (PHANT.test(om)) om = om.replace(PHANT, '<m:r><m:t>​</m:t></m:r>');
+  while (PHANT.test(om)) om = om.replace(PHANT, '<m:r><m:t>\u200B</m:t></m:r>');
   return om.replace(/<w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"\/>(?:<w:color w:val="([0-9A-F]{6})"\/>)?<\/w:rPr>/g, (m, c) =>
     '<a:rPr lang="en-US" sz="' + hund(st.sz) + '"><a:solidFill><a:srgbClr val="' + (c || st.color || FG) + '"/></a:solidFill><a:latin typeface="Cambria Math"/><a:ea typeface="Cambria Math"/><a:cs typeface="Cambria Math"/></a:rPr>')
-    .replace(/<m:r><m:t>​<\/m:t><\/m:r>/g, '<m:r><a:rPr lang="en-US" sz="' + hund(st.sz) + '"/><m:t>​</m:t></m:r>');
+    .replace(/<m:r><m:t>\u200B<\/m:t><\/m:r>/g, '<m:r><a:rPr lang="en-US" sz="' + hund(st.sz) + '"/><m:t>\u200B</m:t></m:r>');
 }
 // 数式: X.mode が 'omml' なら PowerPoint の数式、'text' なら LaTeX の文字(数式を読めないソフト向けの代わりの図形)
 function mathRun(x, st, X) {

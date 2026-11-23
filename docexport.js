@@ -598,7 +598,7 @@ function texFootnote(n, ctx, X) {
   return '\\footnote{' + (f.main + f.nested > 1 ? '\\label{EPfn' + n + '}' : '') + text() + '}';
 }
 /* 引数の中(脚注・表のセル)では verbatim が使えないので、コードは1行ずつ \texttt にする(空白はすべて残す) */
-const texArgCode = text => '\\noindent' + text.replace(/\n$/, '').split('\n').map(l => '\\texttt{' + texCode(l.replace(/ /g, '')).replace(//g, '\\ ') + '}').join('\\newline\n');
+const texArgCode = text => '\\noindent' + text.replace(/\n$/, '').split('\n').map(l => '\\texttt{' + texCode(l.replace(/ /g, '\uE000')).replace(/\uE000/g, '\\ ') + '}').join('\\newline\n');
 function texCodeBlock(text, ctx, X) {
   text = String(text).replace(TEX_CTRL, '').replace(/\n$/, '');
   if (ctx.inArg || /\\end\{EPcode\}/.test(text)) return texArgCode(text);
