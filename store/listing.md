@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.49.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.50.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -40,7 +40,7 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・キーボードショートカットを、好きなキーに変えられます。
 
 ■ 見返す  
-・タイムスライダーで、どの時点の版でも表示できます。履歴の再生もできます。  
+・タイムスライダーで、どの時点の版でも表示できます。履歴の再生もできます。プレビューのままでも、その版で変えた箇所に印が付きます。  
 ・変更のあった場所を表示するので、何をいつ書き換えたかがわかります。  
 ・すべてのメモから検索できます。最新の版だけでなく、履歴全体(あとで消した文章も含む)を検索することもできます。  
 ・メモの先頭のフロントマターにタグを書いて、tag:名前 でタグの付いたメモを探せます。プレビューのタグを押しても検索できます。  
@@ -64,7 +64,9 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューで段落を編集しているとき、折り返して2行以上に見えていれば、↓ で次の部分に移らずに、同じ段落の次の行に動くようになりました。↑↓ で前・次の部分に移るのは、見えている最初・最後の行で押したときだけです。
+・プレビューの履歴で、その版で変えた段落・リストの項目・表の行などに、左の線と薄い色が付きます。追加した文字には色が付き、文字を消しただけの版では、消した位置に細い線が出ます。変更箇所が画面の外にあるときは、再生中も、見える所まで表示が動きます。
+・履歴の長いメモを開く、履歴すべてを検索する、タイムスライダーの色の帯を出す、のがずっと速くなり、使うメモリーも大きく減りました。
+・開いているメモを削除したあとは、その前に見ていたメモが開くようになりました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -139,7 +141,7 @@ WRITE
 • Change the keyboard shortcuts to the keys you like.
 
 LOOK BACK  
-• Show the note at any point in its history with the time slider, or play the history back.  
+• Show the note at any point in its history with the time slider, or play the history back. The changes in each version are marked, also in the preview.  
 • See where each change was made, so you know what was rewritten and when.  
 • Search all notes: the latest version of each note, or the entire history, including text that was later deleted.  
 • Tag notes in front matter at the top of a note, and find them by searching for tag:name. Click a tag in the preview to search for it.  
@@ -163,7 +165,9 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• When you edit a paragraph in the Preview and it wraps onto two or more lines, ↓ now moves to the next line of the same paragraph instead of jumping to the next part. ↑ and ↓ move to the previous or next part only on the first or last line as you see it.
+• In the history of the Preview, the paragraph, list item, table row or other part changed in each version is marked with a bar on the left. Added characters are highlighted, and in a version that only deleted characters, a thin line shows where they were deleted. If the change is out of view, the view scrolls to it, also while the history is playing.
+• Opening a note with a long history, searching all history and the colored bands on the time slider are much faster and use far less memory.
+• After you delete the note that is open, the note you viewed before it opens.
 
 ### Product features (up to 20, up to 200 characters each)
 
