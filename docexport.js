@@ -60,6 +60,8 @@ const hasClass = (n, c) => (' ' + (n.attrs && n.attrs.class || '') + ' ').indexO
          { t:'img', file, alt, w, h, box(PowerPoint の書き出しで、スライドの中の場所。pptxexport.js) } { t:'math', tex, mml, error, display } { t:'fn', n }(脚注の参照) */
 const ALERT_KINDS = ['note', 'tip', 'important', 'warning', 'caution'];
 const HEADING = /^h([1-6])$/;
+// 中身を並べるだけの入れ物(本文に書いた HTML。div と同じに扱う)
+const BOX_TAGS = new Set(['details', 'center', 'figure', 'section', 'article', 'aside', 'header', 'footer', 'main', 'nav', 'address', 'dl']);
 function mathNode(n, display) {
   return { t: 'math', tex: n.attrs['data-tex'] || '', mml: n.attrs['data-mml'] || '', error: hasClass(n, 'math-error'), display: !!display };
 }
@@ -143,7 +145,9 @@ function blocksOf(nodes) {
     else if (tag === 'table') { flush(); out.push(tableOf(n)); }
     else if (tag === 'div' && hasClass(n, 'diagram')) { flush(); out.push(diagramNode(n)); }
     else if (tag === 'div' && hasClass(n, 'math')) { flush(); const m = mathNode(n, true); out.push({ t: 'math', tex: m.tex, mml: m.mml, error: m.error }); }
-    else if (tag === 'div') { flush(); out.push(...blocksOf(n.children)); }
+    // 本文に書いた HTML のかたまり(core.js の htmlSafe が許すもの)も、div と同じく中身を書き出す。summary・dt・dd・figcaption は段落
+    else if (tag === 'div' || BOX_TAGS.has(tag)) { flush(); out.push(...blocksOf(n.children)); }
+    else if (tag === 'summary' || tag === 'dt' || tag === 'dd' || tag === 'figcaption') { flush(); pushParagraphs(inlinesOf(n.children), out); }
     else pending.push(n);
   }
   flush();

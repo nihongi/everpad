@@ -45,7 +45,9 @@ test('Markdown: 見出し・リスト・チェックリスト・引用・コー�
 
 test('Markdown: 危険な入力は実行できる形にならない', () => {
   const out = L.md('<script>alert(1)</script> <img src=x onerror=alert(1)>\n\n[x](javascript:alert(1)) [y](https://a.example/" onmouseover="x)\n\n| <b>a</b> | [z](javascript:1) |\n|---|---|\n| <script>1</script> | `<b>` |');
-  assert(!/<script|<img|<b>/i.test(out), out);
+  // 見た目だけの HTML(<b> など)は出すが、スクリプト・イベント・添付でない画像は出さない
+  assert(!/<script|<img|onerror/i.test(out), out);
+  assert(/<td class="al-l"><code>&lt;b&gt;<\/code><\/td>/.test(out), out);
   assert(!/href="javascript/i.test(out), out);
   assert(!/" onmouseover=/.test(out), out);
 });

@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('memoApi', {
   attachPick: noteId => ipcRenderer.invoke('attach:pick', noteId),
   attachClip: (noteId, url, name) => ipcRenderer.invoke('attach:clip', noteId, url, name),
   attachCopy: (fromId, toId, fileIds) => ipcRenderer.invoke('attach:copy', fromId, toId, fileIds),
+  importImages: (token, noteId) => ipcRenderer.invoke('import:images', token, noteId),   // インポートした Markdown の画像を、できたメモの添付にする
   attachOpen: (noteId, fileId) => ipcRenderer.invoke('attach:open', noteId, fileId),
   attachMenu: (noteId, fileId, name, image, x, y, canTrash) => ipcRenderer.invoke('attach:menu', noteId, fileId, name, image, x, y, canTrash),
   attachTrash: (noteId, fileId, name, refs) => ipcRenderer.invoke('attach:trash', noteId, fileId, name, refs),

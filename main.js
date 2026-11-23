@@ -21,6 +21,9 @@ const updget = require('./updatedownload');
 const { spawn } = require('child_process');
 const pageexport = require('./pageexport');
 const docexport = require('./docexport');
+const mdImages = require('./mdimages');
+// インポートした Markdown の画像で、メモができたら添付にするもの(合言葉 → [{ path, name, id }])。readTextFile が作り、import:images で使う
+const pendingImportImages = new Map();
 const pptxexport = require('./pptxexport');
 const { officeClipPath } = require('./pasteclip');
 const isMac = process.platform === 'darwin';
@@ -481,6 +484,22 @@ ipcMain.handle('attach:clip', (e, noteId, url, name) => {
     return { items: [saveAttachment(noteId, String(name || T('file')) + path.extname(p).toLowerCase(), fs.readFileSync(p))], errors: [] };
   } catch (err) { return { items: [], errors: [errText(err)] }; }
 });
+/* インポートした Markdown の画像を、できたメモの添付にする(readTextFile が預けた合言葉で。1回だけ使える)。
+   本文には、読んだときの中身から決めた添付の名前を書いてあるので、そのあとで中身が変わった画像は入れない */
+ipcMain.handle('import:images', (e, token, noteId) => {
+  const out = { saved: 0, failed: 0 };
+  if (!fromOurWindow(e) || typeof token !== 'string' || !pendingImportImages.has(token)) return out;
+  const files = pendingImportImages.get(token);
+  pendingImportImages.delete(token);
+  if (!validId(noteId) || store.readOnly || store.isReadOnly(noteId)) { out.failed = files.length; return out; }
+  for (const f of files) {
+    try {
+      const item = saveAttachment(noteId, f.name, fs.readFileSync(f.path));
+      if (item.fileId === f.id) out.saved++; else out.failed++;
+    } catch (err) { out.failed++; }
+  }
+  return out;
+});
 /* 別のメモの添付を貼ったとき、ファイルもこのメモにコピーする(保存先のフォルダの中のメモどうしだけ) */
 ipcMain.handle('attach:copy', (e, fromId, toId, fileIds) => {
   const out = { copied: 0, missing: 0 };
@@ -775,7 +794,19 @@ function readTextFile(file) {
     if (!st.isFile()) return { name: name, ok: false, message: T('impNotFile') };
     if (st.size > MAX_IMPORT) return { name: name, ok: false, message: T('impTooLarge', { mb: MAX_IMPORT / 1024 / 1024 }) };
     const r = decodeText(fs.readFileSync(file));
-    return r.ok ? { name: name, ok: true, text: r.text, encoding: r.encoding } : { name: name, ok: false, message: importMessage(r) };
+    if (!r.ok) return { name: name, ok: false, message: importMessage(r) };
+    // 本文の画像のうち、このファイルと同じフォルダかその下にあるものは、メモができてから添付にする(mdimages.js)。
+    // 画面には、取り込むファイルの場所ではなく、合言葉(images)だけを渡す
+    const li = mdImages.localImages(r.text, file);
+    const item = { name: name, ok: true, text: li.text, encoding: r.encoding };
+    if (li.files.length) {
+      const token = crypto.randomBytes(16).toString('hex');
+      pendingImportImages.set(token, li.files);
+      setTimeout(() => pendingImportImages.delete(token), 10 * 60 * 1000).unref();
+      item.images = token;
+      item.imageCount = li.files.length;
+    }
+    return item;
   } catch (err) { return { name: name, ok: false, message: T('impReadFailed') }; }
 }
 /* ---------- アーカイブ(.everpad)のインポート ----------

@@ -329,6 +329,124 @@ function codeSpans(src, keep) {
   return out;
 }
 
+/* ---------- Markdown の中の HTML(GitHub と同じく、見た目だけのものに限る) ----------
+   許すタグと属性だけを出し直し、ほかは出さない(スクリプト・style・イベント・id・class などは無くなる)。値も形を確かめる。
+   HTML の要素でない <…>(<date-time> など)は、文字のまま出す。スクリプトなどは中身ごと出さない。HTML のコメントは出さない。
+   画像は添付(attach:…)だけを表示する。インターネットの画像は読み込まずにリンクにし(EverPad はインターネットに接続しない)、
+   ほかの場所の画像は名前だけを出す(インポートしたとき、メモのファイルと同じフォルダの中の画像は添付になる。mdimages.js)。
+   開いたタグは md() の終わりで閉じる(閉じ忘れが、プレビューの外に広がらないように)。
+   HT は md() の間だけの状態(md() の外から inline() を使うときは、今までどおり HTML を文字のまま出す) */
+let HT = null;
+// 文中で、出したタグを退避しておく目印(文字番号 14。本文には出てこない制御文字)
+const HT_MARK = String.fromCharCode(14), HT_MARK_RE = new RegExp(HT_MARK + '(\\d+)' + HT_MARK, 'g');
+const HTML_OK = new Set(('p div center details summary blockquote pre hr h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr th td caption ' +
+  'figure figcaption picture section article aside header footer main nav address a img br wbr span em strong b i u s strike del ins sub sup ' +
+  'kbd mark small big code abbr q cite var samp tt font').split(' '));
+const HTML_VOID = new Set(['br', 'wbr', 'hr', 'img']);
+// 中身ごと出さない要素
+const HTML_DROP_ALL = new Set('script style textarea title template noscript iframe object svg math select xmp noembed noframes'.split(' '));
+// 出さない(中身は出す)HTML の要素
+const HTML_KNOWN = new Set(('html head body meta link base source track video audio canvas embed applet frame frameset form input button option optgroup ' +
+  'label fieldset legend output progress meter col colgroup map area param dialog slot menu marquee blink basefont bgsound image').split(' '));
+const HTML_ATTR = {
+  '*': ['title', 'align'], img: ['alt', 'width', 'height', 'src'], a: ['href'], table: ['width'], ol: ['start', 'reversed', 'type'],
+  td: ['colspan', 'rowspan', 'width', 'valign'], th: ['colspan', 'rowspan', 'width', 'valign'], details: ['open'], li: ['value']
+};
+function htmlAttrOk(k, v) {
+  if (k === 'align') return /^(left|center|right|justify)$/i.test(v);
+  if (k === 'valign') return /^(top|middle|bottom|baseline)$/i.test(v);
+  if (k === 'width' || k === 'height') return /^\d{1,4}%?$/.test(v);
+  if (k === 'colspan' || k === 'rowspan' || k === 'start' || k === 'value') return /^\d{1,4}$/.test(v);
+  if (k === 'type') return /^[1aAiI]$/.test(v);
+  return k === 'open' || k === 'reversed' || k === 'title' || k === 'alt';
+}
+const HTML_TOKEN_RE = /<!--[\s\S]*?(?:-->|$)|<(\/?)([A-Za-z][A-Za-z0-9]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*\/?>/g;
+const HTML_ATTR_RE = /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+// 属性の値の文字参照(よく使うものだけ)を文字に戻す
+const htmlUnent = v => v.replace(/&(#\d{1,7}|#x[0-9a-f]{1,6}|amp|lt|gt|quot|apos|nbsp);/gi, (m, e) => {
+  const k = e.toLowerCase();
+  if (k[0] === '#') { const n = k[1] === 'x' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10); return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : m; }
+  return { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: String.fromCharCode(160) }[k];
+});
+// 文字: エスケープして、文字参照(&copy; &#169; など)は文字参照のまま出す(GitHub と同じく、その文字になる)
+const htmlText = s => esc(s).replace(/&amp;(#\d{1,7}|#x[0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/g, '&$1;');
+// 許すタグを出し直す。{ open, close }(close が無ければ閉じない)
+function htmlOpen(name, attrStr) {
+  const a = {};
+  HTML_ATTR_RE.lastIndex = 0;
+  let m;
+  while ((m = HTML_ATTR_RE.exec(attrStr))) {
+    const k = m[1].toLowerCase();
+    if (!(k in a)) a[k] = m[2] != null ? htmlUnent(m[2]) : m[3] != null ? htmlUnent(m[3]) : m[4] != null ? htmlUnent(m[4]) : true;
+  }
+  let s = '';
+  for (const k of (HTML_ATTR[name] || []).concat(HTML_ATTR['*'])) {
+    if (!(k in a) || k === 'src' || k === 'href') continue;
+    const v = a[k];
+    if (k === 'open' || k === 'reversed') s += ' ' + k;
+    else if (typeof v === 'string' && htmlAttrOk(k, v)) s += ' ' + k + '="' + esc(v) + '"';
+  }
+  if (name === 'img') {
+    const src = typeof a.src === 'string' ? a.src.trim() : '', alt = typeof a.alt === 'string' ? a.alt : '';
+    const id = /^attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)$/.exec(src);
+    if (id) return { open: '<img class="att-img" data-att="' + id[1] + '"' + s + ' loading="lazy">' };
+    const label = esc(alt || src.split(/[\\/]/).pop() || 'image');
+    if (/^https?:\/\/[^\s]+$/i.test(src)) return { open: '<a href="' + esc(src) + '" target="_blank" rel="noopener noreferrer">' + label + '</a>' };
+    return { open: src ? '<span class="link-other" data-target="' + esc(src) + '">' + label + '</span>' : '' };
+  }
+  if (name === 'a') {
+    const href = typeof a.href === 'string' ? a.href.trim() : '';
+    if (/^https?:\/\/[^\s]+$/i.test(href)) return { open: '<a href="' + esc(href) + '" target="_blank" rel="noopener noreferrer"' + s + '>', close: '</a>' };
+    if (href) return { open: '<span class="link-other" data-target="' + esc(href) + '"' + s + '>', close: '</span>' };
+    return { open: '<span' + s + '>', close: '</span>' };
+  }
+  return { open: '<' + name + s + '>', close: HTML_VOID.has(name) ? '' : '</' + name + '>' };
+}
+/* HTML のかたまりの始まりの行か(GitHub・CommonMark と同じ決まり)。{ until: 閉じのタグの名前 } か {}、違えば null。
+   かたまりになる要素(div・p・table・details など)のタグで始まる行。pre・script・style・textarea は、閉じのタグまで。
+   タグだけの行(<img …> だけなど)も、段落の途中でなければかたまり */
+const HTML_BLOCK_TAGS = new Set(('address article aside base basefont blockquote body caption center col colgroup dd details dialog dir div dl dt fieldset ' +
+  'figcaption figure footer form frame frameset h1 h2 h3 h4 h5 h6 head header hr html iframe legend li link main menu menuitem nav noframes ol ' +
+  'optgroup option p param search section summary table tbody td tfoot th thead title tr track ul picture').split(' '));
+function htmlBlockStart(ln, inPara) {
+  const m = /^ {0,3}<(\/?)([A-Za-z][A-Za-z0-9]*)(?=[\s/>]|$)/.exec(ln);
+  if (!m) return null;
+  const name = m[2].toLowerCase();
+  if (!m[1] && /^(pre|script|style|textarea)$/.test(name)) return { until: name };
+  if (HTML_BLOCK_TAGS.has(name)) return {};
+  if (!inPara && (HTML_OK.has(name) || HTML_KNOWN.has(name) || HTML_DROP_ALL.has(name)) && /^ {0,3}<\/?[A-Za-z][A-Za-z0-9]*(?:\s[^<>]*)?\/?>\s*$/.test(ln)) return {};
+  return null;
+}
+/* src の中の HTML を、許すものだけにして出す。keep があれば、出したタグを keep で退避する(文中で、あとの書式の処理から守る) */
+function htmlSafe(src, keep) {
+  if (!HT) return esc(src);
+  const out = [];
+  const tag = h => { if (h) out.push(keep ? keep(h) : h); };
+  let last = 0, drop = null, m;
+  HTML_TOKEN_RE.lastIndex = 0;
+  while ((m = HTML_TOKEN_RE.exec(src))) {
+    const before = src.slice(last, m.index);
+    last = HTML_TOKEN_RE.lastIndex;
+    const close = m[1] === '/', name = m[2] ? m[2].toLowerCase() : '';
+    if (drop) { if (close && name === drop) drop = null; continue; }
+    out.push(htmlText(before));
+    if (!name) continue;                       // コメント
+    if (HTML_DROP_ALL.has(name)) { if (!close && !/\/\s*>$/.test(m[0])) drop = name; continue; }
+    if (!HTML_OK.has(name)) { if (!HTML_KNOWN.has(name)) out.push(htmlText(m[0])); continue; }
+    if (close) {
+      let k = -1;
+      for (let j = HT.stack.length - 1; j >= 0; j--) if (HT.stack[j].name === name) { k = j; break; }
+      if (k >= 0) tag(HT.stack.splice(k, 1)[0].close);
+      continue;
+    }
+    const t = htmlOpen(name, m[3] || '');
+    tag(t.open);
+    if (t.close) HT.stack.push({ name: name, close: t.close });
+  }
+  if (!drop) out.push(htmlText(src.slice(last)));
+  return out.join('');
+}
+
 function inline(src) {
   const codes = [];
   let s = codeSpans(src, c => { codes.push(c); return '\u0001' + (codes.length - 1) + '\u0001'; });
@@ -343,7 +461,9 @@ function inline(src) {
   // \* などのエスケープ: その文字のまま出す。ほかの書式に読まれないよう、最後まで退避する
   const escs = [];
   s = s.replace(ESCAPE_RE, (m, c) => { escs.push(c); return '\u0005' + (escs.length - 1) + '\u0005'; });
-  s = esc(s);
+  // HTML: 許すタグだけを出して(ほかの書式の処理から守るため退避する)、ほかの文字はエスケープする
+  const tags = [];
+  s = htmlSafe(s, h => { tags.push(h); return HT_MARK + (tags.length - 1) + HT_MARK; });
   // 添付: ![名前](attach:ID) は画像、[名前](attach:ID) はファイルへのリンク。ほかの書式の影響を受けないよう、いったん退避する
   const atts = [];
   const keep = h => { atts.push(h); return '\u0002' + (atts.length - 1) + '\u0002'; };
@@ -375,6 +495,10 @@ function inline(src) {
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/(^|[^*])\*([^*\s][^*]*)\*(?!\*)/g, '$1<em>$2</em>');
   s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  // 退避したタグを戻す(リンクなど、退避した部分の中のものも)
+  s = s.replace(HT_MARK_RE, (_, i) => tags[+i]);
+  for (let k = 0; k < atts.length; k++) atts[k] = atts[k].replace(HT_MARK_RE, (_, j) => tags[+j]);
+  for (let k = 0; k < opens.length; k++) opens[k] = opens[k].replace(HT_MARK_RE, (_, j) => tags[+j]);
   s = s.replace(/\u0002(\d+)\u0002/g, (_, i) => atts[+i]);
   s = s.replace(/\u0007(\d+)\u0007/g, (_, i) => opens[+i]).replace(/\u0006/g, '</a>');
   s = s.replace(/\u0004(\d+)\u0004/g, (_, i) => maths[+i]).replace(/\u0003/g, '$');
@@ -1291,8 +1415,9 @@ function md(text, opts) {
   const lines = skip ? all.slice(skip) : all;
   const base = opts && opts.lines ? 0 : -1;
   const head = skip && opts && opts.fm ? frontMatterHtml(frontMatter(all.join('\n')), lineAttr(base, 0, skip)) : '';
-  const prev = FN;
+  const prev = FN, prevHT = HT;
   FN = footnoteDefs(lines);
+  HT = { stack: [] };   // 本文の中の HTML を、許すものだけ出す(htmlSafe)
   try {
     let body;
     if (opts && opts.slides) body = slidesHtml(lines, base < 0 ? -1 : skip);
@@ -1300,8 +1425,10 @@ function md(text, opts) {
       const html = mdBlocks(lines, base < 0 ? -1 : skip);
       body = FN.order.length ? html + footnotesHtml() : html;
     }
+    // 閉じ忘れた HTML のタグを閉じる
+    if (HT.stack.length) body += HT.stack.reverse().map(x => x.close).join('');
     return head ? head + (body ? '\n' + body : '') : body;
-  } finally { FN = prev; }
+  } finally { FN = prev; HT = prevHT; }
 }
 /* ---------- スライド ----------
    本文を、いちばん外側の区切り線で分けて、1枚ずつ <section class="slide"><div class="slide-in">…</div></section> にする
@@ -1374,12 +1501,24 @@ function mdBlocks(lines, base, sep, cuts) {
       continue;
     }
     if (/^\s*$/.test(ln)) { flush(); i++; continue; }
-    // スライドに分けるとき(いちばん外側)は、HTML のコメント(<!-- … -->。Marp の指定や発表者のメモ)の行を出さない
-    if (cuts && /^ {0,3}<!--/.test(ln)) {
+    // HTML のコメント(<!-- … -->)の行は出さない(GitHub と同じ。スライドでは Marp の指定や発表者のメモ)
+    if (/^ {0,3}<!--/.test(ln)) {
       flush();
       const from = ln.indexOf('<!--') + 4;
       if (ln.indexOf('-->', from) < 0) { i++; while (i < lines.length && lines[i].indexOf('-->') < 0) i++; }
       i++;
+      continue;
+    }
+    // HTML のかたまり(GitHub と同じ): 行の頭が、かたまりになる HTML の要素のタグで始まる行から、空の行まで。
+    // pre・script・style・textarea は、閉じのタグのある行まで。中は Markdown として読まず、許す HTML だけを出す(htmlSafe)
+    const hb = htmlBlockStart(ln, para.length > 0);
+    if (hb) {
+      flush();
+      const buf = [];
+      if (hb.until) { while (i < lines.length) { const l = lines[i++]; buf.push(l); if (l.toLowerCase().indexOf('</' + hb.until) >= 0) break; } }
+      else while (i < lines.length && !/^\s*$/.test(lines[i])) buf.push(lines[i++]);
+      const h = htmlSafe(buf.join('\n'));
+      if (h.trim()) put(h, at);
       continue;
     }
     if ((m = ln.match(/^(#{1,6})\s+(.*)$/))) { flush(); i++; put('<h' + m[1].length + '>' + inline(m[2]) + '</h' + m[1].length + '>', at); continue; }

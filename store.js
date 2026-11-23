@@ -27,6 +27,11 @@ const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_ATTACH = 50 * 1024 * 1024;
 const FILEID_RE = /^[0-9a-f]{16}(\.[a-z0-9]{1,8})?$/;
 const validFileId = f => typeof f === 'string' && FILEID_RE.test(f);
+/* 添付の名前(本文に attach:<名前> と書く): 中身の SHA-256 の先頭16桁と、元の名前の拡張子(小文字)。同じ中身なら同じ名前 */
+function attachmentId(name, buf) {
+  const m = /\.([A-Za-z0-9]{1,8})$/.exec(typeof name === 'string' ? name : '');
+  return crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16) + (m ? '.' + m[1].toLowerCase() : '');
+}
 const validId = id => typeof id === 'string' && ID_RE.test(id);
 /* 索引にタグ(フロントマターの tags)を持つ。無いメモには項目を作らない(索引を小さく保つ) */
 function setTags(e, text) { const t = core.tagsOf(text); if (t.length) e.tags = t; else delete e.tags; }
@@ -192,9 +197,7 @@ class Store {
     if (!fs.existsSync(this.file(id, '.jsonl'))) throw storeError('noFile', 'メモのファイルが見つかりません');
     const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
     if (buf.length > MAX_ATTACH) throw storeError('tooLarge', 'ファイルが大きすぎます(上限 ' + (MAX_ATTACH / 1024 / 1024) + 'MB)');
-    const hash = crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16);
-    const m = /\.([A-Za-z0-9]{1,8})$/.exec(typeof name === 'string' ? name : '');
-    const fileId = hash + (m ? '.' + m[1].toLowerCase() : '');
+    const fileId = attachmentId(name, buf);
     const dir = this.filesDir(id);
     fs.mkdirSync(dir, { recursive: true });
     const f = path.join(dir, fileId);
@@ -462,4 +465,4 @@ class Store {
   _unindex(id) { const idx = this._index(); if (idx[id]) { delete idx[id]; this._dirty(); } }
 }
 
-module.exports = { Store, validId, validFileId, MAX_ATTACH, validOp, parseLog, applyWire, wireText, pruneOps, attachHashes };
+module.exports = { Store, validId, validFileId, attachmentId, MAX_ATTACH, validOp, parseLog, applyWire, wireText, pruneOps, attachHashes };

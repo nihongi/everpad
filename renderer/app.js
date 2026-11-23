@@ -249,7 +249,7 @@
   let caretTimer = 0;
   function queueStatus() { if (!caretTimer) caretTimer = setTimeout(() => { caretTimer = 0; updateStatus(); }, 30); }
   let toastTimer = null;
-  function toast(m) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200); }
+  function toast(m, ms) { const t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, ms || 3200); }
 
   /* ---------- 行番号 ----------
      折り返した行には番号を付けず、次の番号を実際の表示位置に合わせる。
@@ -2428,6 +2428,8 @@
   // 貼り付けた中の画像そのもの(data:)と Word・Excel の一時ファイル(file:)を添付にして、目印を添付の書き方に置き換える。
   // 途中で別のメモに移ったら null
   async function fillPastedImages(r) {
+    // Web ページの画像(インターネットの画像)は、ダウンロードせずにリンクにした(EverPad はインターネットに接続しない)。その数と、画像も入れる方法を知らせる
+    if (r.remote) toast(T('pasteRemoteImages', { n: r.remote }), 8000);
     if (!r.images.length) return r.md;
     const noteId = S.active, marks = [], errors = [];
     for (const src of r.images.slice(0, 50)) {
@@ -4776,6 +4778,13 @@
       }
       const n = await makeNote();
       if (!n) { bad.push({ name: it.name, message: T('createFailed') }); continue; }
+      // 本文の画像(ファイルと同じフォルダかその下にあるもの)を、本文より先に添付にする(本文は main.js が attach: に書き換えてある)
+      if (it.images) {
+        let r = { saved: 0, failed: it.imageCount || 0 };
+        try { r = await api.importImages(it.images, n.id); } catch (e) { /* 入らなかった分を知らせる */ }
+        it.imagesSaved = r.saved;
+        if (r.failed) bad.push({ name: it.name, message: T('impImagesFailed', { n: r.failed }) });
+      }
       if (it.text) { const op = makeOp('', it.text, Date.now()); n.ops.push(op); n.text = it.text; syncMeta(n); queueOp(n, op); }
       S.notes.push(n);
       last = n; lastItem = it; made++;
@@ -4795,7 +4804,7 @@
       box.appendChild(ul);
       openModal(T('impErrTitle'), box);
     } else if (made === 1 && lastArc) toast(T(lastItem.replaced ? 'arcReplaced' : 'arcDone', { title: shownTitle(lastArc.title) }));
-    else if (made === 1) toast(T('impDone', { name: lastItem.name, enc: lastItem.encoding }));
+    else if (made === 1) toast(T('impDone', { name: lastItem.name, enc: lastItem.encoding }) + (lastItem.imagesSaved ? T('impImages', { n: lastItem.imagesSaved }) : ''));
     else if (made > 1) toast(T('impDoneN', { n: made }));
   });
   /* main.js が保存先に書いたメモを読み込み、一覧に入れる(同じ ID が既にあれば、中身を差し替える) */

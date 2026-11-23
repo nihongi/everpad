@@ -7,8 +7,9 @@ test('メモへのリンク: [表示名](note:メモID) はリンクになり、
   assert.strictEqual(L.md('[会議メモ](note:20261021-120000-math) を参照'), '<p><a class="note-link" href="#" data-note="20261021-120000-math">会議メモ</a> を参照</p>');
   assert.match(L.md('- [a](note:abcdef1) と [b](note:abcdef2)'), /data-note="abcdef1".*data-note="abcdef2"/);
   assert.match(L.md('| [表](note:abcdef1) |\n|---|'), /<th class="al-l"><a class="note-link" href="#" data-note="abcdef1">表<\/a><\/th>/);
-  // 表示名の HTML は文字として扱う
-  assert.strictEqual(L.md('[<b>x</b>](note:abcdef1)'), '<p><a class="note-link" href="#" data-note="abcdef1">&lt;b&gt;x&lt;/b&gt;</a></p>');
+  // 表示名の中も、本文と同じく許す HTML だけを出す(スクリプトなどは出さない)
+  assert.strictEqual(L.md('[<b>x</b>](note:abcdef1)'), '<p><a class="note-link" href="#" data-note="abcdef1"><b>x</b></a></p>');
+  assert.strictEqual(L.md('[<i onclick="y()">x</i><script>z()</script>](note:abcdef1)'), '<p><a class="note-link" href="#" data-note="abcdef1"><i>x</i></a></p>');
 });
 
 test('メモへのリンク: ID として正しくないもの・コード表記の中はリンクにしない', () => {

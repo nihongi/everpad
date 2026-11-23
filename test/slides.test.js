@@ -54,14 +54,15 @@ test('スライド: 行の範囲(data-from・data-to)を付け、中のかたま
   assert.ok(!/data-(?:from|line)|class="fm"/.test(out));
 });
 
-test('スライド: HTML のコメント(Marp の指定・発表者のメモ)の行は出さない。スライドでないときと、コードの中は今までどおり', () => {
+test('スライド: HTML のコメント(Marp の指定・発表者のメモ)の行は出さない(スライドでないときも、GitHub と同じく出さない)。コードの中は今までどおり', () => {
   const t = '<!-- paginate: true -->\n# A\n<!--\n発表者のメモ\n-->\n\n---\n\nB\n\n```\n<!-- x -->\n```';
   const html = C.md(t, { slides: true });
   assert.ok(!/paginate|発表者|&lt;!--\s*$/.test(html.replace(/<pre>[\s\S]*<\/pre>/, '')), html);
   assert.match(html, /<h1>A<\/h1>/);
   assert.match(html, /<pre><code>&lt;!-- x --&gt;/);
   assert.strictEqual(slidesOf(html).length, 2);
-  assert.match(C.md(t), /&lt;!-- paginate: true --&gt;/);
+  assert.ok(!/paginate|発表者/.test(C.md(t).replace(/<pre>[\s\S]*<\/pre>/, '')));
+  assert.match(C.md(t), /<pre><code>&lt;!-- x --&gt;/);
   // 行の範囲は変わらない
   assert.match(C.md(t, { slides: true, lines: true }), /<p data-line="8" data-end="9">B<\/p>/);
 });

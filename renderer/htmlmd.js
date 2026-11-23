@@ -107,13 +107,39 @@
     if (t === 'img') {
       const src = attr(n, 'src').trim(), alt = attr(n, 'alt').replace(/\s+/g, ' ').trim();
       if (/^data:image\/(png|jpe?g|gif|webp|bmp|avif);base64,/i.test(src) || OFFICE_CLIP_RE.test(src)) { ctx.images.push(src); out.push({ raw: '\u0000' + (ctx.images.length - 1) + '\u0000' }); }
-      else if (/^https?:\/\//i.test(src)) out.push({ raw: '[' + (escapeText(alt, ctx) || ctx.imageLabel) + '](' + urlPart(src) + ')' });
+      // インターネットの画像は読み込まず、リンクにする(覚えて知らせる)。文字のあるリンクの中では、リンクの前に出してあるので出さない
+      else if (/^https?:\/\//i.test(src)) { ctx.remote.add(src); if (!ctx.noRemoteImg) out.push({ raw: '[' + (escapeText(alt, ctx) || ctx.imageLabel) + '](' + urlPart(src) + ')' }); }
       else if (alt) out.push({ t: alt, b: f.b, i: f.i, s: f.s });
       return;
     }
     if (t === 'input') return;
     if (t === 'a') {
-      const href = attr(n, 'href').trim(), inner = runs(n, f, ctx);
+      const href = attr(n, 'href').trim();
+      // 文字が無く、インターネットの画像1枚だけのリンク(Web ページで、画像が大きい画像やページへのリンクになっているもの):
+      // リンクの中にリンクを作らず、画像の代わりの文字で、リンク先(リンク先が使えなければ画像)への1つのリンクにする
+      const imgs = [];
+      const walkImgs = x => { for (const c of kids(x)) if (c.tag === 'img') imgs.push(c); else if (c.tag) walkImgs(c); };
+      walkImgs(n);
+      const lone = imgs.length === 1 && !textOf(n).trim() ? imgs[0] : null;
+      if (lone && /^https?:\/\//i.test(attr(lone, 'src').trim())) {
+        const src = attr(lone, 'src').trim(), alt = attr(lone, 'alt').replace(/\s+/g, ' ').trim();
+        ctx.remote.add(src);
+        out.push({ raw: '[' + (escapeText(alt, ctx) || ctx.imageLabel) + '](' + urlPart(/^https?:\/\//i.test(href) ? href : src) + ')' });
+        return;
+      }
+      // 文字と、インターネットの画像のあるリンク: 画像は、リンクの前に画像へのリンクとして出し、リンクの中には入れない
+      const remoteImgs = imgs.filter(x => /^https?:\/\//i.test(attr(x, 'src').trim()));
+      const mixed = remoteImgs.length > 0 && !!textOf(n).trim();
+      if (mixed) {
+        for (const x of remoteImgs) {
+          const src = attr(x, 'src').trim(), alt = attr(x, 'alt').replace(/\s+/g, ' ').trim();
+          ctx.remote.add(src);
+          out.push({ raw: '[' + (escapeText(alt, ctx) || ctx.imageLabel) + '](' + urlPart(src) + ') ' });
+        }
+        ctx.noRemoteImg = (ctx.noRemoteImg || 0) + 1;
+      }
+      const inner = runs(n, f, ctx);
+      if (mixed) ctx.noRemoteImg--;
       const text = emit(inner, ctx).replace(/\n+/g, ' ').trim();
       // 表示の文字が URL そのもの(EverPad の自動リンクも)なら、URL だけを書く(EverPad がリンクにする)
       if (/^https?:\/\//i.test(href) && (text === href || text + '/' === href) && !/\s/.test(href)) { out.push({ raw: href }); return; }
@@ -477,11 +503,13 @@
   /* tree → { md, images, atts }。opts.inline: 表のセルなど1行の入力欄(見出しやリストは作らず、改行は空白)。
      images: 画像そのもの(data:)と Word・Excel の一時ファイル(file:)。atts: 添付の元のメモ [{ note, file }] */
   function toMarkdown(tree, opts) {
-    const ctx = { images: [], atts: [], inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image' };
+    // remote: リンクにしたインターネットの画像の URL。表のセルなどで ctx を写しても、同じ Set を使う(同じ画像を2回数えない)
+    const ctx = { images: [], atts: [], remote: new Set(), inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image' };
     let md;
     if (ctx.inline) md = emit(runs(tree, {}, ctx), ctx).replace(/\s*\n\s*/g, ' ').trim();
     else md = join(children(tree, ctx)).replace(/\n{3,}/g, '\n\n').trim();
-    return { md: md, images: ctx.images, atts: ctx.atts };
+    // remote: リンクにしたインターネットの画像の数
+    return { md: md, images: ctx.images, atts: ctx.atts, remote: ctx.remote.size };
   }
 
   /* 画面: DOM の節 → 木(大きすぎる・深すぎるものは null) */

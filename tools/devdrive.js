@@ -17,6 +17,9 @@
  *   app.check('メモが2つ', n === 2, n);
  *   await app.done();   // 結果を出して、アプリを閉じ、失敗があれば終了コード 1
  *
+ *   // または、途中でエラーになってもアプリを閉じる形:
+ *   await devdrive.run({ dir, notes }, async app => { … app.check(…) … });
+ *
  * 関数は文字列にして送るので、外の変数は使えない(使う値は引数で渡す。引数と戻り値は JSON にできるもの)。
  * 画面の関数の中では $(id) で document.getElementById(id) を使える。コードを文字列で組み立てないので、引用符やバックスラッシュの
  * エスケープを気にしなくてよい。
@@ -163,4 +166,13 @@ async function start(opts) {
   return app;
 }
 
-module.exports = { start, prepare, fileId };
+/* start して fn(app) を実行し、終わったら(途中でエラーになっても)まとめを出してアプリを閉じる。
+   エラーは失敗の1つとして数える。devdrive.run({ dir, notes }, async app => { … }) */
+async function run(opts, fn) {
+  const app = await start(opts);
+  try { await fn(app); } catch (e) { app.check('script error: ' + ((e && e.message) || e), false); }
+  finally { await app.done(); }
+  return app;
+}
+
+module.exports = { start, run, prepare, fileId };
