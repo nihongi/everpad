@@ -1609,6 +1609,10 @@ function showMdHelp() {
 
 /* ---------- バージョン情報 ---------- */
 const HOMEPAGE = 'https://github.com/nihongi/everpad/';   // 公開場所
+/* 「ライセンス」ボタンで開く場所: この版のタグの LICENSES.md(日本語の画面なら LICENSES.ja.md)。使っている版に入っているものの一覧。
+   アプリにライセンス文は入れず、決まった URL をブラウザで開くだけ。README の途中(#見出し)ではなく別のファイルにするのは、
+   GitHub が見出しまで送る位置が、サインインの有無などで変わるため(ファイルなら、いつもページの先頭から見える) */
+const licensesUrl = (version, l) => HOMEPAGE + 'blob/v' + version + '/' + (l === 'ja' ? 'LICENSES.ja.md' : 'LICENSES.md');
 async function showAbout() {
   const r = await dialog.showMessageBox(win, {
     type: 'info',
@@ -1618,12 +1622,13 @@ async function showAbout() {
       + T('aboutDataDir', { dir: store.dir }) + '\n\n'
       + HOMEPAGE + '\n\n'
       + 'Copyright (c) 2026 Nobuyoshi NIHONGI\nMIT License',
-    buttons: [T('aboutOpenSite'), 'OK'],
-    defaultId: 1,
-    cancelId: 1,
+    buttons: [T('aboutOpenSite'), T('aboutLicenses'), 'OK'],
+    defaultId: 2,
+    cancelId: 2,
     noLink: true
   });
   if (r.response === 0) shell.openExternal(HOMEPAGE);
+  else if (r.response === 1) shell.openExternal(licensesUrl(app.getVersion(), lang));
 }
 
 /* ---------- 更新の確認(updatecheck.js) ----------
