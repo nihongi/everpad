@@ -209,6 +209,15 @@ test('Markdown の書き方: 新しい書き方の例が、説明どおりに表
   assert.match(out['URL をそのまま書く'], /<a href="https:\/\/www\.electronjs\.org\/docs"/);
   assert.match(out['アラート'], /alert-note.*注記.*alert-warning.*警告/s);
   assert.match(out['脚注'], /<sup class="fnref">.*<section class="footnotes">/s);
+  // HTML: 見た目のタグはそのまま出し、details の中の Markdown も表示し、コメントは出さない
+  for (const l of ['ja', 'en']) {
+    const sec = HELP[l].sections.find(s => s.h === 'HTML');
+    const html = L.md(sec.src);
+    assert.match(html, /<p align="center"><b>/, l);
+    assert.match(html, /<kbd>Ctrl<\/kbd>.*<sub>2<\/sub>.*<sup>2<\/sup>/s, l);
+    assert.match(html, /<details>\s*<summary>[^<]+<\/summary>\s*<p>[^<]*<strong>/, l);
+    assert.ok(!/&lt;|<!--|comment|コメント/.test(html), l + ': ' + html);
+  }
 });
 
 /* ZIP(無圧縮か deflate)を読んで、名前 → 文字列 */

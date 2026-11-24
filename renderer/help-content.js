@@ -12,7 +12,7 @@
         '段落の中の改行は、そのまま改行として表示されます(行末に空白を2つ入れる必要はありません)。',
         '画像として表示されるのは、EverPad に添付した画像だけです。ネット上の画像は表示しません。',
         'クリックで開けるリンクは、http:// か https:// で始まるアドレス(デフォルトのブラウザで開きます)、他のメモへのリンク、同じメモの見出しへのリンク(#見出し)です。ファイルへの相対パスなどのリンクは、リンクの見た目で表示しますが、開けません。',
-        'HTML のタグは、そのまま文字として表示されます。'
+        'HTML のタグは、見た目を変えるだけのもの(<b>・<br>・<kbd>・<details>・<p align="center"> など)に限って、GitHub と同じように表示します。スクリプトやスタイルは取り除きます(下の「HTML」を見てください)。'
       ],
       src: '書き方', out: '表示', keyHead: ['キー', '使われ方'],
       sections: [
@@ -60,6 +60,8 @@
           src: '詳しくは [会議メモ](note:20261021-120000-abcd) を参照。', noRender: true },
         { h: '画像・ファイルの添付', note: '画像を貼り付けるか、ファイルをドラッグ&ドロップするか、「添付」ボタンで選ぶと、カーソルの位置に次のように書かれます。! で始まるものは画像、ないものはファイルへのリンクです。「名前」の部分は自由に書き換えられます(| [ ] は使えません)。添付の書き方を別のメモにコピーしても表示されないので、ファイルを貼り付け直してください。',
           src: '![スクリーンショット](attach:0123456789abcdef.png)\n[見積書](attach:fedcba9876543210.pdf)', noRender: true },
+        { h: 'HTML', note: '見た目を変えるだけの HTML のタグは、GitHub と同じように表示します。使えるのは、<b>・<i>・<u>・<s>・<sub>・<sup>・<kbd>・<mark>・<br>・<p>・<div>・<center>・<details>・<summary>・<table> などのタグと、align・width・height・title などの属性です。<details> の中は、<summary> の文字を押すと開きます。タグの行と Markdown の行の間には、空の行を入れてください(入れないと、Markdown の書き方が文字のまま出ます)。<!-- … --> のコメントは表示しません。スクリプトとスタイルは中身ごと、フォームや動画などのタグはタグだけを取り除き、onclick などの指定も取り除きます。HTML に無いタグ(<名前> など)は、文字のまま表示します。<img> の画像は、添付の画像(attach:)だけを表示し、Web 上の画像はリンクにします。印刷・PDF・HTML にはプレビューと同じ見た目で、Word・LaTeX・AsciiDoc にはタグの中の文字を書き出します。',
+          src: '<p align="center"><b>中央にそろえた太字</b></p>\n\n<kbd>Ctrl</kbd>+<kbd>C</kbd> でコピー、H<sub>2</sub>O、x<sup>2</sup>\n\n<details>\n<summary>押すと開きます</summary>\n\n閉じている間は **隠れている** 文章です。\n</details>\n\n<!-- このコメントは表示されません -->' },
         { h: 'フロントマター', fm: true,
           note: 'メモの先頭に、--- だけの行で囲んで「キー: 値」の行を書くと、フロントマター(メモの情報)になります。Obsidian・Jekyll・Hugo・Pandoc と同じ書き方です。「編集」→「フロントマター(タグ)を挿入」で入れることもできます。プレビューでは枠にして出し、タグを押すと、そのタグで検索します。印刷・PDF・HTML・Word などには枠を出さず、題名・著者・日付(と、toc: true なら目次)だけを本文の先頭に出します。テキストとして書き出したファイルには、書いたまま入ります。',
           src: '---\ntitle: "設計メモ: 第2版"\nauthor: [山田, 佐藤]\ndate: 2026-11-19\ntags: [設計, YAML]\n---\nここから本文です。' },
@@ -87,7 +89,7 @@
         'A line break inside a paragraph is shown as a line break (no need for two trailing spaces).',
         'Only images attached to EverPad are shown as images. Images on the web are not displayed.',
         'Links you can open by clicking are addresses starting with http:// or https:// (opened in your default browser), links to other notes, and links to headings in the same note (#heading). Other links, such as relative paths to files, are shown as links but cannot be opened.',
-        'HTML tags are shown as plain text.'
+        'HTML tags are shown as on GitHub, limited to tags that only change how the text looks (such as <b>, <br>, <kbd>, <details> and <p align="center">). Scripts and styles are removed (see "HTML" below).'
       ],
       src: 'You type', out: 'You see', keyHead: ['Key', 'Used for'],
       sections: [
@@ -135,6 +137,8 @@
           src: 'See [meeting notes](note:20261021-120000-abcd) for details.', noRender: true },
         { h: 'Images and attachments', note: 'Paste an image, drag and drop a file, or choose one with the Attach button, and text like the following is inserted at the cursor. Lines starting with ! are images; the others are links to files. You may change the "name" part freely (do not use |, [ or ]). Copying this syntax into another note does not work; paste the file again instead.',
           src: '![Screenshot](attach:0123456789abcdef.png)\n[Quote](attach:fedcba9876543210.pdf)', noRender: true },
+        { h: 'HTML', note: 'HTML tags that only change how the text looks are shown as on GitHub. You can use tags such as <b>, <i>, <u>, <s>, <sub>, <sup>, <kbd>, <mark>, <br>, <p>, <div>, <center>, <details>, <summary> and <table>, and attributes such as align, width, height and title. The inside of <details> opens when you click the <summary> text. Put an empty line between a line of tags and a line of Markdown (otherwise the Markdown is shown as plain text). <!-- … --> comments are not shown. Scripts and styles are removed with their content, tags such as forms and videos are removed but their text is kept, and attributes such as onclick are removed too. Tags that are not HTML (such as <name>) are shown as text. <img> shows only attached images (attach:); an image on the web becomes a link. Printouts, PDF and HTML look the same as the preview, and Word, LaTeX and AsciiDoc get the text inside the tags.',
+          src: '<p align="center"><b>Centered bold text</b></p>\n\nPress <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy. H<sub>2</sub>O, x<sup>2</sup>\n\n<details>\n<summary>Click to open</summary>\n\nThis text is **hidden** while closed.\n</details>\n\n<!-- This comment is not shown -->' },
         { h: 'Front matter', fm: true,
           note: 'Lines of "key: value" between two lines containing only --- at the top of a note are front matter (information about the note), written the same way as in Obsidian, Jekyll, Hugo and Pandoc. Edit > Insert Front Matter (Tags) adds it for you. The preview shows it as a box; click a tag label to search for that tag. Printouts, PDFs, HTML, Word and the other exports leave the box out and show only the title, author and date (and, with toc: true, a table of contents) at the top of the text. Text files keep it as written.',
           src: '---\ntitle: "Design notes: 2nd edition"\nauthor: [Alex, Sam]\ndate: 2026-11-19\ntags: [design, YAML]\n---\nThe text starts here.' },
