@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.52.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.52.2(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -64,7 +64,7 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・プレビューで1行の部分(見出しや1行の段落など)を押したときや、最後の部分の下を押して段落を書き足すときに、編集欄が2行分の高さで開き、2行目が使えない空きになっていたのを直しました。
+・「Markdown の書き方」(「ヘルプ」→「Markdown の書き方」)に、HTML のタグは文字のまま表示すると書かれたままだったのを直しました。見た目を変えるだけの HTML で使えるタグと属性、<details> の開き方、タグの行と Markdown の行の間に入れる空の行、取り除くものを、例と一緒に説明します。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -163,7 +163,7 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Fixed the edit box in the preview opening two lines high, with an unusable second line, when you clicked a part with one line of text (such as a heading or a one-line paragraph) or below the last part to add a paragraph.
+• Fixed the Markdown Guide (Help → Markdown Guide), which still said that HTML tags are shown as plain text. It now explains which tags and attributes you can use in HTML that only changes how the text looks, how to open <details>, the empty line needed between a line of tags and a line of Markdown, and what is removed, with an example.
 
 ### Product features (up to 20, up to 200 characters each)
 
