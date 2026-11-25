@@ -91,7 +91,8 @@ test('表: セルの書き換え(前後の空白はそのまま、| はエスケ
   r = C.tableEdit('|a|b|\n|-|-|\n|1|2|', 2, 0, 'cell', '新');
   assert.strictEqual(L(r.text)[2], '|新|2|');
   assert.strictEqual(L(C.tableEdit(T, 4, 0, 'cell', 'a\\|b').text)[4], '| a\\|b | 2 |');   // すでにエスケープしたものはそのまま
-  assert.strictEqual(L(C.tableEdit(T, 4, 0, 'cell', '改\n行').text)[4], '| 改 行 | 2 |');
+  assert.strictEqual(L(C.tableEdit(T, 4, 0, 'cell', '改\n行').text)[4], '| 改<br>行 | 2 |');   // 改行はセルの中の改行
+  assert.strictEqual(L(C.tableEdit(T, 4, 0, 'cell', '改\r\n行\n').text)[4], '| 改<br>行<br> | 2 |');
   r = C.tableEdit(T, 4, 0, 'delete');
   assert.strictEqual(r.text, '前\n\n後');
   assert.deepStrictEqual([r.row, r.col], [2, -1]);

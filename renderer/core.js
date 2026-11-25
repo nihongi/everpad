@@ -874,6 +874,20 @@ function pushRecent(list, id, title, max) {
   return [{ id: id, title: title, t: Date.now() }].concat((list || []).filter(r => r && r.id !== id)).slice(0, max);
 }
 
+/* 検索した言葉の履歴(「全メモから検索」と「検索と置換」の欄の候補)。新しい順に max 件まで、同じ言葉は1つにまとめる。
+   空の言葉・長すぎる言葉(SEARCH_HIST_LEN を超える)は覚えない(前のまま返す) */
+const SEARCH_HIST_MAX = 20, SEARCH_HIST_LEN = 500;
+function pushSearch(list, s, max) {
+  const old = Array.isArray(list) ? list.filter(x => typeof x === 'string' && x) : [];
+  if (typeof s !== 'string' || !s.trim() || s.length > SEARCH_HIST_LEN) return old.slice(0, max || SEARCH_HIST_MAX);
+  return [s].concat(old.filter(x => x !== s)).slice(0, max || SEARCH_HIST_MAX);
+}
+/* 欄に打った文字に合う候補: 打った文字を含むもの(大文字と小文字は区別しない)。欄が空ならすべて。打った文字と同じものは出さない */
+function searchSuggest(list, typed, max) {
+  const t = String(typed || '').toLowerCase();
+  return (list || []).filter(x => typeof x === 'string' && x && x !== typed && (!t || x.toLowerCase().includes(t))).slice(0, max || 10);
+}
+
 /* 見出しの文字から、GitHub と同じ規則で、ページ内リンク(#…)の名前を作る:
    小文字にし、文字・数字・空白・- ・_ 以外を取り除き、空白を - にする(日本語などの文字はそのまま) */
 const headingSlug = text => String(text).trim().toLowerCase().replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '').replace(/\s/g, '-');
@@ -1960,14 +1974,47 @@ function segSet(seg, v) {
   const a = /^\s*/.exec(seg)[0], b = /\s*$/.exec(seg)[0];
   return a + v + b;
 }
-/* セルに書く文字: | をエスケープし、改行は空白にする */
+/* セルに書く文字: | をエスケープし、改行はセルの中の改行(<br>。GitHub と同じ書き方)にする。
+   行の終わりの \ は \\ にする(続く <br> をエスケープしないように) */
 function cellEscape(v) {
   let out = '';
-  const s = String(v).replace(/\r?\n/g, ' ');
+  const s = String(v).replace(/\r\n?/g, '\n');
   for (let i = 0; i < s.length; i++) {
-    if (s[i] === '\\' && i + 1 < s.length) { out += s[i] + s[i + 1]; i++; }
+    if (s[i] === '\\' && s[i + 1] === '\n') out += '\\\\';
+    else if (s[i] === '\\' && i + 1 < s.length) { out += s[i] + s[i + 1]; i++; }
+    else if (s[i] === '\n') out += '<br>';
     else if (s[i] === '|') out += '\\|';
     else out += s[i];
+  }
+  return out;
+}
+/* セルの中身(元の文)を、プレビューのセルの編集欄に出す文にする: <br>(<br/>・<br /> も)を改行に、\| を | にする。
+   コード(`…`)の中の <br> は文字のまま。書き戻すときは cellEscape が、改行を <br> に、| を \| に戻す */
+function cellLines(src) {
+  const s = String(src);
+  let out = '';
+  for (let i = 0; i < s.length;) {
+    const ch = s[i];
+    if (ch === '\\' && s[i + 1] === '|') { out += '|'; i += 2; continue; }
+    if (ch === '\\' && i + 1 < s.length) { out += s.slice(i, i + 2); i += 2; continue; }
+    if (ch === '`') {
+      const n = /^`+/.exec(s.slice(i))[0].length;
+      // 同じ数の ` で閉じるところまでがコード
+      let j = i + n, close = -1;
+      while (j < s.length) {
+        const k = s.indexOf('`', j);
+        if (k < 0) break;
+        const run = /^`+/.exec(s.slice(k))[0].length;
+        if (run === n) { close = k; break; }
+        j = k + run;
+      }
+      if (close >= 0) { out += s.slice(i, close + n).replace(/\\\|/g, '|'); i = close + n; }
+      else { out += s.slice(i, i + n); i += n; }
+      continue;
+    }
+    const br = ch === '<' ? /^<br\s*\/?>/i.exec(s.slice(i)) : null;
+    if (br) { out += '\n'; i += br[0].length; continue; }
+    out += ch; i++;
   }
   return out;
 }
@@ -2477,5 +2524,5 @@ function diagramInsert(text, after, src) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, ChunkText, makeOp, textAt, inline, md, slidesOn, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
+  module.exports = { tableCaption, tableGrid, tableAnchor, tableSpan, tableNav, splitRow, diagramNorm, diagramFence, diagramBlock, diagramLines, diagramReplace, diagramInsert, inlineMathSpans, blockRanges, mathBlockParts, mathAt, mathInBlock, mathInline, mathInsert, mathReplace, emptyBraceAt, blockInsert, tableRowParse, tableRowBuild, tableAt, tableCell, tableEdit, tableInsert, tableInsertAfter, tableCaret, tableCellPos, caretFromRendered, cellEscape, cellLines, chunkLines, historyCounter, joinPieces, pieceSpans, emojiSuggest, emojiQueryAt, setMdLang, newlineEdit, indentEdit, tabEdit, inFenceAt, changeEnd, macKeys, esc, applyOp, ChunkText, makeOp, textAt, inline, md, slidesOn, lineToY, yToLine, anchorAt, escRe, matchRanges, markPieces, diffLines, snippetOf, searchLatest, searchHistory, cursorInfo, selectionInfo, textStats, formatLines, inlineFormat, noteLinkAt, linkText, pushRecent, SEARCH_HIST_MAX, pushSearch, searchSuggest, headingSlug, titleOf, frontMatter, frontMatterLines, frontMatterInsert, tagsOf, fmScalar, fmItems, fmText, docMeta, titleBlockHtml, docOpts, pageSizeCss, tocHtml, tagKey, tagHit, hasTags, parseQuery, tagFilter, hasTagQuery, tagTypingAt, tagSuggest, tagToken, fmKeySpans, searchRanges, isImageName, attachName, attachMarkup, attachRefs, removeAttachRefs, buildRe, expandRepl, findAll, findFrom, replaceAllText };
 }

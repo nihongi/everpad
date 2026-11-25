@@ -440,7 +440,9 @@ li.pe-li { list-style: none; }
 /* 編集欄は描画を省かない(省くと、高さが1行分と見積もられて、文が入りきらない) */
 #preview > .pe-edit { content-visibility: visible; contain-intrinsic-size: none; }
 .pe-cell { width: 100%; min-width: 6em; box-sizing: border-box; padding: 2px 4px; font: 14px/1.4 var(--mono); color: var(--fg); background: var(--surface);
-  border: 1px solid var(--accent); border-radius: 4px; outline: none; }
+  border: 1px solid var(--accent); border-radius: 4px; outline: none;
+  /* セルの中の改行と折り返しの分だけ伸ばす(高さは peCellFit が決める) */
+  display: block; resize: none; overflow: hidden; overflow-wrap: anywhere; vertical-align: top; }
 .dl { display: grid; grid-template-columns: var(--ln-w) minmax(0, 1fr); }
 .dl .n { white-space: nowrap; text-align: right; padding-right: 10px; margin-right: 12px; border-right: 1px solid var(--line); color: var(--fg-2); user-select: none; font-variant-numeric: tabular-nums; }
 .dl .t { min-width: 0; }

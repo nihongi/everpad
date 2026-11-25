@@ -1370,7 +1370,7 @@
         meta = '<span class="hm"><span>' + esc(T('hitCount', { n: r.n })) + '</span></span>';
       }
       b.innerHTML = '<span class="ht">' + esc(shownTitle(n.title)) + '</span><span class="hs">' + r.snippet + '</span>' + meta;
-      b.addEventListener('click', () => { openAt(r.id, hist ? { rev: r.a } : r.tag ? { tag: r.tag } : { s: r.s, e: r.e, find: true }); closeSide(); });
+      b.addEventListener('click', () => { shAdd('q', S.q); openAt(r.id, hist ? { rev: r.a } : r.tag ? { tag: r.tag } : { s: r.s, e: r.e, find: true }); closeSide(); });
       li.appendChild(b);
       ul.appendChild(li);
     }
@@ -1537,6 +1537,112 @@
   $('qClear').addEventListener('click', () => { $('q').value = ''; runSearch(); $('q').focus(); });
   document.querySelectorAll('#scopeSeg button').forEach(b => b.addEventListener('click', () => { S.scope = b.dataset.scope; updateHint(); runSearch(); }));
   updateHint();
+  // Enter を押したら、その言葉を検索の候補に覚える(打つたびに検索するので、打ちかけの言葉は覚えない)
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) shAdd('q', $('q').value); });
+
+  /* ---------- 検索した言葉の候補(「設定」の「検索した言葉を覚えて、候補に出す」。既定はオン) ----------
+     「全メモから検索」(q)と「検索と置換」の検索欄(fr)の下に、前に検索した言葉を出す(core.js の pushSearch・searchSuggest)。
+     覚えるのは、q では Enter を押したときと検索結果のメモを開いたとき、fr では「次へ」「前へ」(Enter・F3)と置換で探したとき。
+     言葉は main.js が config.json に置く(メモのフォルダには入れない)。
+     打っている間はその文字を含む言葉を出す(まだ選ばないので、Enter はいつもどおり)。欄が空のときはクリックで、↓ ではいつでも、最近の言葉を出す。
+     ↑↓ で選び、Enter か Tab で欄に入れる(q はそのまま探す)。Esc で閉じる。選んだ候補は Shift+Delete で消せる。
+     q で tag: を打っている間は、タグの候補を出す */
+  let SH = { on: false, q: [], fr: [] };
+  async function shLoad() { try { const h = await api.searchHistGet(); if (h) SH = h; } catch (e) { /* 無くても動く */ } }
+  shLoad();
+  function shAdd(kind, text) {
+    const s = kind === 'q' ? String(text || '').trim() : String(text || '');
+    if (!SH.on || !s || SH[kind][0] === s) return;
+    SH[kind] = pushSearch(SH[kind], s);   // すぐ候補に使う。main.js にも覚えてもらう
+    api.searchHistAdd(kind, s).then(h => { if (h) SH = h; }, () => {});
+  }
+  const hp = { box: null, kind: '', input: null, items: [], at: -1 };
+  const hpInput = kind => $(kind === 'q' ? 'q' : 'frFind');
+  function hpClose() {
+    if (hp.box) { hp.box.remove(); hp.box = null; }
+    if (hp.input) hp.input.removeAttribute('aria-activedescendant');
+    hp.items = []; hp.at = -1; hp.input = null; hp.kind = '';
+  }
+  // all: 欄が空でも出す(クリック・↓)。sel: 最初の候補を選んでおく(↓)。出せたら true
+  function hpOpen(kind, all, sel) {
+    const input = hpInput(kind), v = input.value;
+    const items = SH.on && document.activeElement === input && !(kind === 'q' && tp.box) && (v || all) ? searchSuggest(SH[kind], v, 10) : [];
+    if (!items.length) { if (hp.kind === kind) hpClose(); return false; }
+    if (hp.kind !== kind) hpClose();
+    hp.kind = kind; hp.input = input; hp.items = items; hp.at = sel ? 0 : -1;
+    hpPaint();
+    return true;
+  }
+  function hpPaint() {
+    if (!hp.box) {
+      hp.box = document.createElement('ul');
+      hp.box.className = 'emopick tagpick histpick';
+      hp.box.setAttribute('role', 'listbox');
+      hp.box.setAttribute('aria-label', T('histPick'));
+      // 押しても欄からフォーカスを外さない
+      hp.box.addEventListener('mousedown', e => { e.preventDefault(); const li = e.target.closest('li'); if (li) hpChoose(+li.dataset.i); });
+      document.body.appendChild(hp.box);
+    }
+    hp.box.textContent = '';
+    hp.items.forEach((s, i) => {
+      const li = document.createElement('li');
+      li.id = 'histpick-' + i; li.dataset.i = i; li.title = T('histPickTip');
+      li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(i === hp.at));
+      const n = document.createElement('span'); n.className = 'tn'; n.textContent = s;
+      li.appendChild(n);
+      hp.box.appendChild(li);
+    });
+    if (hp.at >= 0) hp.input.setAttribute('aria-activedescendant', 'histpick-' + hp.at);
+    else hp.input.removeAttribute('aria-activedescendant');
+    const r = hp.input.getBoundingClientRect();
+    hp.box.style.minWidth = Math.round(r.width) + 'px';
+    hp.box.style.left = Math.max(8, Math.min(r.left, window.innerWidth - hp.box.offsetWidth - 8)) + 'px';
+    hp.box.style.top = (r.bottom + 2) + 'px';
+  }
+  function hpChoose(i) {
+    const s = hp.items[i], kind = hp.kind, input = hp.input;
+    if (s === undefined) return;
+    hpClose();
+    input.value = s;
+    input.setSelectionRange(s.length, s.length);
+    if (kind === 'q') { clearTimeout(qTimer); runSearch(); shAdd('q', s); }
+    else frRefresh();
+  }
+  // 候補が出ている間の ↑↓・Enter・Tab・Esc・Shift+Delete は候補の操作にする(欄の Esc・Enter の処理より先に受け取る)
+  function hpKey(kind, e) {
+    if (e.isComposing || e.keyCode === 229) return;
+    const plain = !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey;
+    if (hp.kind !== kind) {
+      if (e.key === 'ArrowDown' && plain && hpOpen(kind, true, true)) { e.preventDefault(); e.stopImmediatePropagation(); }
+      return;
+    }
+    const n = hp.items.length;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && plain) {
+      hp.at = e.key === 'ArrowDown' ? (hp.at + 1) % n : (hp.at <= 0 ? n - 1 : hp.at - 1);
+      hpPaint();
+    } else if ((e.key === 'Enter' || e.key === 'Tab') && plain && hp.at >= 0) hpChoose(hp.at);
+    else if (e.key === 'Delete' && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && hp.at >= 0) {
+      const s = hp.items[hp.at];
+      SH[kind] = SH[kind].filter(x => x !== s);
+      api.searchHistDel(kind, s).then(h => { if (h) SH = h; }, () => {});
+      hp.items.splice(hp.at, 1);
+      if (!hp.items.length) hpClose();
+      else { hp.at = Math.min(hp.at, hp.items.length - 1); hpPaint(); }
+    } else if (e.key === 'Escape') hpClose();
+    else { if (e.key === 'Enter' || e.key === 'Tab') hpClose(); return; }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+  for (const kind of ['q', 'fr']) {
+    const input = hpInput(kind);
+    input.addEventListener('keydown', e => hpKey(kind, e), true);
+    input.addEventListener('input', e => { if (!e.isComposing) hpOpen(kind, false, false); });
+    input.addEventListener('compositionstart', () => { if (hp.kind === kind) hpClose(); });
+    input.addEventListener('compositionend', () => hpOpen(kind, false, false));
+    input.addEventListener('mouseup', () => setTimeout(() => { if (!input.value && hp.kind !== kind) hpOpen(kind, true, false); }, 0));
+    input.addEventListener('blur', () => { if (hp.kind === kind) hpClose(); });
+  }
+  window.addEventListener('resize', hpClose);
 
   /* ---------- メモの追加・削除 ---------- */
   /* ファイルを作れたときだけメモを作る(同じ名前があれば作り直す) */
@@ -1922,8 +2028,9 @@
     queueStatus();
   });
   function frGo(dir) {
-    if (S.mode !== 'edit') return pvGo(dir);   // プレビュー・履歴の表示
     const re = frRegex();
+    if (re && !re.error) shAdd('fr', $('frFind').value);   // 探した言葉を候補に覚える
+    if (S.mode !== 'edit') return pvGo(dir);   // プレビュー・履歴の表示
     if (!re || re.error) { frRefresh(); return null; }
     const ed = $('editor');
     const r = findFrom(ed.value, re, dir >= 0 ? ed.selectionEnd : ed.selectionStart, dir);
@@ -1946,6 +2053,7 @@
     const re = frRegex();
     if (!re || re.error) { frRefresh(); return; }
     const ed = $('editor'), t = ed.value;
+    shAdd('fr', $('frFind').value);
     const r = replaceAllText(t, re, $('frRepl').value, FR.re);
     if (!r.count) { frLabel(T('noMatch'), true); return; }
     frInsert(r.first, r.last, r.text.slice(r.first, r.text.length - (t.length - r.last)));
@@ -3021,20 +3129,34 @@
     const tr = cell.closest('tr[data-line]');
     if (!tr) return;
     const row = +tr.dataset.line, col = cellCol(cell);
-    const inp = document.createElement('input');
-    inp.type = 'text';
+    // セルの中の改行(<br>)があるので、行の数に合わせて高さを変える編集欄(peCellFit)
+    const inp = document.createElement('textarea');
+    inp.rows = 1;
     inp.className = 'pe-cell';
     inp.spellcheck = false;
-    // 中身の \| は | で見せる(書き戻すときに tableEdit がエスケープし直す)
-    inp.value = tableCell(cur().text, row, col).replace(/\\\|/g, '|');
+    // 中身の <br> は改行で、\| は | で見せる(書き戻すときに tableEdit が <br> と \| に戻す)
+    inp.value = cellLines(tableCell(cur().text, row, col));
     Object.assign(pe, { box: inp, holder: inp, el: cell, kind: 'cell', add: null, row: row, col: col, start: cur().text, html: cell.innerHTML, init: inp.value });
     peLastCell = { row: row, col: col };
     cell.innerHTML = '';
     cell.appendChild(inp);
+    peCellFit();
     inp.focus({ preventScroll: true });
     const p = atEnd === false ? 0 : inp.value.length;
     inp.setSelectionRange(p, p);
     sendUiState();
+  }
+  // セルの編集欄の高さを、中身(セルの中の改行と折り返し)に合わせる
+  function peCellFit() {
+    if (!pe.box || pe.kind !== 'cell') return;
+    const ta = pe.box;
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 2 + 'px';
+  }
+  // セルの中の改行を入れる(Shift+Enter・Alt+Enter。元に戻せるよう入力として行い、書き込むときは <br>)
+  function peCellBreak() {
+    if (!pe.box || pe.kind !== 'cell') return;
+    peReplace(pe.box.selectionStart, pe.box.selectionEnd, '\n');
   }
   /* 編集欄の高さを中身に合わせる(折り返した行も含めて、全体が見えるように)。reveal なら、編集欄の全体が画面に入るように動かす
      (画面より高いときは、編集欄の上端を画面の上端に) */
@@ -3050,7 +3172,7 @@
     if (r.height > v.height - 16 || r.top < v.top) pv.scrollTop += r.top - v.top - 8;
     else if (r.bottom > v.bottom) pv.scrollTop += r.bottom - v.bottom + 8;
   }
-  window.addEventListener('resize', () => peFit());
+  window.addEventListener('resize', () => { peFit(); peCellFit(); });
   // 編集欄の中身を元の文に入れる
   function peSync() {
     if (!pe.box || peComposing) return;
@@ -3063,10 +3185,13 @@
     } else if (pe.kind === 'block') {
       peSetText(pe.pre + (pe.s > 0 ? '\n' : '') + pe.box.value + (pe.hasPost ? '\n' + pe.post : ''));
       peFit();
-    } else if (pe.box.value !== pe.init || cur().text !== pe.start) {
-      // 何も変えずに閉じたときは書かない(セルの足りない行を補ったりしない)
-      const r = tableEdit(cur().text, pe.row, pe.col, 'cell', pe.box.value);
-      if (r) peSetText(r.text);
+    } else {
+      if (pe.box.value !== pe.init || cur().text !== pe.start) {
+        // 何も変えずに閉じたときは書かない(セルの足りない行を補ったり、<br/> を <br> に直したりしない)
+        const r = tableEdit(cur().text, pe.row, pe.col, 'cell', pe.box.value);
+        if (r) peSetText(r.text);
+      }
+      peCellFit();
     }
   }
   /* 編集欄を閉じて、整形した表示に戻す。戻り値は、かたまりの行の数の増減(後ろのかたまりの行がずれる分) */
@@ -3280,9 +3405,22 @@
     const plain = !e.ctrlKey && !e.altKey && !e.metaKey;
     if (e.key === 'Escape') { e.preventDefault(); peClose(); return; }
     if (pe.kind === 'cell') {
-      if (e.key === 'Tab' && plain) { e.preventDefault(); peCellMove(e.shiftKey ? -1 : 1, 0); }
+      const ta = pe.box;
+      // Shift+Enter(Typora・Obsidian と同じ)と Alt+Enter(Excel と同じ。Mac は ⌥+Enter): セルの中の改行。
+      // 画面で止めると、メニューのキー(Windows の既定ではプロパティの Alt+Enter)は動かない
+      if (e.key === 'Enter' && (e.shiftKey || e.altKey) && !e.ctrlKey && !e.metaKey) { e.preventDefault(); peCellBreak(); }
+      else if (e.key === 'Tab' && plain) { e.preventDefault(); peCellMove(e.shiftKey ? -1 : 1, 0); }
       else if (e.key === 'Enter' && plain) { e.preventDefault(); peClose(); }
-      else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && plain && !e.shiftKey) { e.preventDefault(); peCellMove(0, e.key === 'ArrowUp' ? -1 : 1); }
+      else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && plain && !e.shiftKey) {
+        // セルの中に行があれば、最初(↑)・最後(↓)の見た目の行にいるときだけ、上下のセルに移る
+        const s = ta.selectionStart;
+        if (s === ta.selectionEnd && ta.value) {
+          const line = peCaretLine(ta, s, true);
+          if (e.key === 'ArrowUp' ? line > 0 : line < peCaretLine(ta, ta.value.length, true)) return;
+        }
+        e.preventDefault();
+        peCellMove(0, e.key === 'ArrowUp' ? -1 : 1);
+      }
       return;
     }
     const ta = pe.box, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
@@ -4679,6 +4817,22 @@
     sel.addEventListener('change', () => { api.prefsSet('lang', sel.value); });
     lr.append(lt.t, sel);
     vw.appendChild(lr);
+    // 検索した言葉の候補: オン・オフ(オフにすると覚えた言葉も消す)と、覚えている数・「覚えた言葉を消す」
+    const sr = section(T('setSearch'));
+    const shRow = el('div', 'set-row set-choice');
+    const shText = text(T('setSearchHistCount', { n: 0 }));
+    const shBtn = el('button', 'btn', T('setSearchHistClear')); shBtn.type = 'button';
+    const shPaint = () => {
+      shText.l.textContent = T('setSearchHistCount', { n: P.searchHist.n });
+      shBtn.disabled = !P.searchHist.n;
+      shRow.hidden = !P.searchHist.on;
+    };
+    const shCb = check(sr, T('setSearchHist'), T('setSearchHistHint'), P.searchHist.on, async v => { await setPref('searchHist', v); await shLoad(); shPaint(); });
+    // 消したらボタンは押せなくなるので、フォーカスをチェックに移す
+    shBtn.addEventListener('click', async () => { await setPref('searchHistClear', true); await shLoad(); shPaint(); shCb.focus(); });
+    shRow.append(shText.t, shBtn);
+    sr.appendChild(shRow);
+    shPaint();
     const ot = section(T('setOther'));
     if (P.update) check(ot, T('setCheckOnStart'), null, P.update.checkOnStart, v => setPref('checkOnStart', v));
     // 「送る」メニューへの登録(Windows のインストール版と portable 版)。作れなかったときは、実際の状態に戻す

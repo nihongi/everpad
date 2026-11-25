@@ -67,10 +67,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.52.3.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.53.0.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.52.3.exe
+EverPad 0.53.0.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -127,6 +127,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - In an empty note, click anywhere in the preview to get an empty box and start writing.
 - To add a paragraph, click the empty space below the last part of the note (a hint appears when you point there), or right-click a part, formula or diagram and choose Insert Paragraph. An empty box opens there (after the whole block quote, list or table when you are in one), so you can keep writing below a diagram or formula without switching to the Text view. What you type is added as a paragraph separated by blank lines; if you close the box without typing, nothing changes.
 - Click a table cell to change just that cell (a `|` you type is written as `\|`). Tab moves to the next cell (at the last cell, it adds a row), Shift+Tab to the previous one and ↑ ↓ to the cell above or below (a merged cell counts as one cell); Enter or Esc finishes.
+- To start a new line inside a cell while changing it, press Shift+Enter or Alt+Enter (as in Excel; ⌥+Enter on a Mac). The cell then shows the line break as it will look, and the note gets `<br>`, the way GitHub writes a line break in a table cell. In a cell with several lines, ↑ ↓ move between its lines first and then to the cell above or below. Tables pasted from Word, Excel or web pages keep the line breaks in their cells as `<br>`, and so does text with several lines pasted into a cell (until now they became spaces). In the Text view, write `<br>` yourself. Exports turn `<br>` into a line break in the cell (Word, PowerPoint, AsciiDoc and LaTeX too). Search finds the text as written, so a phrase that spans a `<br>` is not found as one phrase.
 - Click a check box to check or clear it (`[ ]` ↔ `[x]`).
 - To add a table, choose Edit → Table → Insert Table, or right-click in the preview outside a table and choose Insert Table. An empty table (a header row and 3 rows, 3 columns) is added after the part you clicked or are editing (after the whole block quote or table when you are in one, and at the end of the note when you clicked below the text), and its first header cell opens for editing. In the Text view, it is added on the line after the cursor (after the table, code block, formula or diagram when the cursor is in one), and the right-click menu has Table → Insert Table.
 - To add a formula in the preview, right-click outside a table and choose Insert Formula… (or press `Ctrl+Shift+M`). The formula is added after the part you right-clicked (at the end of the note when you right-clicked below the text, or in an empty note). While a part or table cell is being edited, its right-click menu puts the formula at the cursor, and shows Edit Formula… when the cursor is in a formula.
@@ -164,6 +165,7 @@ On macOS, Ctrl becomes ⌘, and some keys are different (see "macOS and Linux (u
 - Find and replace supports case sensitivity, whole words and regular expressions. With regular expressions, the replacement can use `$1` (a captured group), `$&` (the whole match), `\n` (newline) and `\t` (tab). Replace all is recorded in the history as a single edit and can be undone with `Ctrl+Z`. `Ctrl+F` remains the search across all notes.
 - In the Preview view, Find and Replace… (`Ctrl+H`) opens a find-only bar (replacing is done in the Text view). It searches the formatted text as you see it (so `**ap**ple` is found as "apple"; text inside formulas and diagrams is not searched). Every match is highlighted, and Enter / F3 moves to the next one. The bar stays open when you switch between Text and Preview, and the replace row appears only in the Text view. For a read-only note, the bar is find-only in the Text view too.
 - In the history, Find and Replace… also opens a find-only bar. The time slider then shows colored bands under it for the versions that contain the text, so you can see when it was written and when it was deleted. Previous change / Next change move to the versions where the number of matches changed (where the text was written or deleted). The matches in the version shown are highlighted, and Enter / F3 moves between them. The bands are computed from the note's text as written (Markdown), and regular expressions cannot be used in the history. Opening a result of the All history search opens this bar with the same text.
+- The Search all notes box and the find box of Find and Replace suggest what you searched for before. Click the empty box or press ↓ to see your recent searches. While you type, the searches that contain what you have typed appear below the box. Choose one with ↑↓ and press Enter or Tab (or click it). Esc closes the list, and Shift+Delete removes the chosen search from it. Search all notes remembers a search when you press Enter or open one of its results. Find and Replace remembers it when you use Next, Previous or Replace. Each box keeps up to 20 searches. They are saved in `config.json` with the other settings, so they stay on this PC and are not part of the data folder. To stop this, turn off Remember searches and suggest them in File → Settings…, which also deletes the saved searches. Clear Saved Searches there deletes them and keeps the suggestions on.
 
 **Tags and front matter**
 
@@ -515,15 +517,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.52.3.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.53.0.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.52.3-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.53.0-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.52.3`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.53.0`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -532,7 +534,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.52.3.AppImage` (x64)
+- Linux: `EverPad-0.53.0.AppImage` (x64)
 
 **macOS**
 
@@ -548,7 +550,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.52.3.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.53.0.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -689,10 +691,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.52.3.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.53.0.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.52.3.exe
+EverPad 0.53.0.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(デフォルト)
@@ -749,6 +751,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 何も書いていないメモでは、プレビューのどこをクリックしても空の編集欄が出て、書き始められます。
 - 段落を書き足すときは、メモの最後の部分より下の何もない所をクリックするか(指すと案内が出ます)、部分・数式・図を右クリックして「段落を挿入」を選びます。その次(引用・リスト・表の中なら、その全体の次)に空の編集欄が出るので、図や数式の下にも、「テキスト」表示に切り替えずに続きを書けます。書いた文は、空の行で分けた段落として入ります。何も書かずに閉じれば、元の文は変わりません。
 - 表のセルをクリックすると、そのセルだけを書き換えられます(打った `|` は `\|` として書きます)。Tab で次のセル(最後のセルでは行を足します)、Shift+Tab で前のセル、↑↓ で上下のセルに移り(結合したセルは1つのセルとして数えます)、Enter か Esc で終わります。
+- セルを書き換えている間に Shift+Enter か Alt+Enter(Excel と同じ。Mac では ⌥+Enter)を押すと、セルの中で改行できます。セルには改行を見たままに出し、メモには GitHub の表と同じく `<br>` と書きます。何行かあるセルでは、↑↓ はセルの中の行を先に移り、最初か最後の行から上下のセルに移ります。Word・Excel・Web ページから貼り付けた表の、セルの中の改行も `<br>` で残ります。何行かの文字をセルに貼り付けたときも同じです(これまでは空白になっていました)。「テキスト」表示では、`<br>` を自分で書きます。エクスポートでも、`<br>` はセルの中の改行になります(Word・PowerPoint・AsciiDoc・LaTeX も)。検索は書いたままの文字で探すので、`<br>` をまたぐ言葉は1つの言葉としては見つかりません。
 - チェックボックスを押すと、チェックが付く・外れます(`[ ]` ↔ `[x]`)。
 - 表を入れるときは、「編集」→「表」→「表を挿入」を選ぶか、プレビューで表の外を右クリックして「表を挿入」を選びます。編集している部分・クリックした部分の次(引用や表の中なら、その全体の次。文の無い下の方をクリックしたときはメモの最後)に、空の表(見出しの行と3行、3列)が入り、見出しの最初のセルが編集の状態になります。「テキスト」表示では、カーソルの行の次(表・コードブロック・数式・図の中なら、その後ろ)に入ります。右クリックの「表」→「表を挿入」でも入れられます。
 - プレビューで数式を入れるときは、表の外を右クリックして「数式を挿入…」を選びます(`Ctrl+Shift+M` でも開けます)。右クリックした部分の次(文の無い下の方を右クリックしたときと、何も書いていないメモではメモの最後)に入ります。部分や表のセルを編集しているときの右クリックでは、カーソルの位置に入り、カーソルが数式の中なら「数式を編集…」が出ます。
@@ -786,6 +789,7 @@ macOS では Ctrl が ⌘ になり、いくつかのキーが違います(「ma
 - 検索と置換では、大文字/小文字の区別・単語単位・正規表現を選べます。正規表現のときは、置換後の文字列に `$1`(かっこで囲んだ部分)、`$&`(一致した全体)、`\n`(改行)、`\t`(タブ)が使えます。「すべて置換」は1回の編集として履歴に残り、`Ctrl+Z` で元に戻せます。`Ctrl+F` は、これまでどおり全メモを対象にした検索です。
 - プレビューで「検索と置換…」(`Ctrl+H`)を選ぶと、検索だけのバーが出ます(置換は「テキスト」表示で行います)。整形したあとの、見えている文字を探します(`**ap**ple` は「apple」として見つかります。数式と図の中は探しません)。一致した箇所すべてに色が付き、Enter / F3 で次の箇所に進みます。バーを開いたまま「テキスト」とプレビューを切り替えられ、置換の行は「テキスト」表示でだけ出ます。読み取り専用のメモでは、「テキスト」表示でも検索だけのバーになります。
 - 履歴の表示でも、「検索と置換…」で検索だけのバーが出ます。タイムスライダーの下に、検索語がある版の範囲が色の帯で出るので、その文をいつ書いて、いつ消したかがわかります。「前の変化」「次の変化」で、検索語の数が変わった版(書いた版・消した版)に移ります。表示中の版の中の一致には色が付き、Enter / F3 で順に移れます。帯はメモの元の文字(Markdown)で数えます。履歴の表示では正規表現は使えません。「履歴すべて」の検索結果から開いたときは、同じ検索語でこのバーが開きます。
+- 「全メモから検索」と「検索と置換」の検索欄は、前に検索した言葉を候補に出します。空の欄をクリックするか ↓ を押すと、最近の言葉が出ます。打っている間は、打った文字を含む言葉を欄の下に出します。↑↓ で選んで Enter か Tab を押すと(クリックでも)、欄に入ります。Esc で閉じ、Shift+Delete で選んだ候補を消せます。「全メモから検索」では、Enter を押したときと、検索結果のメモを開いたときに覚えます。「検索と置換」では、「次へ」「前へ」と置換を使ったときに覚えます。覚えるのは、欄ごとに新しい順に20件までです。言葉はほかの設定と一緒に `config.json` に保存し、このパソコンだけで使います(メモの保存先には入りません)。使わないときは、「ファイル」→「設定…」の「検索した言葉を覚えて、候補に出す」をオフにします(覚えた言葉も消します)。「覚えた言葉を消す」では、候補は出したまま、覚えた言葉だけを消します。
 
 **タグとフロントマター**
 
@@ -1137,15 +1141,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.52.3.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.53.0.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.52.3-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.53.0-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.52.3` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.53.0` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -1154,7 +1158,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.52.3.AppImage`(x64)
+- Linux: `EverPad-0.53.0.AppImage`(x64)
 
 **macOS**
 
@@ -1170,7 +1174,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.52.3.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.53.0.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。

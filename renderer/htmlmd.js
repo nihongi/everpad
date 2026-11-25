@@ -160,7 +160,13 @@
     let s = '';
     for (let k = 0; k < list.length; k++) {
       const r = list[k];
-      if (r.br) { s += ctx.inline ? ' ' : '\n'; continue; }
+      if (r.br) {
+        if (!ctx.inline) { s += '\n'; continue; }
+        // 表のセル: 改行はセルの中の改行(表ごとの貼り付けでは <br>、セルの編集欄では改行)。続く改行は1つにまとめ、初めには付けない
+        while (k + 1 < list.length && list[k + 1].br) k++;
+        if (/\S/.test(s) && k + 1 < list.length) s += ctx.table ? '<br>' : '\n';
+        continue;
+      }
       if (r.raw != null) { s += r.raw; continue; }
       if (r.code != null) { s += codeSpan(r.code); continue; }
       // 同じ印の文字はまとめる
@@ -352,7 +358,7 @@
     const trs = head.concat(body, foot).filter(r => cellsOf(r).length);
     if (!trs.length) return '';
     // セルの中身。セル自体の文字飾り(Google スプレッドシートの style、Excel のクラス)も中身に付ける
-    const textOf = c => emit(runs(c, { b: boldOf(c, false), i: italicOf(c, false), s: strikeOf(c, false) }, tctx), tctx).trim();
+    const textOf = c => emit(runs(c, { b: boldOf(c, false), i: italicOf(c, false), s: strikeOf(c, false) }, tctx), tctx).replace(/(?:\s*<br>)+\s*$/, '').trim();
     const BOLD_RE = /^\*\*(?!\*)([\s\S]*?[^*])\*\*$/;
     let nh = head.filter(r => cellsOf(r).length).length, boldHead = false;
     if (!nh) {
@@ -500,13 +506,14 @@
   // 文字があるか(画像だけのコピーは、今までどおり添付にするため)
   const hasText = tree => /\S/.test(textOf({ children: [tree] }).replace(/ /g, ' '));
 
-  /* tree → { md, images, atts }。opts.inline: 表のセルなど1行の入力欄(見出しやリストは作らず、改行は空白)。
+  /* tree → { md, images, atts }。opts.inline: プレビューの表のセルの編集欄(見出しやリストは作らず、段落や改行の区切りは
+     セルの中の改行。書き込むときに <br> になる)。
      images: 画像そのもの(data:)と Word・Excel の一時ファイル(file:)。atts: 添付の元のメモ [{ note, file }] */
   function toMarkdown(tree, opts) {
     // remote: リンクにしたインターネットの画像の URL。表のセルなどで ctx を写しても、同じ Set を使う(同じ画像を2回数えない)
     const ctx = { images: [], atts: [], remote: new Set(), inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image' };
     let md;
-    if (ctx.inline) md = emit(runs(tree, {}, ctx), ctx).replace(/\s*\n\s*/g, ' ').trim();
+    if (ctx.inline) md = emit(runs(tree, {}, ctx), ctx).replace(/[ \t]*\n\s*/g, '\n').trim();
     else md = join(children(tree, ctx)).replace(/\n{3,}/g, '\n\n').trim();
     // remote: リンクにしたインターネットの画像の数
     return { md: md, images: ctx.images, atts: ctx.atts, remote: ctx.remote.size };

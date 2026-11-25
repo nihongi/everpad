@@ -45,6 +45,10 @@ contextBridge.exposeInMainWorld('memoApi', {
   // キーボードショートカット(一覧・変更・すべて既定に戻す。割り当て中に押したキーは main.js が読んで知らせる)
   prefsGet: () => ipcRenderer.invoke('prefs:get'),
   prefsSet: (key, value) => ipcRenderer.invoke('prefs:set', key, value),
+  // 検索した言葉の履歴(kind: 'q' は「全メモから検索」、'fr' は「検索と置換」)
+  searchHistGet: () => ipcRenderer.invoke('shist:get'),
+  searchHistAdd: (kind, text) => ipcRenderer.invoke('shist:add', kind, text),
+  searchHistDel: (kind, text) => ipcRenderer.invoke('shist:del', kind, text),
   keysList: () => ipcRenderer.invoke('keys:list'),
   keysSet: (id, accel) => ipcRenderer.invoke('keys:set', id, accel),
   keysResetAll: () => ipcRenderer.invoke('keys:resetAll'),

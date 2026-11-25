@@ -152,9 +152,21 @@ test('数式: KaTeX・MathML の LaTeX の注釈から戻す', () => {
   assert.strictEqual(md('<math display="block"><annotation encoding="application/x-tex">y = 1</annotation></math>'), '$$\ny = 1\n$$');
 });
 
-test('表のセル(1行の入力欄): 見出しやリストは作らず、改行は空白', () => {
-  assert.strictEqual(md('<p><b>a</b> | b</p><ul><li>c</li></ul>', { inline: true }), '**a** | b c');
-  assert.strictEqual(md('<h1>題</h1><p>本文</p>', { inline: true }), '題 本文');
+test('表のセルの編集欄: 見出しやリストは作らず、段落や改行の区切りはセルの中の改行(書き込むときに <br> になる)', () => {
+  assert.strictEqual(md('<p><b>a</b> | b</p><ul><li>c</li></ul>', { inline: true }), '**a** | b\nc');
+  assert.strictEqual(md('<h1>題</h1><p>本文</p>', { inline: true }), '題\n本文');
+  assert.strictEqual(md('<p>a<br>b</p>', { inline: true }), 'a\nb');
+  assert.strictEqual(md('<p>a<br><br><br>b<br></p>', { inline: true }), 'a\nb');   // 続く改行は1つ、終わりには付けない
+});
+
+test('表ごとの貼り付け: セルの中の改行・段落・リストは <br>(続く改行は1つにまとめ、セルの初めと終わりには付けない)', () => {
+  assert.strictEqual(md('<table><tr><th>a</th><th>b</th></tr><tr><td>x<br>y</td><td><p>p1</p><p>p2</p></td></tr></table>'), '| a | b |\n| --- | --- |\n| x<br>y | p1<br>p2 |');
+  // Excel: セルの中の改行は <br style="mso-data-placement:same-cell;">。HTML の中の折り返し(改行と空白)は空白
+  assert.strictEqual(md('<table><tr><th>a</th><th>b</th></tr><tr><td>line1<br style="mso-data-placement:same-cell;">line2</td><td>z\r\n  wrapped</td></tr></table>'), '| a | b |\n| --- | --- |\n| line1<br>line2 | z wrapped |');
+  assert.strictEqual(md('<table><tr><th>a</th></tr><tr><td><p>x</p><p></p></td></tr><tr><td>y<br><br></td></tr><tr><td><br>z</td></tr></table>'), '| a |\n| --- |\n| x |\n| y |\n| z |');
+  assert.strictEqual(md('<table><tr><th>a</th></tr><tr><td><ul><li>one</li><li>two</li></ul></td></tr></table>'), '| a |\n| --- |\n| one<br>two |');
+  // EverPad のプレビューでも、同じセルの中の改行になる
+  assert.match(core.md('| a |\n| --- |\n| one<br>two |'), /<td class="al-l">one<br>two<\/td>/);
 });
 
 test('fromDom: DOM の節を木にする(大きすぎるときは null)', () => {

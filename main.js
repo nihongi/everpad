@@ -7,7 +7,7 @@ const { Store, MAX_ATTACH, validId, validFileId } = require('./store');
 const { decodeText, MAX_IMPORT } = require('./textcodec');
 const { sendToPath, shortcutTarget, filesFromArgv } = require('./sendto');
 const { buildArchive, readArchive, looksLikeArchive } = require('./archive');
-const { titleOf, pageSizeCss } = require('./renderer/core');
+const { titleOf, pageSizeCss, pushSearch, SEARCH_HIST_MAX } = require('./renderer/core');
 const { buildTemplate, buildAttachTemplate, formatItems, inlineItems, tableItems } = require('./contextmenu');
 const { restoreBounds, captureBounds } = require('./windowstate');
 const I18N = require('./renderer/i18n');
@@ -1324,6 +1324,36 @@ function setEditPref(key, value) {
   if (win && !win.isDestroyed()) win.webContents.send('menu', 'prefs:' + JSON.stringify(p));
 }
 
+/* ---------- 検索した言葉の履歴(「設定」の「検索した言葉を覚えて、候補に出す」。既定はオン) ----------
+   「全メモから検索」(q)と「検索と置換」の検索欄(fr)の、それぞれ新しい順に20件まで。検索した言葉からメモの内容が分かることがあるので、
+   この PC の config.json にだけ置く(メモのフォルダには入れない)。オフにしたときは、覚えた言葉も消す */
+const SEARCH_KINDS = ['q', 'fr'];
+function searchHist() {
+  const c = readConfig().searchHistory || {};
+  const h = { on: c.on !== false };
+  for (const k of SEARCH_KINDS) h[k] = h.on ? pushSearch(c[k], null, SEARCH_HIST_MAX) : [];
+  return h;
+}
+function setSearchHist(h) {
+  try { writeConfig(Object.assign(readConfig(), { searchHistory: h })); } catch (e) { /* 覚えられなくても、今回は使う */ }
+  return h;
+}
+const emptySearchHist = on => ({ on: on, q: [], fr: [] });
+ipcMain.handle('shist:get', e => (fromOurWindow(e) ? searchHist() : null));
+ipcMain.handle('shist:add', (e, kind, text) => {
+  if (!fromOurWindow(e) || !SEARCH_KINDS.includes(kind)) return null;
+  const h = searchHist();
+  if (!h.on || typeof text !== 'string') return h;
+  h[kind] = pushSearch(h[kind], kind === 'q' ? text.trim() : text, SEARCH_HIST_MAX);
+  return setSearchHist(h);
+});
+ipcMain.handle('shist:del', (e, kind, text) => {
+  if (!fromOurWindow(e) || !SEARCH_KINDS.includes(kind)) return null;
+  const h = searchHist();
+  h[kind] = h[kind].filter(x => x !== text);
+  return setSearchHist(h);
+});
+
 /* ---------- 設定(「ファイル」→「設定…」。Mac ではアプリ名のメニュー) ----------
    画面の「設定」の窓が読み書きする。編集の設定(上)・言語・起動時の更新の確認・「送る」メニューへの登録(どちらも Store 版には無い)。
    行番号の表示は、画面の側で覚えている(localStorage) */
@@ -1333,6 +1363,7 @@ function prefsAll() {
     lang: lang,
     langs: [{ id: 'ja', label: '日本語' }, { id: 'en', label: 'English' }],
     update: isStore ? null : { checkOnStart: updater.updatePrefs(readConfig()).checkOnStart },
+    searchHist: (h => ({ on: h.on, n: h.q.length + h.fr.length }))(searchHist()),
     sendTo: canSendTo() ? fs.existsSync(sendToLink()) : null
   };
 }
@@ -1345,6 +1376,8 @@ ipcMain.handle('prefs:set', async (e, key, value) => {
   else if (key === 'noteColor' && value && typeof value === 'object') setEditPref(key, NoteColor.sanitize(value));
   else if (key === 'checkOnStart' && typeof value === 'boolean' && !isStore) setUpdatePref({ checkOnStart: value });
   else if (key === 'sendTo' && typeof value === 'boolean' && canSendTo()) setSendTo(value);
+  else if (key === 'searchHist' && typeof value === 'boolean') setSearchHist(emptySearchHist(value));   // オフにすると覚えた言葉も消す
+  else if (key === 'searchHistClear' && value === true) setSearchHist(emptySearchHist(searchHist().on));
   else if (key === 'lang' && I18N.LANGS.includes(value)) { setLang(value); return null; }   // 画面を読み直す
   return prefsAll();
 });
