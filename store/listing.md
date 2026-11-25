@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.52.3(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.53.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -64,7 +64,10 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・「ヘルプ」→「EverPad について」に「ライセンス」ボタンを足しました。EverPad と、アプリに入っているソフトウェア(Electron・Chromium・Node.js・KaTeX・Mermaid・gemoji)のライセンスの一覧を、ブラウザで開きます。それぞれのライセンスへのリンクもあります。
+・「全メモから検索」と「検索と置換」で検索した言葉を覚えて、候補に出すようにしました(それぞれ20件まで)。空の欄をクリックするか ↓ を押すと出て、入力中は打った文字を含む言葉に絞ります。Shift+Delete で候補から消せます。「ファイル」→「設定…」の「検索」で、オフにしたり、覚えた言葉を消したりできます。覚えるのはこの PC の設定の中だけで、メモの保存先には入れません。
+・プレビューで表のセルを編集している間に Shift+Enter か Alt+Enter を押すと、Excel の Alt+Enter のように、セルの中で改行できるようになりました。メモには GitHub と同じく <br> と書きます。セルを編集している間に Alt+Enter を押しても、メモの「プロパティ」は開きません。
+・Word・Excel・Web ページから表を貼り付けたとき、セルの中の改行や段落を、空白にせず改行のまま残すようにしました。
+・プレビューで表のセルに ^^ とだけ入れると、上のセルの中身が消えていたのを直しました。セルに打った文字は、いつも文字として書きます。上のセルと結合するには、上のセルを右クリックして「下のセルと結合」を選んでください。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -163,7 +166,10 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Help → About EverPad has a new Licenses button. It opens a page in your browser that lists the licenses of EverPad and of the software it contains (Electron, Chromium, Node.js, KaTeX, Mermaid and gemoji), with links to each license.
+• "Search all notes" and Find and Replace now remember what you searched for and suggest it again (up to 20 each). Click the empty box or press ↓ to see them; while typing, only matching searches are shown. Press Shift+Delete to remove one. You can turn this off, or clear what is saved, in File → Settings… → Search. Searches are kept only in the settings on this PC, not in the data folder.
+• While editing a table cell in the preview, press Shift+Enter or Alt+Enter to start a new line inside the cell, like Alt+Enter in Excel. The note gets <br>, as on GitHub. Alt+Enter while editing a cell no longer opens the note's Properties.
+• When you paste a table from Word, Excel or a web page, line breaks and paragraphs inside a cell are now kept instead of becoming spaces.
+• Typing only ^^ into a table cell in the preview no longer erases the text of the cell above. Text you type in a cell is always saved as text. To merge a cell with the cell above, right-click the cell above and choose Merge with Cell Below.
 
 ### Product features (up to 20, up to 200 characters each)
 
