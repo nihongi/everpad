@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.53.1(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.53.2(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -32,12 +32,12 @@ EverPad は、直感的に使えて、すべてを記録するメモ帳です。
 ・LaTeX の数式と化学式を、整った数式として表示します。数式エディタでは、典型的な数式のひな型や記号を選んで、プレビューを見ながら書けます。  
 ・Mermaid の書き方で、フローチャートやシーケンス図などの図を描けます。図エディタでは、ひな型から始めて、図を拡大・移動しながら書けます。  
 ・スクリーンショットの貼り付けや、ファイルのドラッグ&ドロップで、画像やファイルをメモに添付できます。  
-・Web ページや Word・Excel などからコピーした文書は、見出し・太字・箇条書き・表・リンクなどの整形を保ったまま、Markdown にして貼り付けます。  
-・Chrome や Edge から、ページのアイコンやリンクをドラッグ&ドロップすると、ページのタイトル付きのリンクを入れます。  
-・ウィンドウを常に手前に表示して、ほかのアプリを見ながら書けます。  
 ・他のメモへのリンクを入れて、メモどうしをつなげられます。最近見たメモや、前に見たメモにもすぐ戻れます。  
 ・検索と置換(大文字と小文字の区別、単語単位、正規表現)、行番号、カーソル行の強調、自動インデントに対応しています。  
-・キーボードショートカットを、好きなキーに変えられます。
+・キーボードショートカットを、好きなキーに変えられます。  
+・Web ページや Word・Excel などからコピーした文書は、見出し・太字・箇条書き・表・リンクなどの整形を保ったまま、Markdown にして貼り付けます。  
+・Chrome や Edge から、ページのアイコンやリンクをドラッグ&ドロップすると、ページのタイトル付きのリンクを入れます。  
+・ウィンドウを常に手前に表示して、ほかのアプリを見ながら書けます。
 
 ■ 見返す  
 ・タイムスライダーで、どの時点の版でも表示できます。履歴の再生もできます。プレビューのままでも、その版で変えた箇所に印が付きます。  
@@ -64,10 +64,10 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・「全メモから検索」と「検索と置換」で検索した言葉を覚えて、候補に出すようにしました(それぞれ20件まで)。空の欄をクリックするか ↓ を押すと出て、入力中は打った文字を含む言葉に絞ります。Shift+Delete で候補から消せます。「ファイル」→「設定…」の「検索」で、オフにしたり、覚えた言葉を消したりできます。覚えるのはこの PC の設定の中だけで、メモの保存先には入れません。
-・プレビューで表のセルを編集している間に Shift+Enter か Alt+Enter を押すと、Excel の Alt+Enter のように、セルの中で改行できるようになりました。メモには GitHub と同じく <br> と書きます。セルを編集している間に Alt+Enter を押しても、メモの「プロパティ」は開きません。
-・Word・Excel・Web ページから表を貼り付けたとき、セルの中の改行や段落を、空白にせず改行のまま残すようにしました。
-・プレビューで表のセルに ^^ とだけ入れると、上のセルの中身が消えていたのを直しました。セルに打った文字は、いつも文字として書きます。上のセルと結合するには、上のセルを右クリックして「下のセルと結合」を選んでください。
+・Web ページから貼り付けた文書の中の <div> や &copy; のような文字を、文字のまま残すようにしました。HTML として表示され、メモの表示が崩れることがありました。
+・プレビューからコピーして貼り付けたとき、リンクになっている添付の画像が文字で見えていたのを、画像として表示するようにしました。
+・メモに HTML で大きさを書いた画像(<img width="…">)が、もう一度表示したときに元の大きさになっていたのを直しました。
+・HTML で書いた添付の画像(<img src="attach:…">)も、編集画面の下の添付の一覧に出し、添付を削除したときに本文から消すようにしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -134,12 +134,12 @@ WRITE
 • LaTeX math and chemical formulas are shown as formatted formulas. The formula editor lets you pick templates and symbols and see the result as you type.  
 • Draw flowcharts, sequence diagrams and other diagrams with Mermaid syntax. The diagram editor lets you start from a template and zoom and move the diagram as you write.  
 • Paste screenshots or drop files to attach images and files to a note.  
-• Paste text copied from web pages, Word, Excel and more with its headings, bold, lists, tables and links kept, as Markdown.  
-• Drag a page's icon or a link from Chrome or Edge to insert a link with the page title.  
-• Keep the window always on top while you write and look at other apps.  
 • Link notes to each other, and go straight back to recently viewed notes or the previous note.  
 • Find and replace (with case sensitivity, whole-word and regular-expression options), line numbers, current-line highlighting and automatic indentation.  
-• Change the keyboard shortcuts to the keys you like.
+• Change the keyboard shortcuts to the keys you like.  
+• Paste text copied from web pages, Word, Excel and more with its headings, bold, lists, tables and links kept, as Markdown.  
+• Drag a page's icon or a link from Chrome or Edge to insert a link with the page title.  
+• Keep the window always on top while you write and look at other apps.
 
 LOOK BACK  
 • Show the note at any point in its history with the time slider, or play the history back. The changes in each version are marked, also in the preview.  
@@ -166,10 +166,10 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• "Search all notes" and Find and Replace now remember what you searched for and suggest it again (up to 20 each). Click the empty box or press ↓ to see them; while typing, only matching searches are shown. Press Shift+Delete to remove one. You can turn this off, or clear what is saved, in File → Settings… → Search. Searches are kept only in the settings on this PC, not in the data folder.
-• While editing a table cell in the preview, press Shift+Enter or Alt+Enter to start a new line inside the cell, like Alt+Enter in Excel. The note gets <br>, as on GitHub. Alt+Enter while editing a cell no longer opens the note's Properties.
-• When you paste a table from Word, Excel or a web page, line breaks and paragraphs inside a cell are now kept instead of becoming spaces.
-• Typing only ^^ into a table cell in the preview no longer erases the text of the cell above. Text you type in a cell is always saved as text. To merge a cell with the cell above, right-click the cell above and choose Merge with Cell Below.
+• Text such as <div> or &copy; in formatted text pasted from a web page is now kept as text. It was shown as HTML, which could break the layout of the note.
+• When you copy from the preview and paste, an attached image inside a link is now shown as an image instead of as text.
+• An image written in a note as HTML with a size (<img width="…">) no longer changes to its full size when the note is shown again.
+• Attached images written as HTML (<img src="attach:…">) now appear in the attachment list under the editor, and are removed from the text when the attachment is deleted.
 
 ### Product features (up to 20, up to 200 characters each)
 
