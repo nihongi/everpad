@@ -1240,19 +1240,27 @@ const isImageName = name => IMG_EXT.test(name || '');
 /* 本文に書く記法。名前に使えない文字(記法を壊すもの)は取り除く */
 function attachName(name) { return String(name || 'ファイル').replace(/[\[\]()|*_`<>\\\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'ファイル'; }
 function attachMarkup(name, fileId, image) { return (image ? '!' : '') + '[' + attachName(name) + '](attach:' + fileId + ')'; }
-/* 本文で使っている添付の一覧(同じものは1つ) */
+/* 本文で使っている添付の一覧(同じものは1つ)。メモに書いた HTML の <img src="attach:ID" alt="名前"> も数える */
+const ATT_IMG_HTML = '<img\\b[^>\\n]*?\\bsrc\\s*=\\s*["\']?attach:';
 function attachRefs(text) {
   const out = [], seen = new Set();
-  const re = /(!?)\[([^\]]*)\]\(attach:([0-9a-f]{16}(?:\.[a-z0-9]{1,8})?)\)/g;
+  // 名前に [ は入らない(リンクの中の画像 [![名前](attach:…)](URL) でも、画像の方を読む)
+  const re = new RegExp('(!?)\\[([^\\[\\]]*)\\]\\(attach:([0-9a-f]{16}(?:\\.[a-z0-9]{1,8})?)\\)|' + ATT_IMG_HTML + '([0-9a-f]{16}(?:\\.[a-z0-9]{1,8})?)(?=["\'\\s/>])["\']?[^>\\n]*>', 'g');
   let m;
-  while ((m = re.exec(text))) { if (seen.has(m[3])) continue; seen.add(m[3]); out.push({ id: m[3], name: m[2], image: m[1] === '!' }); }
+  while ((m = re.exec(text))) {
+    const id = m[3] || m[4];
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const alt = m[4] ? /\balt\s*=\s*"([^"]*)"/.exec(m[0]) : null;
+    out.push(m[4] ? { id: id, name: alt ? alt[1] : '', image: true } : { id: id, name: m[2], image: m[1] === '!' });
+  }
   return out;
 }
 
-/* 本文から、ある添付へのリンク(![名前](attach:ID) と [名前](attach:ID))をすべて消す。
+/* 本文から、ある添付へのリンク(![名前](attach:ID) と [名前](attach:ID)、HTML の <img src="attach:ID">)をすべて消す。
    リンクを消して空になった行(空白や箇条書きの記号だけが残る行)は、行ごと消す。{ text, count } を返す */
 function removeAttachRefs(text, fileId) {
-  const re = new RegExp('!?\\[[^\\]\\n]*\\]\\(attach:' + escRe(fileId) + '\\)', 'g');
+  const re = new RegExp('!?\\[[^\\[\\]\\n]*\\]\\(attach:' + escRe(fileId) + '\\)|' + ATT_IMG_HTML + escRe(fileId) + '["\']?(?=[\\s/>])[^>\\n]*>', 'g');
   let count = 0;
   const out = [];
   for (const line of text.split('\n')) {

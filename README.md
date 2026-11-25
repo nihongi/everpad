@@ -67,10 +67,10 @@ The installer can be shown in English or Japanese, and offers a check box (off b
 
 #### Portable version
 
-The portable executable (`EverPad 0.53.1.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
+The portable executable (`EverPad 0.53.2.exe`) keeps everything in an `EverPad Data` folder next to itself, so you can carry it on a USB drive:
 
 ```
-EverPad 0.53.1.exe
+EverPad 0.53.2.exe
 EverPad Data\
   settings\   settings, recently viewed notes, caches
   notes\      the data folder (default)
@@ -482,6 +482,24 @@ node tools/import-etherpad.js <dump file> <output folder>
 - The pad name is added as plain text on the first line of each note, so it becomes the note's title (EverPad uses the first line as the title). Use `--no-title-line` to not add it, or `--as-is=<pad name>` to skip it for a specific pad. A table of pad names and note IDs is written to `etherpad-import-map.csv`.
 - Use `--read-only` to import every note as read-only (see "Read-only notes"), or `--read-only=<pad name>` to make only that pad read-only (repeat it for several pads). The last column of `etherpad-import-map.csv` shows which notes are read-only. A pad name given with `--read-only=` that is not among the converted pads is reported, so you notice typos. An unknown option stops the script with the usage message.
 
+### Importing from Evernote
+
+The database made by [evernote-backup](https://github.com/vzhd1701/evernote-backup) (`en_backup.db`, made by its "sync" step; exporting to ENEX is not needed) can be converted to EverPad's format. Python 3 is needed (only its standard library; the script tries `py -3`, `python3` and `python`, or use `--python=<command>`).
+
+```
+node tools/import-evernote.js <en_backup.db> <output folder> [--notebooks=tag|folder|none] [--read-only] [--no-html]
+```
+
+- The output folder must be empty or not exist yet, so existing notes are never overwritten. Copy its contents into EverPad's data folder (`Documents\EverPad`) to read them, with EverPad closed. The database is only read, not changed. It also contains your Evernote sign-in token, so do not share it.
+- Each note becomes one note in EverPad (`.jsonl`, `.md` and a `.files` folder for attachments). Evernote's earlier versions are not in the backup, so the history starts with one version, dated when the note was last updated (the note keeps its creation date).
+- The first line is the title as a heading (`# Title`). Evernote tags go into front matter `tags` (search with `tag:name`), and the address of a web clip into `source`.
+- `--notebooks=tag` (the default) puts every note in the output folder and adds the notebook name as a tag (`stack/notebook` if the notebook is in a stack, so `tag:stack` finds the notes of all its notebooks). `--notebooks=folder` makes one folder per notebook, which you can add as separate data folders. `--notebooks=none` puts every note in the output folder without the notebook. `"` is removed from tag names, because it cannot be written in `tag:"…"`.
+- The text is converted to Markdown the same way as pasting formatted text: headings, bold, italic, strikethrough, lists, links, tables (with merged cells) and code blocks are kept; colors, highlighting, font sizes, fonts, underline and indentation are removed. Centered and right-aligned paragraphs, superscript and subscript, and the size of images shown smaller than their real size are kept with the HTML that notes can contain (`<div align="center">`, `<sup>`, `<sub>`, `<img src="attach:…" width="…">`; see "Markdown syntax"). Use `--no-html` to write Markdown only (these are then removed). Tables inside tables (often used for the layout of web clips) cannot be written in Markdown, so the inner tables become text, and web clips may look quite different from the page. Evernote check boxes become ☐ and ☑, and encrypted text is not converted.
+- Attachments are added to the note where they appear: images are shown, and other files (PDF and so on) are added as files. Attachments the text does not show (including those in hidden parts of a web clip) are listed at the end of the note. Images on the web become links, because EverPad does not connect to the internet. References to attachments that are not in the backup are removed (the map below shows how many). Text recognized in images and PDFs by Evernote is not imported, so search finds only the text of the notes.
+- Links between notes (`evernote:///view/…` from "Copy note link", and `https://www.evernote.com/…` links that contain the note's GUID) become links to the imported note (`[text](note:ID)`), including links to notes imported later. When the link text differs from the title of the linked note (for example, because the note was renamed), the title follows in parentheses: `[here](note:ID) (→ Title)`. A link to a note that is not imported (deleted, in the trash, or not in the backup) keeps its text with "(→ 見つからないノート)" for app links, and stays a web link for `https://` links; the map below shows how many. The backup has each note's GUID, so links are matched exactly, not by title (ENEX files do not have the GUID).
+- Notes in the trash are not imported. Links in web clips whose `&` was escaped twice (`&amp;amp;`) are repaired.
+- A table of titles, notebooks and note IDs, with the number of attachments and anything to check, is written to `evernote-import-map.csv` (remove it from the folder you copy, or leave it; EverPad ignores it). `--read-only` imports every note as read-only. An unknown option stops the script with the usage message.
+
 ### Building it yourself
 
 This section is for building EverPad from the source. To use EverPad, the files under "Download" are enough.
@@ -517,15 +535,15 @@ To run the automated tests, run `npm test`. The tests do not need Electron; they
 npm run dist
 ```
 
-This creates an installer (`EverPad Setup 0.53.1.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
+This creates an installer (`EverPad Setup 0.53.2.exe`) and a portable executable that needs no installation in the `dist` folder. The executables are not code-signed, so Windows may show "Windows protected your PC" the first time you run one. Choose "More info" and then "Run anyway". The installer and the portable executable can also be built with GitHub Actions (see "Building with GitHub Actions" below).
 
 #### Building the Microsoft Store package
 
-On Windows, `npm run dist:store` creates `EverPad-0.53.1-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
+On Windows, `npm run dist:store` creates `EverPad-0.53.2-store.appx` in the `dist` folder, the package that is submitted to the Microsoft Store (the package name and publisher in `package.json` under `build.appx` are those of the Microsoft Store account). It is not signed: the Microsoft Store signs it, so it cannot be installed by double-clicking.
 
 #### Building with GitHub Actions
 
-The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.53.1`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
+The repository can build the Windows, macOS and Linux versions without a Mac or Linux computer. On GitHub, open the Actions tab, choose "Build (Windows / macOS / Linux)" and press "Run workflow" (it also runs when a tag starting with `v`, such as `v0.53.2`, is pushed). When it finishes, download `everpad-windows` (the installer, the portable executable and the Microsoft Store package), `everpad-macos` (the `.dmg` files) and `everpad-linux` (the AppImage) from Artifacts at the bottom of the run's page. You need to be signed in to GitHub, and the files are kept for 30 days. They are not published as a release. Each build is started once to check that it does not crash, and a screenshot is saved in `smoke-windows` / `smoke-macos` / `smoke-linux` (for Windows, the installer is also installed, updated the same way as updating from within the app (checking that EverPad starts again from the same place) and uninstalled silently, checking that settings and notes are kept, and the Microsoft Store package is installed, started and checked with the Windows App Certification Kit); this is not a substitute for testing on a real computer. Files downloaded this way come in a ZIP file: on macOS, see the note below about opening a downloaded copy, and on Linux, allow the AppImage to run again after extracting it.
 
 #### macOS and Linux (untested)
 
@@ -534,7 +552,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Building**: build on the OS you want to use it on (macOS and Linux versions cannot be built on Windows). Install Node.js, then in the folder that contains `package.json` run `npm install`, and then `npm start` to try it, or `npm run dist` to create the following in the `dist` folder:
 
 - macOS: `.dmg` disk images for Apple silicon (arm64) and Intel Macs (x64)
-- Linux: `EverPad-0.53.1.AppImage` (x64)
+- Linux: `EverPad-0.53.2.AppImage` (x64)
 
 **macOS**
 
@@ -550,7 +568,7 @@ EverPad is developed and tested on Windows. Because it is built with Electron, i
 **Linux (AppImage)**
 
 - The AppImage works like the Windows portable version: it keeps settings and notes in an `EverPad Data` folder next to the AppImage file. If that folder cannot be written to, settings are saved in `~/.config/EverPad Portable` and notes in `~/Documents/EverPad Portable`.
-- After downloading, allow the file to run (`chmod +x EverPad-0.53.1.AppImage`, or the file's properties).
+- After downloading, allow the file to run (`chmod +x EverPad-0.53.2.AppImage`, or the file's properties).
 - Some distributions need FUSE 2 to run AppImages (the `libfuse2` package, `libfuse2t64` on Ubuntu 24.04).
 - On Ubuntu 24.04 and later, Electron AppImages may fail to start because of a security restriction (AppArmor and unprivileged user namespaces). Starting it with `--no-sandbox` works around this, but turns off Chromium's sandbox, a security protection; if you can, allow it with an AppArmor profile instead.
 - Because nothing is installed, there is no entry in the app list, and double-clicking an `.everpad` file does not open EverPad. Use File → Import… or drag the file into the window.
@@ -584,7 +602,7 @@ renderer/        The UI (index.html / styles.css / app.js), the history, Markdow
                  turning pasted formatted text (HTML) into Markdown (htmlmd.js),
                  the emoji list for emoji shortcodes (emoji.js, made from gemoji by tools/make-emoji.js),
                  and the Markdown Guide window (help.html / help.css / help.js / help-content.js)
-tools/           The Etherpad import tool (import-etherpad.js), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
+tools/           The Etherpad import tool (import-etherpad.js), the Evernote import tool (import-evernote.js and evernote-dump.py), the script that copies KaTeX into renderer/vendor/katex (vendor-katex.js),
                  the script that copies Mermaid into renderer/vendor/mermaid (vendor-mermaid.js),
                  the script that makes the Microsoft Store icons (make-store-assets.js), the script that makes renderer/emoji.js from gemoji (make-emoji.js),
                  the script that makes the portable exe unpack to a folder of its own for each launch (portable-unpack.js; runs before npm run dist),
@@ -691,10 +709,10 @@ Microsoft Store 版では、更新は Microsoft Store から届くので、「�
 
 #### portable 版
 
-portable 版(`EverPad 0.53.1.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
+portable 版(`EverPad 0.53.2.exe`)は、実行ファイルと同じフォルダの `EverPad Data` にすべてを保存します。USB メモリなどに入れて持ち運べます。
 
 ```
-EverPad 0.53.1.exe
+EverPad 0.53.2.exe
 EverPad Data\
   settings\   設定、最近見たメモ、キャッシュ
   notes\      メモの保存先(デフォルト)
@@ -1106,6 +1124,24 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 - 各メモの1行目に、パッド名を普通の文字として足します。EverPad では最初の行が題名になるので、パッド名が題名になります。足したくないときは `--no-title-line`、特定のパッドだけ足したくないときは `--as-is=パッド名` を付けます。パッド名とメモの ID の対応表は `etherpad-import-map.csv` に出力します。
 - `--read-only` を付けると、すべてのメモを読み取り専用で取り込みます(「読み取り専用のメモ」を参照)。`--read-only=パッド名` は、そのパッドだけを読み取り専用にします(複数のパッドは、繰り返して指定します)。どのメモが読み取り専用かは、`etherpad-import-map.csv` の最後の列に出ます。`--read-only=` で指定したパッド名が、変換したパッドの中に無いときは、綴りの間違いに気づけるようにメッセージを出します。知らないオプションを付けたときは、使い方を出して止まります。
 
+### Evernote からの取り込み
+
+[evernote-backup](https://github.com/vzhd1701/evernote-backup) で作ったデータベース(`en_backup.db`。「sync」の手順で作るもの。ENEX への書き出しは要りません)を、EverPad の形式に変換できます。Python 3 が要ります(標準ライブラリだけを使います。`py -3`・`python3`・`python` の順に探し、`--python=<コマンド>` で指定もできます)。
+
+```
+node tools/import-evernote.js <en_backup.db> <出力フォルダ> [--notebooks=tag|folder|none] [--read-only] [--no-html]
+```
+
+- 今あるメモを上書きしないよう、出力フォルダは、空のフォルダか、まだ無いフォルダにします。出力フォルダの中身を EverPad の保存先(`ドキュメント\EverPad`)にコピーすると読めます。コピーは EverPad を閉じてから行ってください。データベースは読むだけで、書き換えません。データベースには Evernote にサインインするための情報も入っているので、ほかの人に渡さないでください。
+- ノートごとに、EverPad のメモが1つ(`.jsonl` と `.md`、添付は `.files` のフォルダ)できます。Evernote の過去の版はバックアップに無いので、履歴は1版で、その日時はノートを最後に更新した日時です(メモの作成日時は、ノートの作成日時です)。
+- 1行目は、題名の見出し(`# 題名`)です。Evernote のタグはフロントマターの `tags` に(`tag:名前` で探せます)、Web クリップの元のアドレスは `source` に書きます。
+- `--notebooks=tag`(デフォルト)は、すべてのメモを出力フォルダに入れ、ノートブックの名前をタグにします(スタックに入っているノートブックは `スタック/ノートブック` にするので、`tag:スタック` で、その中のノートブックのメモをまとめて探せます)。`--notebooks=folder` は、ノートブックごとにフォルダを分けます(それぞれを別の保存先にできます)。`--notebooks=none` は、すべてのメモを出力フォルダに入れ、ノートブックのことは残しません。タグの名前の `"` は、`tag:"…"` に書けないので外します。
+- 本文は、整形された文書の貼り付けと同じやり方で Markdown にします。見出し・太字・斜体・取り消し線・リスト・リンク・表(結合したセルも)・コードブロックは残り、文字の色・蛍光ペン・文字の大きさ・フォント・下線・字下げは外れます。中央揃え・右揃えの段落、上付き・下付き、元の大きさより小さく表示していた画像の大きさは、メモに書ける HTML(`<div align="center">`・`<sup>`・`<sub>`・`<img src="attach:…" width="…">`。「Markdown の書き方」を参照)で残します。`--no-html` を付けると Markdown だけで書きます(これらは外れます)。表の中の表(Web クリップの組み方によく使われています)は Markdown で書けないので、内側の表は文字として並び、Web クリップは元のページとかなり違って見えることがあります。Evernote のチェックボックスは ☐・☑ にし、暗号化した文は変換しません。
+- 添付は、本文の中の、その場所に入れます。画像は表示し、ほかのファイル(PDF など)はファイルとして添付します。本文に出てこない添付(Web クリップの隠した部分の中のものも)は、メモの最後に並べます。Web 上の画像は、EverPad がインターネットに接続しないので、リンクになります。バックアップに無い添付の参照は、本文から外します(下の対応表に数が出ます)。Evernote が画像や PDF の中から読み取った文字は取り込まないので、検索で当たるのはメモの本文の文字だけです。
+- ノートどうしのリンク(「ノートリンクをコピー」の `evernote:///view/…` と、ノートの GUID を含む `https://www.evernote.com/…` のリンク)は、取り込んだメモへのリンク(`[表示](note:ID)`)にします。後から取り込むノートへのリンクも同じです。リンクの表示が相手のノートの題名と違うとき(題名を変えたときなど)は、後ろに括弧で題名を書きます(`[こちら](note:ID) (→ 題名)`)。取り込まないノート(削除したもの・ごみ箱のもの・バックアップに無いもの)へのリンクは、アプリのリンクなら表示の文字に「(→ 見つからないノート)」を付け、`https://` のリンクなら Web のリンクのまま残します(数は下の対応表に出ます)。バックアップには各ノートの GUID があるので、題名で推測せずに、正確に相手を決められます(ENEX のファイルには GUID がありません)。
+- ごみ箱のノートは取り込みません。Web クリップのリンクのうち、`&` が二重にエスケープされたもの(`&amp;amp;`)は直します。
+- 題名・ノートブックとメモの ID の対応表を、添付の数や注意と一緒に `evernote-import-map.csv` に出力します(コピーする中身から外しても、残しても構いません。EverPad は読みません)。`--read-only` を付けると、すべてのメモを読み取り専用で取り込みます。知らないオプションを付けたときは、使い方を出して止まります。
+
 ### 自分でビルドする
 
 ここからは、ソースから EverPad を作る人向けの説明です。使うだけなら、「ダウンロード」のファイルで足ります。
@@ -1141,15 +1177,15 @@ node tools/import-etherpad.js <ダンプファイル> <出力フォルダ>
 npm run dist
 ```
 
-`dist` フォルダに、インストーラー(`EverPad Setup 0.53.1.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
+`dist` フォルダに、インストーラー(`EverPad Setup 0.53.2.exe`)と、インストール不要の実行ファイル(portable 版)ができます。署名はしていないため、初めて実行するときに Windows が「Windows によって PC が保護されました」と表示することがあります。その場合は「詳細情報」→「実行」を選びます。インストーラーと portable 版は GitHub Actions でも作れます(下の「GitHub Actions で作る」を見てください)。
 
 #### Microsoft Store のパッケージを作る
 
-Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.53.1-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
+Windows で `npm run dist:store` を実行すると、Microsoft Store に提出するパッケージ `EverPad-0.53.2-store.appx` を `dist` フォルダに作ります(`package.json` の `build.appx` のパッケージ名と発行元は、Microsoft Store のアカウントのものです)。署名は Microsoft Store が付けるので、このファイルには署名がなく、ダブルクリックではインストールできません。
 
 #### GitHub Actions で作る
 
-Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.53.1` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
+Mac や Linux のパソコンが無くても、リポジトリで Windows 版・macOS 版・Linux 版を作れます。GitHub の Actions タブで「Build (Windows / macOS / Linux)」を選び、「Run workflow」を押します(`v0.53.2` のような v で始まるタグを push したときも動きます)。終わったら、実行結果のページの下の Artifacts から `everpad-windows`(インストーラー、portable 版、Microsoft Store に出すパッケージ)、`everpad-macos`(`.dmg`)、`everpad-linux`(AppImage)をダウンロードします。GitHub へのサインインが必要で、ファイルは30日間残ります。リリースとしては公開しません。作ったものは一度起動して落ちないことを確かめ、スクリーンショットを `smoke-windows` / `smoke-macos` / `smoke-linux` に残します(Windows では、インストーラーで画面を出さずにインストール、アプリの中からの更新と同じやり方での入れ直し(同じ場所の EverPad が起動し直すこと)、アンインストールをして、設定とメモが残ることも確かめます。Microsoft Store に出すパッケージも、インストールして起動し、Windows App Certification Kit で検査します)。ただし、実機での確認の代わりにはなりません。この方法でダウンロードしたファイルは ZIP に入っています。macOS では下の、ダウンロードしたものを開くときの注意を、Linux では展開したあとに AppImage へ実行の許可を付け直すことを見てください。
 
 #### macOS と Linux(未確認)
 
@@ -1158,7 +1194,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **作り方**: 使う OS の上で作ります(Windows の上では macOS 版と Linux 版を作れません)。Node.js を入れ、`package.json` のあるフォルダで `npm install` を実行してから、`npm start` で試すか、`npm run dist` で `dist` フォルダに次のものを作ります。
 
 - macOS: Apple シリコン(arm64)用と Intel の Mac(x64)用の `.dmg`(ディスクイメージ)
-- Linux: `EverPad-0.53.1.AppImage`(x64)
+- Linux: `EverPad-0.53.2.AppImage`(x64)
 
 **macOS**
 
@@ -1174,7 +1210,7 @@ EverPad は Windows で作り、Windows で動作を確かめています。Elec
 **Linux(AppImage)**
 
 - AppImage は Windows の portable 版と同じように動きます。設定とメモを、AppImage ファイルと同じフォルダの `EverPad Data` に保存します。そこに書き込めない場合は、設定を `~/.config/EverPad Portable` に、メモを `~/Documents/EverPad Portable` に保存します。
-- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.53.1.AppImage`、またはファイルのプロパティで)。
+- ダウンロードしたら、ファイルに実行の許可を付けます(`chmod +x EverPad-0.53.2.AppImage`、またはファイルのプロパティで)。
 - ディストリビューションによっては、AppImage を動かすのに FUSE 2 が必要です(`libfuse2` パッケージ。Ubuntu 24.04 では `libfuse2t64`)。
 - Ubuntu 24.04 以降では、セキュリティの制限(AppArmor と非特権ユーザー名前空間)のため、Electron の AppImage が起動しないことがあります。`--no-sandbox` を付けて起動すると回避できますが、Chromium のサンドボックス(安全のための仕組み)が無効になります。できれば AppArmor のプロファイルで許可してください。
 - インストールしないので、アプリの一覧には出ず、`.everpad` ファイルをダブルクリックしても EverPad は開きません。「ファイル」→「インポート…」か、ウィンドウへのドラッグを使います。
@@ -1208,7 +1244,7 @@ renderer/        画面(index.html / styles.css / app.js)、履歴・Markdown・
                  貼り付けた整形された文書(HTML)を Markdown にする処理(htmlmd.js)、
                  絵文字ショートコードの一覧(emoji.js。tools/make-emoji.js が gemoji から作る)、
                  「Markdown の書き方」の画面(help.html / help.css / help.js / help-content.js)
-tools/           Etherpad からの取り込みツール(import-etherpad.js)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、
+tools/           Etherpad からの取り込みツール(import-etherpad.js)、Evernote からの取り込みツール(import-evernote.js と evernote-dump.py)、KaTeX を renderer/vendor/katex にコピーするスクリプト(vendor-katex.js)、
                  Mermaid を renderer/vendor/mermaid にコピーするスクリプト(vendor-mermaid.js)、
                  Microsoft Store 版のアイコンを作るスクリプト(make-store-assets.js)、gemoji から renderer/emoji.js を作るスクリプト(make-emoji.js)、
                  portable 版の exe が起動ごとに別のフォルダへ展開するようにするスクリプト(portable-unpack.js。npm run dist の前に動く)、

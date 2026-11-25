@@ -2168,9 +2168,10 @@
     root.querySelectorAll('img[data-att]').forEach(img => {
       img.addEventListener('error', () => img.replaceWith(missingEl(img.alt)), { once: true });
       // 一度読んだ画像は、大きさを先に付けておく(作り直すたびに、読み込むまで高さが 0 になって、下の文やスクロールバーが跳ねないように。
-      // 履歴の再生では版ごとに作り直す)。添付の名前は中身のハッシュなので、同じ名前なら同じ画像
+      // 履歴の再生では版ごとに作り直す)。添付の名前は中身のハッシュなので、同じ名前なら同じ画像。
+      // メモに書いた HTML の <img width> は、その大きさのまま(上書きしない)
       const sz = attSizes.get(img.dataset.att);
-      if (sz) { img.width = sz.w; img.height = sz.h; }
+      if (sz && !img.hasAttribute('width') && !img.hasAttribute('height')) { img.width = sz.w; img.height = sz.h; }
       else img.addEventListener('load', () => { if (img.naturalWidth) attSizes.set(img.dataset.att, { w: img.naturalWidth, h: img.naturalHeight }); }, { once: true });
       img.src = api.fileUrl(noteId, img.dataset.att);
     });

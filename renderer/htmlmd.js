@@ -37,7 +37,11 @@
     s = s.replace(/~~/g, '\\~\\~');
     s = s.replace(/\[(?=\^|[^\]]*\]\()/g, '\\[');   // [ は、リンク([…](…))と脚注([^…])になるときだけ
     s = s.replace(/(?<![A-Za-z0-9\\]):([a-z0-9_+-]+):(?![A-Za-z0-9])/g, '\\:$1:');   // 絵文字のショートコードにしない
+    // 文字の <div> や <!-- は、メモの中の HTML(タグ・コメント)にしない。&copy; のような文字参照も、文字のままにする
+    s = s.replace(/<(?=[A-Za-z/!?])/g, '\\<');
+    s = s.replace(/&(?=#[0-9]{1,7};|#[xX][0-9a-fA-F]{1,6};|[A-Za-z][A-Za-z0-9]{1,31};)/g, '\\&');
     if (ctx && ctx.table) s = s.replace(/\|/g, '\\|');
+    if (ctx && ctx.linkText) s = s.replace(/(?<!\\)\]/g, '\\]');   // リンクの文字の中
     return s;
   }
   // 行の初めにあると見出し・引用・リスト・区切り線になる書き方を、文字のままにする
@@ -96,12 +100,31 @@
     if (hasCls(n, 'math') && n.attrs['data-tex'] != null) { out.push({ raw: inlineMath(attr(n, 'data-tex'), hasCls(n, 'math-display')) }); return; }
     if (hasCls(n, 'katex') || t === 'math') { const tex = texOf(n); if (tex != null) { out.push({ raw: inlineMath(tex, hasCls(n, 'katex-display') || attr(n, 'display') === 'block') }); return; } }
     if (hasCls(n, 'katex-display')) { const k = find(n, c => hasCls(c, 'katex')); const tex = k && texOf(k); if (tex != null) { out.push({ raw: inlineMath(tex, true) }); return; } }
-    if (t === 'a' && hasCls(n, 'note-link') && attr(n, 'data-note')) { out.push({ raw: '[' + (emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim() || attr(n, 'data-note')) + '](note:' + attr(n, 'data-note') + ')' }); return; }
-    if (t === 'img' && attr(n, 'data-att')) { attachFrom(n, ctx); out.push({ raw: '![' + attachName(attr(n, 'alt')) + '](attach:' + attr(n, 'data-att') + ')' }); return; }
+    if (t === 'a' && hasCls(n, 'note-link') && attr(n, 'data-note')) {
+      ctx.linkText = (ctx.linkText || 0) + 1;
+      const s = emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim();
+      ctx.linkText--;
+      out.push({ raw: '[' + (s || attr(n, 'data-note')) + '](note:' + attr(n, 'data-note') + ')' });
+      return;
+    }
+    if (t === 'img' && attr(n, 'data-att')) {
+      attachFrom(n, ctx);
+      // opts.html: 表示の幅があれば、メモに書ける HTML の <img>(幅は EverPad の表示が読む)
+      const w = attr(n, 'width').trim();
+      if (ctx.html && /^\d{1,4}%?$/.test(w) && w !== '0') { out.push({ raw: '<img src="attach:' + attr(n, 'data-att') + '" alt="' + attachName(attr(n, 'alt')).replace(/"/g, '') + '" width="' + w + '">' }); return; }
+      out.push({ raw: '![' + attachName(attr(n, 'alt')) + '](attach:' + attr(n, 'data-att') + ')' });
+      return;
+    }
     if (t === 'a' && hasCls(n, 'att-file') && attr(n, 'data-att')) { attachFrom(n, ctx); out.push({ raw: '[' + (attachName(attr(n, 'title') || textOf(n).replace(/^📎\s*/, '')) || 'file') + '](attach:' + attr(n, 'data-att') + ')' }); return; }
     if (hasCls(n, 'link-other') && attr(n, 'data-target')) { out.push({ raw: '[' + emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim() + '](' + urlPart(attr(n, 'data-target')) + ')' }); return; }
     if (hasCls(n, 'emoji') && /^:[a-z0-9_+-]+:$/.test(attr(n, 'title'))) { out.push({ raw: attr(n, 'title') }); return; }
     if (t === 'sup' && hasCls(n, 'fnref')) { const a = find(n, c => c.tag === 'a'); out.push({ raw: '[^' + ((a && attr(a, 'data-fn')) || textOf(n).trim()) + ']' }); return; }
+    // opts.html: 上付き・下付きは、メモに書ける HTML の <sup>・<sub> のまま(x² が x2 にならないように)
+    if (ctx.html && (t === 'sup' || t === 'sub')) {
+      const s = emit(runs(n, f, ctx), ctx).replace(/\n+/g, ' ').trim();
+      if (s) out.push({ raw: '<' + t + '>' + s + '</' + t + '>' });
+      return;
+    }
     if (hasCls(n, 'fnback') || hasCls(n, 'alert-title')) return;
     if (t === 'code' || t === 'kbd' || t === 'samp' || t === 'tt') { const s = textOf(n); if (s) out.push({ code: s }); return; }
     if (t === 'img') {
@@ -140,10 +163,13 @@
       }
       const inner = runs(n, f, ctx);
       if (mixed) ctx.noRemoteImg--;
+      // リンクの文字の ] はエスケープする(リンクが途中で切れないように)。中の画像(![名前](attach:…))などの記法は、そのまま
+      ctx.linkText = (ctx.linkText || 0) + 1;
       const text = emit(inner, ctx).replace(/\n+/g, ' ').trim();
+      ctx.linkText--;
       // 表示の文字が URL そのもの(EverPad の自動リンクも)なら、URL だけを書く(EverPad がリンクにする)
       if (/^https?:\/\//i.test(href) && (text === href || text + '/' === href) && !/\s/.test(href)) { out.push({ raw: href }); return; }
-      if (text && (/^(https?:|mailto:)/i.test(href) || /^#[^\s]/.test(href) || /^note:[A-Za-z0-9_-]{6,64}$/.test(href))) { out.push({ raw: '[' + text.replace(/(?<!\\)\]/g, '\\]') + '](' + urlPart(href) + ')' }); return; }
+      if (text && (/^(https?:|mailto:)/i.test(href) || /^#[^\s]/.test(href) || /^note:[A-Za-z0-9_-]{6,64}$/.test(href))) { out.push({ raw: '[' + text + '](' + urlPart(href) + ')' }); return; }
       out.push(...inner);
       return;
     }
@@ -255,9 +281,27 @@
     return s;
   }
 
+  // かたまりの揃え(align か style の text-align)。中央と右だけ
+  const alignOf = n => { const a = attr(n, 'align').toLowerCase(), m = styleOf(n).match(/text-align:(center|right)/); return m ? m[1] : a === 'center' || a === 'right' ? a : ''; };
   function block(n, ctx) {
     const t = n.tag;
     if (SKIP.has(t) || hidden(n) || hasCls(n, 'pe-tail') || hasCls(n, 'alert-title')) return [];
+    /* opts.html: 中央揃え・右揃えのかたまりは <div align="…"> で囲む(中は空行で分けるので、Markdown のまま。GitHub と同じ書き方)。
+       リスト・引用・表の中では囲まない(Markdown の形が崩れるため)。同じ揃えの中では、もう一度は囲まない */
+    const al = ctx.html && !ctx.noAlign ? alignOf(n) : '';
+    if (al && al !== ctx.align) {
+      const was = ctx.align;
+      ctx.align = al;
+      const s = join(blockInner(n, ctx));
+      ctx.align = was;
+      return s ? ['<div align="' + al + '">\n\n' + s + '\n\n</div>'] : [];
+    }
+    return blockInner(n, ctx);
+  }
+  // リスト・引用の中を読む間は、揃えで囲まない
+  function noAlign(ctx, fn) { ctx.noAlign = (ctx.noAlign || 0) + 1; try { return fn(); } finally { ctx.noAlign--; } }
+  function blockInner(n, ctx) {
+    const t = n.tag;
     // EverPad のプレビューの部分
     if (hasCls(n, 'fm')) return [frontMatter(n)];
     if (hasCls(n, 'diagram') && n.attrs['data-src'] != null) { const src = attr(n, 'data-src'); const fe = fenceFor(src, '`'); return [fe + 'mermaid\n' + src + '\n' + fe]; }
@@ -270,9 +314,9 @@
     if (t === 'pre') return [codeBlock(n)];
     // GitHub のコード: <div class="highlight highlight-source-js"><pre>…</pre></div>(言語は外側の div にある)
     if (t === 'div') { const m = attr(n, 'class').match(/(?:^|\s)highlight-source-([A-Za-z0-9_+#.-]+)/), p = m && find(n, c => c.tag === 'pre'); if (p) return [codeBlock(p, m[1])]; }
-    if (t === 'ul' || t === 'ol') { const s = list(n, ctx, 0); return s ? [s] : []; }
-    if (t === 'li') { const s = item(n, ctx, 0, '- '); return s ? [s] : []; }
-    if (t === 'blockquote') { const s = join(children(n, ctx)); return s ? [quote(s.split('\n'))] : []; }
+    if (t === 'ul' || t === 'ol') { const s = noAlign(ctx, () => list(n, ctx, 0)); return s ? [s] : []; }
+    if (t === 'li') { const s = noAlign(ctx, () => item(n, ctx, 0, '- ')); return s ? [s] : []; }
+    if (t === 'blockquote') { const s = noAlign(ctx, () => join(children(n, ctx))); return s ? [quote(s.split('\n'))] : []; }
     if (t === 'table') { const s = table(n, ctx); return s ? [s] : []; }
     if (wordListItem(n)) { const s = emit(runs(n, {}, ctx), ctx).replace(/\n+/g, ' ').trim(); return s ? [{ item: '- ' + s, lv: wordLevel(n), body: s }] : []; }
     return children(n, ctx);
@@ -508,10 +552,12 @@
 
   /* tree → { md, images, atts }。opts.inline: プレビューの表のセルの編集欄(見出しやリストは作らず、段落や改行の区切りは
      セルの中の改行。書き込むときに <br> になる)。
+     opts.html: 中央揃え・右揃え(<div align>)、上付き・下付き(<sup>・<sub>)、添付の画像の幅(<img width>)を、メモに書ける HTML で残す
+     (Evernote からの取り込みで使う。貼り付けでは使わない)。
      images: 画像そのもの(data:)と Word・Excel の一時ファイル(file:)。atts: 添付の元のメモ [{ note, file }] */
   function toMarkdown(tree, opts) {
     // remote: リンクにしたインターネットの画像の URL。表のセルなどで ctx を写しても、同じ Set を使う(同じ画像を2回数えない)
-    const ctx = { images: [], atts: [], remote: new Set(), inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image' };
+    const ctx = { images: [], atts: [], remote: new Set(), inline: !!(opts && opts.inline), imageLabel: (opts && opts.imageLabel) || 'image', html: !!(opts && opts.html) };
     let md;
     if (ctx.inline) md = emit(runs(tree, {}, ctx), ctx).replace(/[ \t]*\n\s*/g, '\n').trim();
     else md = join(children(tree, ctx)).replace(/\n{3,}/g, '\n\n').trim();

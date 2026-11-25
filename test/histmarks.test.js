@@ -63,7 +63,8 @@ test('画面: プレビューの履歴で印を付け、変更箇所を見える
   assert.match(app, /return x\.getBoundingClientRect\(\)\.height - px\(cs\.paddingTop\) - px\(cs\.paddingBottom\) - px\(cs\.borderTopWidth\) - px\(cs\.borderBottomWidth\);/);
   assert.match(app, /const h = i < lo \? oldH\[i\] : oldH\[M - \(N - i\)\];\n\s+if \(h > 0\) x\.style\.containIntrinsicSize = 'auto ' \+ Math\.round\(h \* 100\) \/ 100 \+ 'px';/);
   // 一度読んだ添付の画像は、作り直したときに大きさを先に付ける(読み込むまで高さが 0 にならない)
-  assert.match(app, /const sz = attSizes\.get\(img\.dataset\.att\);\n\s+if \(sz\) \{ img\.width = sz\.w; img\.height = sz\.h; \}\n\s+else img\.addEventListener\('load', \(\) => \{ if \(img\.naturalWidth\) attSizes\.set\(img\.dataset\.att, \{ w: img\.naturalWidth, h: img\.naturalHeight \}\); \}, \{ once: true \}\);/);
+  // メモに書いた HTML の <img width>・<img height> は、覚えた大きさで上書きしない
+  assert.match(app, /const sz = attSizes\.get\(img\.dataset\.att\);\n\s+if \(sz && !img\.hasAttribute\('width'\) && !img\.hasAttribute\('height'\)\) \{ img\.width = sz\.w; img\.height = sz\.h; \}\n\s+else img\.addEventListener\('load', \(\) => \{ if \(img\.naturalWidth\) attSizes\.set\(img\.dataset\.att, \{ w: img\.naturalWidth, h: img\.naturalHeight \}\); \}, \{ once: true \}\);/);
   // 描き終えるまで毎回の描画で見えているかを確かめて動かし直す。この表示でのホイール・クリック・キー・タッチと、位置合わせ(syncApply)でやめる
   assert.match(app, /const evs = \['wheel', 'mousedown', 'keydown', 'touchstart'\];\n\s+evs\.forEach\(t => body\.addEventListener\(t, quit, \{ capture: true, passive: true \}\)\);/);
   assert.match(app, /if \(!shown\(\)\) target\.scrollIntoView\(\{ block: 'nearest' \}\);\n\s+requestAnimationFrame\(step\);/);

@@ -117,7 +117,14 @@ test('画像・リンク・危ないもの: タグは入れない。data: の画
   assert.strictEqual(md('<p><img src="https://e.com/b.png"></p>'), '[画像](https://e.com/b.png)');
   // javascript: などのリンクは文字だけ。script・style は捨てる。HTML のタグは文字として残さない
   assert.strictEqual(md('<p><a href="javascript:alert(1)">押す</a><script>alert(1)</script><style>p{}</style> <a href="mailto:a@b.jp">メール</a></p>'), '押す [メール](mailto:a@b.jp)');
-  assert.strictEqual(md('<p>&lt;b&gt;タグの文字&lt;/b&gt; <u>下線</u> <span style="color:red">赤</span></p>'), '<b>タグの文字</b> 下線 赤');
+  // 文字の <b> は、メモの中の HTML にならないよう \< にする(表示は <b> の文字のまま)
+  assert.strictEqual(md('<p>&lt;b&gt;タグの文字&lt;/b&gt; <u>下線</u> <span style="color:red">赤</span></p>'), '\\<b>タグの文字\\</b> 下線 赤');
+  assert.strictEqual(core.md('\\<b>タグの文字\\</b> 下線 赤').trim(), '<p>&lt;b&gt;タグの文字&lt;/b&gt; 下線 赤</p>');
+  // 文字の <div>・<table>・<!-- と文字参照(&copy;)も文字のまま。< の後が文字でなければ(1 < 2)そのまま
+  assert.strictEqual(md('<p>&lt;div&gt; と &lt;table&gt; と &lt;!-- x --&gt; と &amp;copy; と 1 &lt; 2</p>'), '\\<div> と \\<table> と \\<!-- x --> と \\&copy; と 1 < 2');
+  assert.strictEqual(core.md(md('<p>&lt;div&gt; と &lt;table&gt; と &amp;copy;</p>')).trim(), '<p>&lt;div&gt; と &lt;table&gt; と &amp;copy;</p>');
+  // コードの中はそのまま
+  assert.strictEqual(md('<p><code>&lt;div&gt;</code></p>'), '`<div>`');
   // 表示の文字が URL そのものなら URL だけ。リンクの文字の ] はエスケープ
   assert.strictEqual(md('<p><a href="https://e.com/x">https://e.com/x</a> <a href="https://e.com/y">a]b</a></p>'), 'https://e.com/x [a\\]b](https://e.com/y)');
   // 制御文字は捨てる
