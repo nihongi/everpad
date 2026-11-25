@@ -42,6 +42,29 @@ test('セルの編集欄に出して、そのまま書き戻すと同じ文に�
   assert.strictEqual(C.cellEscape(C.cellLines(once)), once);
 });
 
+test('セルの編集欄の「^^」だけは文字(\\^^)として書く。下のセルに ^^ と入れても、上のセルの中身は消えない', () => {
+  assert.strictEqual(C.cellEscape('^^'), BS + '^^');
+  assert.strictEqual(C.cellEscape(' ^^ '), ' ' + BS + '^^ ');
+  assert.strictEqual(C.cellEscape('^'), '^');
+  assert.strictEqual(C.cellEscape('a^^'), 'a^^');
+  assert.strictEqual(C.cellEscape('^^\n^^'), '^^<br>^^');
+  assert.strictEqual(C.cellEscape(BS + '^^'), BS + '^^');            // 自分で \ を付けたときは二重にしない
+  assert.strictEqual(C.cellLines(BS + '^^'), '^^');
+  assert.strictEqual(C.cellLines('^^'), '^^');
+  assert.strictEqual(C.cellEscape(C.cellLines(BS + '^^')), BS + '^^');
+  // 1文字ずつ打ったときと、閉じるときの書き込み(同じセルに何度も書く)
+  const T = '| 品目 |\n|---|\n| りんご |\n|  |';
+  let t = T;
+  for (const v of ['^', '^^', '^^']) t = C.tableEdit(t, 3, 0, 'cell', v).text;
+  assert.deepStrictEqual(t.split('\n').slice(2), ['| りんご |', '| ' + BS + '^^ |']);
+  const html = C.md(t);
+  assert.ok(!/rowspan/.test(html), html);
+  assert.match(html, /<td class="al-l">\^\^<\/td>/);
+  // 結合は、上のセルの「下のセルと結合」で今までどおり
+  const m = C.tableEdit(T, 2, 0, 'mergeDown');
+  assert.ok(m && /rowspan="2"/.test(C.md(m.text)), m && m.text);
+});
+
 test('セルの書き換え(tableEdit)で入れた改行は、プレビューと書き出しでセルの中の改行になる', () => {
   const T = '| 品目 | 産地 |\n|---|---|\n| みかん | 愛媛 |';
   const r = C.tableEdit(T, 2, 1, 'cell', '愛媛\n和歌山');

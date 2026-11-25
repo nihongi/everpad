@@ -1975,7 +1975,8 @@ function segSet(seg, v) {
   return a + v + b;
 }
 /* セルに書く文字: | をエスケープし、改行はセルの中の改行(<br>。GitHub と同じ書き方)にする。
-   行の終わりの \ は \\ にする(続く <br> をエスケープしないように) */
+   行の終わりの \ は \\ にする(続く <br> をエスケープしないように)。
+   「^^」だけなら \^^ にする(縦の結合の書き方にしない。結合すると、書き込み先が上のセルに変わって、その中身を消してしまう) */
 function cellEscape(v) {
   let out = '';
   const s = String(v).replace(/\r\n?/g, '\n');
@@ -1986,12 +1987,13 @@ function cellEscape(v) {
     else if (s[i] === '|') out += '\\|';
     else out += s[i];
   }
-  return out;
+  return out.trim() === '^^' ? out.replace('^^', '\\^^') : out;
 }
 /* セルの中身(元の文)を、プレビューのセルの編集欄に出す文にする: <br>(<br/>・<br /> も)を改行に、\| を | にする。
-   コード(`…`)の中の <br> は文字のまま。書き戻すときは cellEscape が、改行を <br> に、| を \| に戻す */
+   コード(`…`)の中の <br> は文字のまま。\^^ だけなら ^^。書き戻すときは cellEscape が、改行を <br> に、| を \| に、^^ だけなら \^^ に戻す */
 function cellLines(src) {
   const s = String(src);
+  if (s.trim() === '\\^^') return s.replace('\\^^', '^^');
   let out = '';
   for (let i = 0; i < s.length;) {
     const ch = s[i];
