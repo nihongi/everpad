@@ -106,8 +106,9 @@ test('検索中にプレビューで編集しても、検索し直したとき�
   // メモを書き換えると、2秒後に同じ検索語で検索し直す
   assert.match(app, /if \(S\.q\) scheduleSearch\(2000\);/);
   // 同じ検索語(欄の文字そのまま)で、プレビューの編集欄が開いているときは、表示を作り直さない
-  assert.match(app, /const keepPe = raw === hadRaw && !!pe\.box && S\.mode === 'preview';\n    const refreshView = \(\) => \{ if \(!keepPe\) refreshViewNow\(\); \};/);
-  const body = app.slice(app.indexOf('  async function runSearch() {'), app.indexOf('  let qTimer = null;'));
-  assert.ok(!/refreshViewNow\(\)/.test(body.replace('if (!keepPe) refreshViewNow();', '')), 'runSearch は keepPe を見て作り直す');
-  assert.match(app, /function refreshViewNow\(\) \{\n    if \(S\.mode === 'preview'\) setMode\('preview'\);/);
+  assert.match(app, /const keepPe = raw === hadRaw && !!pe\.box && S\.mode === 'preview';\n    const keepView = [^\n]+\n    const refreshView = \(\) => \{ if \(!keepPe && !keepView\) refreshViewNow\(\); \};/);
+  const body = app.slice(app.indexOf('  async function runSearch(opts) {'), app.indexOf('  let qTimer = null;'));
+  assert.ok(body.length > 0);
+  assert.ok(!/refreshViewNow\(\)/.test(body.replace('if (!keepPe && !keepView) refreshViewNow();', '')), 'runSearch は keepPe を見て作り直す');
+  assert.match(app, /function refreshViewNow\(\) \{\n    if \(S\.mode === 'preview'\) \{ const a = pvTopCapture\(\); setMode\('preview'\); pvTopApply\(a\); \}/);
 });

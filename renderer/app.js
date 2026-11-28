@@ -1265,8 +1265,26 @@
     ta.scrollTop = Math.max(0, y - ta.clientHeight / 3);
   }
 
+  /* 見えているプレビューを、同じメモのまま作り直す前に、上端の行を覚える(作り直したあと pvTopApply で同じ高さに戻す)。
+     スクロールの位置の数字だけを戻すと、作り直した直後は見えていないかたまりが仮の高さ(content-visibility)で上が縮むので、
+     ずっと先の文が出てしまう(タグ検索のままほかのアプリから戻ると、大きく飛んでいた) */
+  function pvTopCapture() {
+    const pv = $('preview');
+    if (pv.hidden || !pv.clientHeight || !cur() || pvShownId !== cur().id) return null;
+    const top = pv.scrollTop, h = pv.clientHeight;
+    const a = { line: yToLine(domAnchors(pv), top), offset: 0, edge: null, caretLine: -1, target: false };
+    if (pv.scrollHeight <= h + 2 || top <= 1) a.edge = 'top';
+    else if (top + h >= pv.scrollHeight - 2) a.edge = 'bottom';
+    return a;
+  }
+  function pvTopApply(a) {
+    if (!a || S.mode !== 'preview' || pe.box) return;
+    // いちばん下に合わせるときは、作り直しで足した高さ(pvHold)を外す(足したままだと、下に空きが出る)
+    if (a.edge === 'bottom') $('preview').querySelectorAll(':scope > .pv-hold').forEach(x => x.remove());
+    syncApply(a, true);
+  }
   function refreshViewNow() {
-    if (S.mode === 'preview') setMode('preview');
+    if (S.mode === 'preview') { const a = pvTopCapture(); setMode('preview'); pvTopApply(a); }
     else if (S.mode === 'history') renderHist();
   }
 
@@ -1408,7 +1426,9 @@
     }));
     paintResults(q, false, res, res.length, '', true);
   }
-  async function runSearch() {
+  /* opts.view === false: 検索結果の一覧だけを新しくして、開いているメモの表示は作り直さない(保存先を読み直したとき。
+     書き換えられた開いているメモは、読み直すときに表示し直していて、検索語は変わっていない) */
+  async function runSearch(opts) {
     // 欄の文字をそのまま parseQuery に渡す: 最後の tag:名前 の後ろに空白が無ければ、打っている途中として先頭の一致で探す
     const raw = $('q').value, q = raw.trim();
     const had = S.q, hadRaw = S.qRaw;
@@ -1424,7 +1444,8 @@
     /* 検索中にメモを書き換えると、2秒後に同じ検索語で検索し直す(commit)。そのときプレビューの編集欄が開いていれば、
        表示を作り直さない(作り直すと編集欄が閉じる)。強調は、編集欄を閉じて作り直すときに付く */
     const keepPe = raw === hadRaw && !!pe.box && S.mode === 'preview';
-    const refreshView = () => { if (!keepPe) refreshViewNow(); };
+    const keepView = !!opts && opts.view === false && raw === hadRaw;
+    const refreshView = () => { if (!keepPe && !keepView) refreshViewNow(); };
     if (!q) { if (had) refreshView(); return; }
 
     // tag:名前 があれば、そのタグをすべて持つメモだけを探す(tag: だけならタグを持つメモ、打っている途中ならその文字で始まるタグ)
@@ -5109,7 +5130,7 @@
       if (!(await ensureLoaded(next.id))) return;
       show(next.id);
     } else if (listChanged) renderList();
-    if (S.q) runSearch();
+    if (S.q) runSearch({ view: false });
   }
   const metaOf = r => (r ? { c: r.c, t: r.t, imported: r.imported || 0, base: r.base || 0, n: r.n, title: r.title, tags: r.tags || [], ro: !!r.ro } : {});
   /* 開いているメモを保存先から読み直して、表示し直す(スクロールの位置とカーソルはなるべく保つ) */
@@ -5122,10 +5143,11 @@
     fillNote(n, r);
     if (S.active !== id) return true;
     const ed = $('editor'), selS = ed.selectionStart, selE = ed.selectionEnd, top = ed.scrollTop, pvTop = $('preview').scrollTop;
+    const pvA = S.mode === 'preview' ? pvTopCapture() : null;   // プレビューは、上端の行で合わせる
     show(id, { pos: false });
     ed.setSelectionRange(Math.min(selS, ed.value.length), Math.min(selE, ed.value.length));
     ed.scrollTop = top;
-    $('preview').scrollTop = pvTop;
+    if (pvA) pvTopApply(pvA); else $('preview').scrollTop = pvTop;
     return true;
   }
   /* 書き足そうとしたメモが、ほかの EverPad で書き換えられていた(kind: 'changed')・削除されていた('gone')。
