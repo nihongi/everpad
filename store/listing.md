@@ -3,7 +3,7 @@
 Partner Center の「Store 登録情報」に、言語ごとに貼り付けます。文字数の上限は Partner Center の画面の表示に従ってください(下の上限は目安です)。
 価格(無料かどうか)は書いていません。無料にする場合は、説明文の最後の段落に「無料で使えます」などを足せます。
 
-Store に出ている版: 0.53.2(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
+Store に出ている版: 0.53.3(「この版の新機能」は、この版の内容です。Store の更新を見送った版があるときは、次の更新の「この版の新機能」に、この版より後の変更をまとめて書きます)
 
 ---
 
@@ -64,10 +64,8 @@ EverPad はオープンソース(MIT ライセンス)です。ソースコード
 
 ### この版の新機能(1,500 文字まで)
 
-・Web ページから貼り付けた文書の中の <div> や &copy; のような文字を、文字のまま残すようにしました。HTML として表示され、メモの表示が崩れることがありました。
-・プレビューからコピーして貼り付けたとき、リンクになっている添付の画像が文字で見えていたのを、画像として表示するようにしました。
-・メモに HTML で大きさを書いた画像(<img width="…">)が、もう一度表示したときに元の大きさになっていたのを直しました。
-・HTML で書いた添付の画像(<img src="attach:…">)も、編集画面の下の添付の一覧に出し、添付を削除したときに本文から消すようにしました。
+・検索欄に検索語(タグ検索も)が入っているとき、ほかのアプリから戻ると、開いているメモのプレビューが、読んでいた場所から大きく飛んでいたのを直しました。
+・同じメモのままプレビューを表示し直すとき(検索語を変えたときや、保存先を共有しているほかの EverPad で書き換えたメモを読み直したとき)も、いちばん上に見えていた行を、そのままいちばん上に出すようにしました。
 
 ### 製品の機能(20 項目まで、各 200 文字まで)
 
@@ -166,10 +164,8 @@ EverPad is open source (MIT License). The source code is at https://github.com/n
 
 ### What's new in this version (up to 1,500 characters)
 
-• Text such as <div> or &copy; in formatted text pasted from a web page is now kept as text. It was shown as HTML, which could break the layout of the note.
-• When you copy from the preview and paste, an attached image inside a link is now shown as an image instead of as text.
-• An image written in a note as HTML with a size (<img width="…">) no longer changes to its full size when the note is shown again.
-• Attached images written as HTML (<img src="attach:…">) now appear in the attachment list under the editor, and are removed from the text when the attachment is deleted.
+• While a search (including a tag search) was entered, switching to another app and back made the preview of the open note jump far from where you were reading. The preview now stays where it was.
+• When the preview is redrawn for the same note (for example when you change the search words, or when the note was changed in another EverPad that shares the data folder and is read again), the line at the top of the preview now stays at the top.
 
 ### Product features (up to 20, up to 200 characters each)
 
